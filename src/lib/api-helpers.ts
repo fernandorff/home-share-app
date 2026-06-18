@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { headers } from 'next/headers'
+import { cookies } from 'next/headers'
 import { toCents, fromCents } from '@/lib/currency'
-import { verifySession, SessionPayload, bearerToken } from '@/lib/auth'
+import { verifySession, SessionPayload, SESSION_COOKIE, GROUP_COOKIE } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export function handleApiError(error: unknown, defaultMsg: string): NextResponse {
@@ -15,8 +15,8 @@ export type SessionCheck =
   | { ok: false; response: NextResponse }
 
 export async function requireSession(): Promise<SessionCheck> {
-  const h = await headers()
-  const token = bearerToken(h.get('authorization'))
+  const cookieStore = await cookies()
+  const token = cookieStore.get(SESSION_COOKIE)?.value
   const session = token ? await verifySession(token) : null
   if (!session) {
     return {
@@ -32,16 +32,15 @@ export type GroupCheck =
   | { ok: false; response: NextResponse }
 
 /**
- * Resolves the active group for the request: the `X-Group-Id` header is a
- * preference, membership in the database is the authority. Falls back to the
- * user's first group.
+ * Resolves the active group for the request: the group cookie is a preference,
+ * membership in the database is the authority. Falls back to the user's first group.
  */
 export async function requireActiveGroup(): Promise<GroupCheck> {
   const check = await requireSession()
   if (!check.ok) return check
 
-  const h = await headers()
-  const preferredGroupId = Number(h.get('x-group-id')) || null
+  const cookieStore = await cookies()
+  const preferredGroupId = Number(cookieStore.get(GROUP_COOKIE)?.value) || null
 
   const memberships = await prisma.groupMember.findMany({
     where: { userId: check.session.userId },

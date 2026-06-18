@@ -1,10 +1,9 @@
 import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 
-// Stateless Bearer-token API: the client stores the JWT and sends it as
-// `Authorization: Bearer <token>`. No cookies. The active group travels in
-// the `X-Group-Id` header (see api-helpers.requireActiveGroup).
-export const TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days
+export const SESSION_COOKIE = 'bolitas_session'
+export const GROUP_COOKIE = 'bolitas_group'
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days
 
 export interface SessionPayload {
   userId: number
@@ -35,7 +34,7 @@ export async function signSession(payload: SessionPayload): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime(`${TOKEN_MAX_AGE_SECONDS}s`)
+    .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
     .sign(getSecret())
 }
 
@@ -55,9 +54,23 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
   }
 }
 
-/** Parse a `Bearer <token>` Authorization header value. Returns null if absent/malformed. */
-export function bearerToken(authHeader: string | null | undefined): string | null {
-  if (!authHeader) return null
-  const [scheme, token] = authHeader.split(' ')
-  return scheme === 'Bearer' && token ? token : null
+export function sessionCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  }
+}
+
+// Group cookie is a UI preference only — every request re-validates membership.
+export function groupCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  }
 }

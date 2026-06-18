@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { groupService } from '@/services/group.service'
 import { handleApiError, requireSession } from '@/lib/api-helpers'
+import { GROUP_COOKIE, groupCookieOptions } from '@/lib/auth'
 import { isValidJoinCodeFormat, normalizeJoinCode } from '@/lib/join-code'
 
 export async function POST(request: Request) {
@@ -19,9 +20,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error }, { status: 404 })
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       group: { id: result.group.id, publicId: result.group.publicId, name: result.group.name },
     })
+    response.cookies.set(GROUP_COOKIE, String(result.group.id), groupCookieOptions())
+    return response
   } catch (error) {
     return handleApiError(error, 'Erro ao entrar na casa')
   }

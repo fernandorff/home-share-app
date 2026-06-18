@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { authService } from '@/services/auth.service'
 import { handleApiError } from '@/lib/api-helpers'
-import { signSession } from '@/lib/auth'
+import { signSession, sessionCookieOptions, SESSION_COOKIE } from '@/lib/auth'
 
 /** First-access flow: legacy users (password NULL) define their password here. */
 export async function POST(request: Request) {
@@ -29,7 +29,9 @@ export async function POST(request: Request) {
       name: result.user.name,
     })
 
-    return NextResponse.json({ token, user: result.user })
+    const response = NextResponse.json({ user: result.user })
+    response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions())
+    return response
   } catch (error) {
     return handleApiError(error, 'Erro ao definir senha')
   }

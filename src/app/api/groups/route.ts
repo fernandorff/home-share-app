@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { groupService } from '@/services/group.service'
 import { handleApiError, requireSession } from '@/lib/api-helpers'
+import { GROUP_COOKIE, groupCookieOptions } from '@/lib/auth'
 
 export async function GET() {
   try {
@@ -27,11 +28,12 @@ export async function POST(request: Request) {
 
     const group = await groupService.create(check.session.userId, name)
 
-    // Client stores the new group id and sends it as X-Group-Id on subsequent requests.
-    return NextResponse.json(
+    const response = NextResponse.json(
       { group: { id: group.id, publicId: group.publicId, name: group.name, joinCode: group.joinCode } },
       { status: 201 }
     )
+    response.cookies.set(GROUP_COOKIE, String(group.id), groupCookieOptions())
+    return response
   } catch (error) {
     return handleApiError(error, 'Erro ao criar casa')
   }
