@@ -1,0 +1,85 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+/src/generated/prisma
+
+# IDE
+.idea/
+
+# misc files
+nul
+
+# personal data
+despesas-*.csv
+import-*.csv
+*.csv
+
+# screenshots
+screenshots/
+screenshot-*.png
+ss-*.png
+
+# claude
+.claude/
+.env.production
+
+# artifacts
+.playwright-mcp/
+desktop-home.png
+mobile-home.png
+v2-*.png
+tmp-snap.md
+
+# vercel cli token (local, nunca commitar)
+.vercel-token
+
+# neon api key (local, nunca commitar)
+.neon-key
+
+# secrets/temp locais (nunca commitar)
+.vercel-token
+neon-*.tmp
+neon-*.tmp.json
+neon-dev-url.tmp
+
+# manter exemplo
+!.env.example
