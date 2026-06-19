@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Home Share — Retro Editorial Mono (receipt / ledger)
+   Design tokens. Everything reads like a printed extrato:
+   monospaced, tabular numbers, dotted/dashed rules, one stamp accent.
+   ============================================================ */
+@theme {
+  /* Fonts — wired to next/font CSS vars set on <html> */
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: var(--font-space-mono), ui-monospace, monospace;
+
+  /* Paper & ink */
+  --color-paper: #f2f0e9;
+  --color-card: #fbfaf4;
+  --color-panel: #e9e4d6;
+  --color-ink: #16140f;
+  --color-ink-soft: #54503f;
+  --color-faint: #908a78;
+  --color-rule: #cbc4b1;
+
+  /* Single stamp accent + semantic money colors */
+  --color-stamp: #d6452c;
+  --color-stamp-soft: #f7e6e1;
+  --color-credit: #2f6b4f; /* a receber */
+  --color-debt: #c0392b;   /* deve */
+
+  /* Receipts are crisp — keep radii tiny */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  /* Default any border to the ledger rule color */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-rule);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background: var(--color-stamp);
+    color: var(--color-paper);
+  }
+
+  /* Inputs inherit the monospace ledger look */
+  input,
+  textarea,
+  select,
+  button {
+    font-family: inherit;
+  }
+}
+
+@layer utilities {
+  /* Tabular numbers so money columns align like a printout */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .rule-dotted {
+    border-bottom: 1px dotted var(--color-rule);
+  }
+  .rule-dashed {
+    border-bottom: 1px dashed var(--color-rule);
+  }
+
+  /* Faint engraved paper texture behind big surfaces */
+  .paper-grain {
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent 27px,
+      rgba(22, 20, 15, 0.025) 27px,
+      rgba(22, 20, 15, 0.025) 28px
+    );
+  }
+
+  /* Uppercase tracked label, like a column header on a receipt */
+  .label-mono {
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+}
+
+/* ============================================================
+   Motion — staggered entrances, modal/menu/toast transitions,
+   skeleton shimmer. All guarded by prefers-reduced-motion.
+   ============================================================ */
+@keyframes hs-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes hs-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hs-pop {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hs-sheet {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hs-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@layer utilities {
+  /* Entrance helpers — set style={{animationDelay}} per item to stagger. */
+  .reveal {
+    animation: hs-rise 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .reveal-fade {
+    animation: hs-fade 0.35s ease both;
+  }
+  .anim-overlay {
+    animation: hs-fade 0.2s ease both;
+  }
+  .anim-pop {
+    animation: hs-pop 0.2s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .anim-sheet {
+    animation: hs-sheet 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .anim-toast {
+    animation: hs-sheet 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  /* Skeleton placeholder shimmer */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-panel) 25%,
+      #e0dccb 37%,
+      var(--color-panel) 63%
+    );
+    background-size: 200% 100%;
+    animation: hs-shimmer 1.4s linear infinite;
+    border-radius: var(--radius-md);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-fade,
+  .anim-overlay,
+  .anim-pop,
+  .anim-sheet,
+  .anim-toast,
+  .skeleton {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Home Share · Glass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  /* ============================ TOKENS ============================ */
+  :root {
+    --base: #0A0A1A;
+    --indigo: #4F46E5;
+    --magenta: #DB2777;
+    --teal: #14B8A6;
+    --violet: #6D28D9;
+
+    --fernando: #2DD4BF;   /* teal-glow */
+    --tatiana: #F472B6;    /* magenta-glow */
+
+    --glass: rgba(255, 255, 255, 0.08);
+    --glass-2: rgba(255, 255, 255, 0.12);
+    --glass-strong: rgba(255, 255, 255, 0.16);
+    --stroke: rgba(255, 255, 255, 0.18);
+    --stroke-soft: rgba(255, 255, 255, 0.10);
+
+    --text: rgba(255, 255, 255, 0.96);
+    --text-2: rgba(255, 255, 255, 0.66);
+    --text-3: rgba(255, 255, 255, 0.42);
+
+    --pos: #34D399;
+    --neg: #FB7185;
+
+    --r-lg: 26px;
+    --r-md: 18px;
+    --r-sm: 12px;
+
+    --shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.7), 0 2px 0 0 rgba(255,255,255,0.06) inset;
+    --glow-teal: 0 0 40px -6px rgba(45, 212, 191, 0.55);
+    --glow-mag: 0 0 40px -6px rgba(244, 114, 182, 0.55);
+
+    --fs-1: clamp(2.6rem, 4.4vw, 4.2rem);
+    --fs-2: clamp(1.7rem, 2.4vw, 2.4rem);
+    --fs-3: 1.28rem;
+    --fs-body: 0.95rem;
+    --fs-sm: 0.82rem;
+    --fs-xs: 0.72rem;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Manrope', system-ui, sans-serif;
+    background: var(--base);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-size: var(--fs-body);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    letter-spacing: 0.1px;
+  }
+
+  h1, h2, h3, .display { font-family: 'Unbounded', sans-serif; letter-spacing: -0.02em; }
+
+  /* ============================ LIVING MESH BG ============================ */
+  .mesh { position: fixed; inset: -20vh -20vw; z-index: 0; filter: blur(70px); pointer-events: none; }
+  .blob { position: absolute; border-radius: 50%; opacity: 0.62; mix-blend-mode: screen; }
+  .b1 { width: 46vw; height: 46vw; background: var(--indigo);  top: -6%; left: -4%;  animation: drift1 26s ease-in-out infinite; }
+  .b2 { width: 42vw; height: 42vw; background: var(--magenta); top: 8%;  right: -8%; animation: drift2 30s ease-in-out infinite; }
+  .b3 { width: 50vw; height: 50vw; background: var(--teal);    bottom: -16%; left: 18%; animation: drift3 34s ease-in-out infinite; }
+  .b4 { width: 38vw; height: 38vw; background: var(--violet);  bottom: 2%; right: 6%;  animation: drift1 28s ease-in-out infinite reverse; }
+  .grain { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.05;
+    background-image: radial-gradient(rgba(255,255,255,0.8) 1px, transparent 1px);
+    background-size: 3px 3px; }
+
+  @keyframes drift1 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(6vw,4vh) scale(1.12);} }
+  @keyframes drift2 { 0%,100%{transform:translate(0,0) scale(1.05);} 50%{transform:translate(-5vw,6vh) scale(0.92);} }
+  @keyframes drift3 { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(4vw,-5vh) scale(1.1);} }
+
+  /* ============================ APP SHELL ============================ */
+  .app { position: relative; z-index: 2; display: grid; grid-template-columns: 256px 1fr; min-height: 100vh; }
+  .app.no-shell { grid-template-columns: 1fr; }
+  .app.no-shell .sidebar, .app.no-shell .topbar { display: none; }
+
+  /* Sidebar */
+  .sidebar {
+    margin: 16px 0 16px 16px;
+    border-radius: var(--r-lg);
+    background: var(--glass);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--stroke);
+    box-shadow: var(--shadow);
+    padding: 22px 18px;
+    display: flex; flex-direction: column; gap: 6px;
+    position: sticky; top: 16px; height: calc(100vh - 32px);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; padding: 6px 8px 18px; }
+  .brand-orbs { display: flex; }
+  .brand-orbs .orb { width: 17px; height: 17px; margin-left: -6px; }
+  .brand-name { font-family: 'Unbounded'; font-weight: 700; font-size: 1.02rem; line-height: 1.05; }
+  .brand-name small { display:block; font-family:'Manrope'; font-weight:500; font-size: var(--fs-xs); color: var(--text-3); letter-spacing: 0.16em; text-transform: uppercase; }
+
+  .nav-label { font-size: var(--fs-xs); letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-3); padding: 14px 12px 6px; }
+  .nav-btn {
+    display: flex; align-items: center; gap: 13px; width: 100%;
+    padding: 11px 13px; border-radius: var(--r-sm); border: 1px solid transparent;
+    background: transparent; color: var(--text-2); cursor: pointer;
+    font-family: 'Manrope'; font-size: var(--fs-body); font-weight: 600; text-align: left;
+    transition: all 0.25s cubic-bezier(.2,.7,.2,1);
+  }
+  .nav-btn svg { width: 19px; height: 19px; flex: none; opacity: 0.8; }
+  .nav-btn:hover { background: var(--glass); color: var(--text); transform: translateX(3px); }
+  .nav-btn.active {
+    background: linear-gradient(120deg, rgba(45,212,191,0.18), rgba(244,114,182,0.16));
+    border-color: var(--stroke); color: var(--text);
+    box-shadow: 0 0 24px -8px rgba(45,212,191,0.4);
+  }
+  .nav-btn.active svg { opacity: 1; }
+  .sidebar-foot { margin-top: auto; padding-top: 14px; }
+
+  /* Topbar */
+  .main { padding: 16px 24px 40px; min-width: 0; }
+  .topbar {
+    display: flex; align-items: center; gap: 16px;
+    background: var(--glass); backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--stroke); border-radius: var(--r-lg);
+    box-shadow: var(--shadow); padding: 12px 18px; margin-bottom: 22px;
+  }
+  .house-pick { position: relative; }
+  .house-btn {
+    display: flex; align-items: center; gap: 11px; padding: 8px 14px;
+    background: var(--glass-2); border: 1px solid var(--stroke); border-radius: var(--r-md);
+    color: var(--text); cursor: pointer; font-family: 'Manrope'; font-weight: 700; font-size: var(--fs-body);
+    transition: all 0.2s;
+  }
+  .house-btn:hover { background: var(--glass-strong); }
+  .house-btn svg { width: 15px; height: 15px; opacity: 0.7; transition: transform 0.2s; }
+  .house-pick.open .house-btn svg { transform: rotate(180deg); }
+  .dropdown {
+    position: absolute; top: calc(100% + 8px); left: 0; min-width: 230px; z-index: 30;
+    background: rgba(20,18,40,0.86); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+    border: 1px solid var(--stroke); border-radius: var(--r-md); box-shadow: var(--shadow);
+    padding: 8px; opacity: 0; transform: translateY(-6px) scale(.98); pointer-events: none; transition: all 0.2s;
+  }
+  .house-pick.open .dropdown { opacity: 1; transform: none; pointer-events: auto; }
+  .dd-item { display:flex; align-items:center; gap:11px; padding: 10px 12px; border-radius: var(--r-sm); cursor:pointer; color: var(--text-2); font-weight:600; transition: background .18s; }
+  .dd-item:hover { background: var(--glass-2); color: var(--text); }
+  .dd-item.sel { color: var(--text); }
+  .dd-item.sel::after { content:''; margin-left:auto; width:7px; height:7px; border-radius:50%; background: var(--teal); box-shadow: var(--glow-teal); }
+  .dd-sep { height:1px; background: var(--stroke-soft); margin:6px 4px; }
+
+  .topbar-spacer { flex: 1; }
+  .code-chip {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 999px;
+    background: linear-gradient(120deg, rgba(244,114,182,0.2), rgba(79,70,229,0.2));
+    border: 1px solid var(--stroke); font-family:'Unbounded'; font-weight:600; font-size: var(--fs-sm); letter-spacing: 0.14em;
+  }
+  .code-chip svg { width: 13px; height: 13px; opacity: 0.7; }
+  .user-pill { display:flex; align-items:center; gap:10px; padding: 6px 8px 6px 6px; background: var(--glass-2); border:1px solid var(--stroke); border-radius:999px; }
+  .user-pill .name { font-weight:700; font-size: var(--fs-sm); }
+  .user-pill .role { font-size: var(--fs-xs); color: var(--text-3); }
+  .icon-btn { display:grid; place-items:center; width:38px; height:38px; border-radius: var(--r-sm); background: var(--glass-2); border:1px solid var(--stroke); color: var(--text-2); cursor:pointer; transition: all .2s; }
+  .icon-btn:hover { background: var(--glass-strong); color: var(--text); }
+  .icon-btn svg { width:17px; height:17px; }
+
+  /* ============================ ORBS / BOLITAS ============================ */
+  .orb { border-radius: 50%; flex: none; position: relative; }
+  .orb.fer { background: radial-gradient(circle at 32% 28%, #7af0e2, var(--fernando) 60%, #0d9488);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.25) inset, var(--glow-teal); }
+  .orb.tat { background: radial-gradient(circle at 32% 28%, #ffc4e3, var(--tatiana) 60%, #be185d);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.25) inset, var(--glow-mag); }
+  .orb.sm { width: 11px; height: 11px; }
+  .orb.md { width: 26px; height: 26px; }
+  .orb.lg { width: 46px; height: 46px; }
+  .orb.xl { width: 78px; height: 78px; }
+  .who { display:inline-flex; align-items:center; gap:9px; }
+  .who .lbl { font-weight: 600; }
+
+  /* ============================ GLASS CARD ============================ */
+  .card {
+    background: var(--glass); backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--stroke); border-radius: var(--r-lg); box-shadow: var(--shadow);
+    position: relative; overflow: hidden;
+  }
+  .card::before { content:''; position:absolute; inset:0 0 auto 0; height:1px; background: linear-gradient(90deg,transparent, rgba(255,255,255,0.4), transparent); }
+  .card-pad { padding: 24px 26px; }
+
+  /* ============================ SCREEN SWITCH ============================ */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* page header */
+  .page-head { display:flex; align-items:flex-end; justify-content:space-between; gap: 20px; margin-bottom: 22px; flex-wrap: wrap; }
+  .page-head .eyebrow { font-size: var(--fs-xs); letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
+  .page-head h1 { font-size: var(--fs-2); font-weight: 700; }
+  .page-head p { color: var(--text-2); margin-top: 6px; max-width: 52ch; }
+  .head-actions { display:flex; gap:10px; flex-wrap: wrap; }
+
+  /* ============================ BUTTONS ============================ */
+  .btn { display:inline-flex; align-items:center; gap:9px; padding: 11px 18px; border-radius: var(--r-md);
+    font-family:'Manrope'; font-weight: 700; font-size: var(--fs-sm); cursor: pointer; border:1px solid var(--stroke);
+    background: var(--glass-2); color: var(--text); transition: all .22s cubic-bezier(.2,.7,.2,1); }
+  .btn svg { width:16px; height:16px; }
+  .btn:hover { background: var(--glass-strong); transform: translateY(-1px); }
+  .btn.primary {
+    background: linear-gradient(120deg, var(--teal), var(--indigo) 60%, var(--magenta));
+    border-color: transparent; color: #fff; box-shadow: 0 10px 30px -10px rgba(20,184,166,0.6);
+  }
+  .btn.primary:hover { box-shadow: 0 14px 38px -10px rgba(219,39,119,0.6); }
+  .btn.danger { color: var(--neg); border-color: rgba(251,113,133,0.35); background: rgba(251,113,133,0.1); }
+  .btn.danger:hover { background: rgba(251,113,133,0.18); }
+  .btn.ghost { background: transparent; }
+  .btn.sm { padding: 8px 13px; font-size: var(--fs-xs); }
+
+  /* ============================ TABLE ============================ */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 680px; }
+  thead th { text-align: left; font-size: var(--fs-xs); letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-3); font-weight: 700; padding: 0 14px 14px; cursor: pointer; user-select: none; white-space: nowrap; }
+  thead th .sort { display:inline-block; margin-left:6px; opacity:0.6; font-size:0.7em; }
+  tbody td { padding: 14px; border-top: 1px solid var(--stroke-soft); vertical-align: middle; }
+  tbody tr { transition: background .18s; }
+  tbody tr:hover { background: rgba(255,255,255,0.05); }
+  tbody tr.sel { background: rgba(45,212,191,0.10); }
+  .amt { font-family:'Unbounded'; font-weight: 500; white-space: nowrap; }
+  td.right, th.right { text-align: right; }
+  .tag { display:inline-flex; align-items:center; gap:7px; padding:4px 11px; border-radius:999px; background: var(--glass-2); border:1px solid var(--stroke-soft); font-size: var(--fs-xs); font-weight:600; }
+  .tag .dot { width:7px; height:7px; border-radius:50%; }
+  .pf-credito .dot{background:var(--teal);} .pf-pix .dot{background:var(--magenta);}
+  .pf-dinheiro .dot{background:#FBBF24;} .pf-debito .dot{background:var(--indigo);}
+
+  /* checkbox */
+  .chk { appearance:none; width:18px; height:18px; border-radius:6px; border:1.5px solid var(--stroke); background: var(--glass-2); cursor:pointer; position:relative; transition: all .18s; flex:none; }
+  .chk:checked { background: linear-gradient(120deg,var(--teal),var(--indigo)); border-color: transparent; }
+  .chk:checked::after { content:''; position:absolute; left:5.5px; top:2px; width:4px; height:9px; border:solid #fff; border-width:0 2px 2px 0; transform: rotate(45deg); }
+
+  /* toggle pill (segmented) */
+  .seg { display:inline-flex; background: var(--glass-2); border:1px solid var(--stroke); border-radius:999px; padding:4px; gap:4px; }
+  .seg button { border:none; background:transparent; color: var(--text-2); font-family:'Manrope'; font-weight:700; font-size: var(--fs-sm); padding: 8px 16px; border-radius:999px; cursor:pointer; transition: all .2s; }
+  .seg button.on { background: linear-gradient(120deg, rgba(45,212,191,0.3), rgba(244,114,182,0.3)); color: var(--text); box-shadow: 0 0 18px -6px rgba(45,212,191,0.5); }
+
+  /* bulk bar */
+  .bulkbar { display:none; align-items:center; gap:14px; padding: 12px 18px; margin-bottom: 14px; border-radius: var(--r-md);
+    background: rgba(244,114,182,0.12); border:1px solid rgba(244,114,182,0.3); }
+  .bulkbar.show { display:flex; }
+
+  /* pagination */
+  .pager { display:flex; align-items:center; justify-content:space-between; gap:14px; padding: 18px 14px 4px; flex-wrap: wrap; color: var(--text-2); font-size: var(--fs-sm); }
+  .pager .pages { display:flex; gap:6px; }
+  .pg { min-width:34px; height:34px; padding:0 9px; display:grid; place-items:center; border-radius: var(--r-sm); border:1px solid var(--stroke); background: var(--glass-2); color: var(--text-2); cursor:pointer; font-weight:700; font-size: var(--fs-sm); transition: all .18s; }
+  .pg:hover { background: var(--glass-strong); color: var(--text); }
+  .pg.on { background: linear-gradient(120deg,var(--teal),var(--indigo)); border-color:transparent; color:#fff; }
+
+  /* ============================ FORMS ============================ */
+  .field { margin-bottom: 16px; }
+  .field label { display:block; font-size: var(--fs-sm); font-weight:700; color: var(--text-2); margin-bottom: 8px; }
+  .input, select.input, textarea.input {
+    width:100%; padding: 12px 14px; border-radius: var(--r-sm); background: rgba(10,10,26,0.4);
+    border:1px solid var(--stroke); color: var(--text); font-family:'Manrope'; font-size: var(--fs-body); transition: all .2s;
+  }
+  textarea.input { resize: vertical; min-height: 78px; }
+  .input:focus, select.input:focus, textarea.input:focus { outline:none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(45,212,191,0.18); background: rgba(10,10,26,0.6); }
+  .input::placeholder { color: var(--text-3); }
+  select.input { appearance:none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-opacity='0.5' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position: right 14px center; padding-right: 38px; }
+  select.input option { background: #14122a; color: var(--text); }
+  .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+
+  /* ============================ MODAL ============================ */
+  .overlay { position: fixed; inset:0; z-index: 60; background: rgba(5,4,15,0.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    display:none; align-items:flex-start; justify-content:flex-end; }
+  .overlay.show { display:flex; animation: fade .25s ease; }
+  @keyframes fade { from{opacity:0;} to{opacity:1;} }
+  .panel {
+    width: min(480px, 94vw); height: 100vh; overflow-y:auto;
+    background: rgba(18,16,38,0.72); backdrop-filter: blur(26px) saturate(150%); -webkit-backdrop-filter: blur(26px) saturate(150%);
+    border-left:1px solid var(--stroke); box-shadow: -30px 0 80px -20px rgba(0,0,0,0.8);
+    padding: 26px 28px 40px; animation: slidein .32s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes slidein { from{transform:translateX(40px); opacity:0;} to{transform:none; opacity:1;} }
+  .panel-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom: 24px; }
+  .panel-head h2 { font-size: var(--fs-3); font-weight:700; }
+  .panel-head p { color: var(--text-2); font-size: var(--fs-sm); margin-top:4px; }
+  .x-btn { width:36px;height:36px;border-radius:50%; background: var(--glass-2); border:1px solid var(--stroke); color:var(--text-2); cursor:pointer; display:grid; place-items:center; transition: all .2s; }
+  .x-btn:hover{ background: var(--glass-strong); color:var(--text); transform: rotate(90deg); }
+
+  /* split rows */
+  .split-row { display:flex; align-items:center; gap:12px; padding:11px 14px; border-radius: var(--r-sm); background: var(--glass); border:1px solid var(--stroke-soft); margin-bottom:10px; }
+  .split-row .who { flex:1; }
+  .split-row .input { width: 130px; text-align:right; }
+  .sum-hint { display:flex; align-items:center; justify-content:space-between; padding: 12px 14px; border-radius: var(--r-sm); font-weight:700; font-size: var(--fs-sm); margin-top:4px; }
+  .sum-hint.ok { background: rgba(52,211,153,0.12); border:1px solid rgba(52,211,153,0.3); color: var(--pos); }
+  .sum-hint.bad { background: rgba(251,113,133,0.12); border:1px solid rgba(251,113,133,0.3); color: var(--neg); }
+
+  /* ============================ AUTH ============================ */
+  .auth-wrap { min-height: 100vh; display:grid; place-items:center; padding: 24px; }
+  .auth-card { width: min(440px, 96vw); }
+  .auth-logo { display:flex; align-items:center; gap:14px; justify-content:center; margin-bottom: 22px; }
+  .auth-logo .brand-name { font-size: 1.3rem; text-align:left; }
+  .tabs { display:flex; gap:6px; background: var(--glass-2); border:1px solid var(--stroke); border-radius:999px; padding:5px; margin-bottom: 26px; }
+  .tabs button { flex:1; border:none; background:transparent; color:var(--text-2); font-family:'Manrope'; font-weight:700; font-size: var(--fs-sm); padding:10px; border-radius:999px; cursor:pointer; transition: all .2s; }
+  .tabs button.on { background: linear-gradient(120deg, rgba(45,212,191,0.3), rgba(244,114,182,0.3)); color:var(--text); }
+  .auth-form { display:none; } .auth-form.on { display:block; animation: fade .3s ease; }
+  .auth-note { font-size: var(--fs-sm); color: var(--text-2); text-align:center; margin-top:18px; }
+  .legacy-banner { padding: 12px 14px; border-radius: var(--r-sm); background: rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.3); font-size: var(--fs-sm); color:#FDE68A; margin-bottom: 18px; }
+
+  /* ============================ ONBOARDING ============================ */
+  .onboard-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
+  .onboard-card { padding: 30px 28px; text-align:center; cursor:pointer; transition: all .25s; }
+  .onboard-card:hover { transform: translateY(-4px); box-shadow: 0 30px 70px -20px rgba(0,0,0,0.7), var(--glow-teal); }
+  .onboard-card .ic { width:60px;height:60px;border-radius: var(--r-md); margin:0 auto 16px; display:grid; place-items:center;
+    background: linear-gradient(120deg, rgba(45,212,191,0.25), rgba(244,114,182,0.22)); border:1px solid var(--stroke); }
+  .onboard-card .ic svg { width:28px;height:28px; }
+  .onboard-card h3 { font-size: var(--fs-3); margin-bottom:8px; }
+  .onboard-card p { color: var(--text-2); font-size: var(--fs-sm); }
+  .code-inputs { display:flex; gap:8px; justify-content:center; margin: 18px 0; }
+  .code-inputs input { width: 46px; height: 56px; text-align:center; font-family:'Unbounded'; font-size:1.3rem; font-weight:600;
+    border-radius: var(--r-sm); background: rgba(10,10,26,0.5); border:1px solid var(--stroke); color:var(--text); }
+  .code-inputs input:focus { outline:none; border-color: var(--magenta); box-shadow: 0 0 0 3px rgba(219,39,119,0.2); }
+
+  /* ============================ BALANCES ============================ */
+  .bal-hero { padding: 0; position: relative; }
+  .bal-hero .glow-band { position:absolute; inset:0; background: radial-gradient(120% 90% at 30% 0%, rgba(45,212,191,0.22), transparent 60%), radial-gradient(120% 90% at 80% 100%, rgba(244,114,182,0.22), transparent 60%); pointer-events:none; }
+  .bal-top { display:flex; align-items:center; justify-content:space-between; gap:20px; padding: 26px 28px 18px; flex-wrap:wrap; position:relative; }
+  .bal-total .k { font-size: var(--fs-xs); letter-spacing:0.2em; text-transform:uppercase; color: var(--text-3); }
+  .bal-total .v { font-family:'Unbounded'; font-weight:700; font-size: clamp(2rem,3.4vw,3rem); margin-top:4px; }
+  .bal-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--stroke-soft); position:relative; }
+  .bal-cell { padding: 26px 28px; background: rgba(255,255,255,0.02); display:flex; align-items:center; gap:18px; }
+  .bal-cell .info { flex:1; min-width:0; }
+  .bal-cell .who-name { font-family:'Unbounded'; font-weight:600; font-size: var(--fs-3); }
+  .bal-cell .role { font-size: var(--fs-xs); color: var(--text-3); letter-spacing:0.1em; }
+  .bal-cell .figure { font-family:'Unbounded'; font-weight:700; font-size: 1.7rem; margin-top:10px; }
+  .bal-cell .pos { color: var(--pos); } .bal-cell .neg { color: var(--neg); }
+  .bal-cell .sub { font-size: var(--fs-xs); color: var(--text-2); margin-top:2px; letter-spacing:0.08em; text-transform:uppercase; }
+  .settle { display:flex; align-items:center; gap:16px; padding: 20px 28px; position:relative; border-top:1px solid var(--stroke-soft); }
+  .settle .arrow { display:flex; align-items:center; gap:8px; }
+  .settle .arrow svg { width:24px; height:24px; color: var(--text-3); }
+  .settle .txt { font-size: var(--fs-3); }
+  .settle .txt b { font-family:'Unbounded'; font-weight:600; }
+
+  /* ============================ SHOPPING ============================ */
+  .shop-add { display:flex; gap:10px; margin-bottom: 18px; }
+  .shop-add .input { flex:1; }
+  .shop-item { display:flex; align-items:center; gap:14px; padding: 14px 16px; border-radius: var(--r-md); background: var(--glass); border:1px solid var(--stroke-soft); margin-bottom:10px; transition: all .2s; }
+  .shop-item:hover { background: var(--glass-2); }
+  .shop-item .name { flex:1; font-weight:600; }
+  .shop-item.done .name { text-decoration: line-through; color: var(--text-3); }
+  .shop-item .by { font-size: var(--fs-xs); color: var(--text-3); }
+  .shop-sec-label { font-size: var(--fs-xs); letter-spacing:0.16em; text-transform:uppercase; color: var(--text-3); margin: 18px 4px 12px; }
+
+  /* ============================ PLATFORMS ============================ */
+  .pf-list { display:grid; gap: 12px; }
+  .pf-row { display:flex; align-items:center; gap:16px; padding: 16px 20px; border-radius: var(--r-md); background: var(--glass); border:1px solid var(--stroke-soft); transition: all .2s; }
+  .pf-row:hover { background: var(--glass-2); transform: translateX(3px); }
+  .pf-icon { width:42px;height:42px;border-radius: var(--r-sm); display:grid;place-items:center; border:1px solid var(--stroke); }
+  .pf-row .pf-name { font-weight:700; font-size: var(--fs-3); }
+  .pf-row .pf-count { font-size: var(--fs-sm); color: var(--text-2); }
+  .pf-row .pf-actions { margin-left:auto; display:flex; gap:8px; }
+  .stat-bar { height:6px; border-radius:999px; background: var(--glass-2); overflow:hidden; margin-top:6px; max-width: 220px; }
+  .stat-bar i { display:block; height:100%; border-radius:999px; }
+
+  /* per-person grouped view */
+  .group-block { margin-bottom: 22px; }
+  .group-head { display:flex; align-items:center; gap:12px; padding: 8px 4px 14px; }
+  .group-head .gtot { margin-left:auto; font-family:'Unbounded'; font-weight:600; }
+
+  /* ============================ REVEAL ANIM ============================ */
+  .reveal { opacity:0; transform: translateY(18px); animation: rise .7s cubic-bezier(.2,.8,.2,1) forwards; }
+  @keyframes rise { to { opacity:1; transform:none; } }
+  .screen.active .reveal:nth-child(1){animation-delay:.04s;}
+  .screen.active .reveal:nth-child(2){animation-delay:.12s;}
+  .screen.active .reveal:nth-child(3){animation-delay:.20s;}
+  .screen.active .reveal:nth-child(4){animation-delay:.28s;}
+  .screen.active .reveal:nth-child(5){animation-delay:.36s;}
+  .screen.active .reveal:nth-child(6){animation-delay:.44s;}
+
+  /* misc */
+  .muted { color: var(--text-2); }
+  .pos { color: var(--pos); } .neg { color: var(--neg); }
+  .hide { display:none !important; }
+  .divider { height:1px; background: var(--stroke-soft); margin: 18px 0; }
+
+  /* ============================ RESPONSIVE ============================ */
+  @media (max-width: 920px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { position: fixed; left:-300px; top:0; height:100vh; margin:0; border-radius:0; z-index:50; transition: left .3s; width: 256px; }
+    .sidebar.open { left:0; }
+    .main { padding: 12px 14px 40px; }
+    .grid-2, .onboard-grid, .bal-grid { grid-template-columns: 1fr; }
+    .menu-toggle { display:grid !important; }
+  }
+  .menu-toggle { display:none; }
+  @media (max-width: 560px) {
+    .topbar { flex-wrap: wrap; }
+    .user-pill .name, .code-chip span:not(.k) { font-size: var(--fs-xs); }
+  }
+</style>
+</head>
+<body>
+  <!-- LIVING MESH -->
+  <div class="mesh" aria-hidden="true">
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div>
+  </div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- ===================== AUTH (no shell) ===================== -->
+  <div class="app no-shell" id="authApp">
+    <div class="auth-wrap">
+      <div class="auth-card card card-pad reveal">
+        <div class="auth-logo">
+          <span class="brand-orbs"><span class="orb fer md"></span><span class="orb tat md"></span></span>
+          <div class="brand-name">Home<br>Share</div>
+        </div>
+
+        <div class="tabs" role="tablist">
+          <button class="on" data-auth="login">Entrar</button>
+          <button data-auth="register">Criar conta</button>
+          <button data-auth="setpass">Definir senha</button>
+        </div>
+
+        <!-- LOGIN -->
+        <form class="auth-form on" data-form="login" onsubmit="enterApp(event)">
+          <div class="field"><label>Usuário</label><input class="input" placeholder="seu_usuario" value="fernando" /></div>
+          <div class="field"><label>Senha</label><input class="input" type="password" placeholder="••••••••" value="senha123" /></div>
+          <button class="btn primary" style="width:100%; justify-content:center;" type="submit">Entrar na casa</button>
+          <p class="auth-note">Bem-vindo de volta! Sentimos sua falta por aqui.</p>
+        </form>
+
+        <!-- REGISTER -->
+        <form class="auth-form" data-form="register" onsubmit="enterApp(event)">
+          <div class="field"><label>Usuário</label><input class="input" placeholder="escolha um usuário" /></div>
+          <div class="field"><label>Senha</label><input class="input" type="password" placeholder="crie uma senha" /></div>
+          <div class="field"><label>Confirmar senha</label><input class="input" type="password" placeholder="repita a senha" /></div>
+          <button class="btn primary" style="width:100%; justify-content:center;" type="submit">Criar minha conta</button>
+          <p class="auth-note">É rapidinho — depois é só criar ou entrar numa casa.</p>
+        </form>
+
+        <!-- SET PASSWORD (legacy) -->
+        <form class="auth-form" data-form="setpass" onsubmit="enterApp(event)">
+          <div class="legacy-banner">Sua conta foi criada por outra pessoa. Defina uma senha para continuar.</div>
+          <div class="field"><label>Usuário</label><input class="input" value="tatiana" readonly style="opacity:.7;" /></div>
+          <div class="field"><label>Nova senha</label><input class="input" type="password" placeholder="defina sua senha" /></div>
+          <div class="field"><label>Confirmar senha</label><input class="input" type="password" placeholder="repita a senha" /></div>
+          <button class="btn primary" style="width:100%; justify-content:center;" type="submit">Definir senha e entrar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MAIN APP (shell) ===================== -->
+  <div class="app hide" id="mainApp">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-orbs"><span class="orb fer"></span><span class="orb tat"></span></span>
+        <div class="brand-name">Home Share<small>Despesas da casa</small></div>
+      </div>
+
+      <span class="nav-label">Casa</span>
+      <button class="nav-btn active" data-nav="despesas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h12"/></svg> Despesas
+      </button>
+      <button class="nav-btn" data-nav="saldos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> Saldos
+      </button>
+      <button class="nav-btn" data-nav="compras">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 002 1.6h9.7a2 2 0 002-1.6L23 6H6"/></svg> Lista de compras
+      </button>
+      <button class="nav-btn" data-nav="plataformas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Plataformas
+      </button>
+
+      <span class="nav-label">Conta</span>
+      <button class="nav-btn" data-nav="onboarding">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg> Trocar / criar casa
+      </button>
+
+      <div class="sidebar-foot">
+        <button class="nav-btn" onclick="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg> Sair
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <!-- TOPBAR -->
+      <header class="topbar reveal">
+        <button class="icon-btn menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+        <div class="house-pick" id="housePick">
+          <button class="house-btn" onclick="document.getElementById('housePick').classList.toggle('open')">
+            <span class="orb fer sm" style="width:14px;height:14px;"></span>
+            Home Share
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="dropdown">
+            <div class="dd-item sel"><span class="orb fer sm" style="width:13px;height:13px;"></span> Home Share</div>
+            <div class="dd-sep"></div>
+            <div class="dd-item" onclick="show('onboarding'); document.getElementById('housePick').classList.remove('open');">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Criar / entrar em outra casa
+            </div>
+          </div>
+        </div>
+
+        <div class="topbar-spacer"></div>
+
+        <span class="code-chip" title="Código de convite (somente ADMIN)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 11-7.1 7.1 5 5 0 017.1-7.1zM15.5 7.5L19 4l3 3-3.5 3.5"/></svg>
+          <span>SHARE1</span>
+        </span>
+
+        <div class="user-pill">
+          <span class="orb fer md"></span>
+          <div><div class="name">Fernando</div><div class="role">ADMIN</div></div>
+        </div>
+        <button class="icon-btn" title="Sair" onclick="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </button>
+      </header>
+
+      <!-- ============ SCREEN: DESPESAS ============ -->
+      <section class="screen active" id="screen-despesas">
+        <div class="page-head reveal">
+          <div>
+            <div class="eyebrow">Home Share · Junho 2026</div>
+            <h1>Despesas</h1>
+            <p>Tudo que entrou e saiu deste mês, dividido entre os membros da casa.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Importar CSV</button>
+            <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5-5 5 5M12 5v10"/></svg>Exportar CSV</button>
+            <button class="btn primary" onclick="openExpense()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Nova despesa</button>
+          </div>
+        </div>
+
+        <div class="reveal" style="display:flex; align-items:center; gap:14px; margin-bottom:16px; flex-wrap:wrap;">
+          <div class="seg" id="viewSeg">
+            <button class="on" onclick="setView('list', this)">Lista</button>
+            <button onclick="setView('person', this)">Por pessoa</button>
+          </div>
+          <span class="muted" style="font-size:var(--fs-sm)">6 despesas · total <b style="font-family:'Unbounded';color:var(--text)">R$ 916,57</b></span>
+        </div>
+
+        <!-- BULK BAR -->
+        <div class="bulkbar reveal" id="bulkbar">
+          <span><b id="bulkCount">0</b> selecionada(s)</span>
+          <div class="topbar-spacer"></div>
+          <button class="btn sm ghost" onclick="clearSel()">Limpar seleção</button>
+          <button class="btn sm danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>Excluir selecionadas</button>
+        </div>
+
+        <!-- LIST VIEW -->
+        <div class="card card-pad reveal" id="view-list">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:36px;"><input type="checkbox" class="chk" id="chkAll" onchange="toggleAll(this)"></th>
+                  <th onclick="sortHint(this)">Descrição <span class="sort">▲</span></th>
+                  <th onclick="sortHint(this)">Pagador</th>
+                  <th onclick="sortHint(this)">Plataforma</th>
+                  <th onclick="sortHint(this)">Data</th>
+                  <th class="right" onclick="sortHint(this)">Valor <span class="sort">▼</span></th>
+                </tr>
+              </thead>
+              <tbody id="expBody"></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <span>Mostrando 1–6 de 6 despesas</span>
+            <div class="pages">
+              <span class="pg">‹</span>
+              <span class="pg on">1</span>
+              <span class="pg">›</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PERSON VIEW -->
+        <div class="card card-pad reveal hide" id="view-person"></div>
+      </section>
+
+      <!-- ============ SCREEN: SALDOS ============ -->
+      <section class="screen" id="screen-saldos">
+        <div class="page-head reveal">
+          <div>
+            <div class="eyebrow">Quem deve a quem</div>
+            <h1>Saldos</h1>
+            <p>Mantenha as contas redondas. Aqui está o acerto mínimo para zerar tudo.</p>
+          </div>
+        </div>
+
+        <div class="card bal-hero reveal" style="margin-bottom:20px;">
+          <div class="glow-band"></div>
+          <div class="bal-top">
+            <div class="bal-total">
+              <div class="k">Total de despesas · Junho</div>
+              <div class="v">R$ 916,57</div>
+            </div>
+            <span class="tag"><span class="dot" style="background:var(--teal)"></span> 6 lançamentos</span>
+          </div>
+
+          <div class="bal-grid">
+            <div class="bal-cell">
+              <span class="orb fer xl"></span>
+              <div class="info">
+                <div class="who-name">Fernando</div>
+                <div class="role">ADMIN</div>
+                <div class="figure pos">+R$ 66,67</div>
+                <div class="sub">a receber</div>
+              </div>
+            </div>
+            <div class="bal-cell">
+              <span class="orb tat xl"></span>
+              <div class="info">
+                <div class="who-name">Tatiana</div>
+                <div class="role">MEMBER</div>
+                <div class="figure neg">−R$ 66,67</div>
+                <div class="sub">deve</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settle">
+            <span class="orb tat md"></span>
+            <span class="arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </span>
+            <span class="orb fer md"></span>
+            <span class="txt"> &nbsp;Tatiana paga <b class="pos">R$ 66,67</b> a Fernando</span>
+            <div class="topbar-spacer"></div>
+            <button class="btn primary sm">Marcar como pago</button>
+          </div>
+        </div>
+
+        <div class="grid-2" style="gap:20px;">
+          <div class="card card-pad reveal">
+            <h3 style="font-size:var(--fs-3); margin-bottom:14px;">Como chegamos aqui</h3>
+            <p class="muted" style="font-size:var(--fs-sm); margin-bottom:16px;">A divisão é igualitária (50/50), exceto onde há divisão personalizada.</p>
+            <div class="split-row"><span class="who"><span class="orb fer sm"></span><span class="lbl">Fernando pagou</span></span><b class="amt">R$ 590,77</b></div>
+            <div class="split-row"><span class="who"><span class="orb tat sm"></span><span class="lbl">Tatiana pagou</span></span><b class="amt">R$ 325,80</b></div>
+            <div class="split-row" style="background:var(--glass-2)"><span class="who"><span class="lbl">Cota justa de cada um</span></span><b class="amt">≈ R$ 458,28</b></div>
+          </div>
+          <div class="card card-pad reveal">
+            <h3 style="font-size:var(--fs-3); margin-bottom:14px;">Resumo do mês</h3>
+            <div class="split-row"><span class="who"><span class="lbl muted">Maior despesa</span></span><b class="amt">Mercado · R$ 342,80</b></div>
+            <div class="split-row"><span class="who"><span class="lbl muted">Despesas no Crédito</span></span><b class="amt">R$ 522,80</b></div>
+            <div class="split-row"><span class="who"><span class="lbl muted">Acerto pendente</span></span><b class="amt neg">R$ 66,67</b></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SCREEN: COMPRAS ============ -->
+      <section class="screen" id="screen-compras">
+        <div class="page-head reveal">
+          <div>
+            <div class="eyebrow">A casa precisa de</div>
+            <h1>Lista de compras</h1>
+            <p>Não comprados primeiro. Marque conforme for pegando no mercado.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>Limpar comprados</button>
+          </div>
+        </div>
+
+        <div class="card card-pad reveal" style="max-width:680px;">
+          <div class="shop-add">
+            <input class="input" placeholder="Adicionar item à lista…" id="shopInput" onkeydown="if(event.key==='Enter')addShop()">
+            <button class="btn primary" onclick="addShop()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Adicionar</button>
+          </div>
+
+          <div class="shop-sec-label">Pendentes</div>
+          <div id="shopPending"></div>
+          <div class="shop-sec-label">Comprados</div>
+          <div id="shopDone"></div>
+        </div>
+      </section>
+
+      <!-- ============ SCREEN: PLATAFORMAS ============ -->
+      <section class="screen" id="screen-plataformas">
+        <div class="page-head reveal">
+          <div>
+            <div class="eyebrow">Formas de pagamento</div>
+            <h1>Plataformas</h1>
+            <p>De onde sai o dinheiro. Ao excluir, escolha uma substituta para as despesas.</p>
+          </div>
+          <div class="head-actions">
+            <button class="btn primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Nova plataforma</button>
+          </div>
+        </div>
+
+        <div class="card card-pad reveal">
+          <div class="pf-list" id="pfList"></div>
+        </div>
+      </section>
+
+      <!-- ============ SCREEN: ONBOARDING ============ -->
+      <section class="screen" id="screen-onboarding">
+        <div class="page-head reveal">
+          <div>
+            <div class="eyebrow">Vamos começar</div>
+            <h1>Você ainda não tem uma casa</h1>
+            <p>Crie uma nova casa para sua família ou entre numa existente com o código de convite.</p>
+          </div>
+        </div>
+
+        <div class="onboard-grid reveal">
+          <div class="card onboard-card" onclick="enterHouse()">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg></div>
+            <h3>Criar casa</h3>
+            <p>Comece do zero e convide quem mora com você. Você vira o ADMIN.</p>
+            <input class="input" placeholder="Nome da casa (ex: Home Share)" style="margin-top:16px;" onclick="event.stopPropagation()">
+          </div>
+
+          <div class="card onboard-card">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></div>
+            <h3>Entrar com código</h3>
+            <p>Recebeu um convite? Digite o código de 6 caracteres da casa.</p>
+            <div class="code-inputs" onclick="event.stopPropagation()">
+              <input maxlength="1" value="B"><input maxlength="1" value="O"><input maxlength="1" value="L">
+              <input maxlength="1" value="1"><input maxlength="1" value="T"><input maxlength="1" value="A">
+            </div>
+            <button class="btn primary" style="width:100%; justify-content:center;" onclick="enterHouse()">Entrar na casa</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===================== MODAL: NOVA/EDITAR DESPESA ===================== -->
+  <div class="overlay" id="expOverlay" onclick="if(event.target===this)closeExpense()">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Nova despesa</h2>
+          <p>Lance um gasto e escolha como dividir.</p>
+        </div>
+        <button class="x-btn" onclick="closeExpense()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label>Pagador</label>
+          <select class="input"><option>Fernando</option><option>Tatiana</option></select>
+        </div>
+        <div class="field">
+          <label>Plataforma</label>
+          <select class="input"><option>Crédito</option><option>PIX</option><option>Dinheiro</option><option>Débito</option></select>
+        </div>
+      </div>
+
+      <div class="field"><label>Descrição</label><input class="input" placeholder="Ex: Mercado da semana"></div>
+      <div class="field"><label>Notas (opcional)</label><textarea class="input" placeholder="Detalhes, observações…"></textarea></div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label>Valor</label>
+          <input class="input" id="expValor" value="180,00" oninput="recalcSplit()" inputmode="decimal">
+        </div>
+        <div class="field"><label>Data</label><input class="input" type="date" value="2026-06-10"></div>
+      </div>
+
+      <div class="field">
+        <label>Divisão</label>
+        <div class="seg" style="width:100%;">
+          <button class="on" style="flex:1;" onclick="setSplit('equal', this)">Dividir igualmente</button>
+          <button style="flex:1;" onclick="setSplit('custom', this)">Personalizado</button>
+        </div>
+      </div>
+
+      <div id="splitCustom" class="hide">
+        <div class="split-row">
+          <span class="who"><span class="orb fer md"></span><span class="lbl">Fernando</span></span>
+          <input class="input" id="splitFer" value="120,00" oninput="recalcSplit()" inputmode="decimal">
+        </div>
+        <div class="split-row">
+          <span class="who"><span class="orb tat md"></span><span class="lbl">Tatiana</span></span>
+          <input class="input" id="splitTat" value="60,00" oninput="recalcSplit()" inputmode="decimal">
+        </div>
+        <div class="sum-hint ok" id="sumHint">
+          <span id="sumLabel">Soma confere</span>
+          <span id="sumVal">R$ 180,00 / R$ 180,00</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div style="display:flex; gap:12px;">
+        <button class="btn ghost" style="flex:1; justify-content:center;" onclick="closeExpense()">Cancelar</button>
+        <button class="btn primary" style="flex:2; justify-content:center;" onclick="closeExpense()">Salvar despesa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: EXCLUIR PLATAFORMA ===================== -->
+  <div class="overlay" id="pfOverlay" onclick="if(event.target===this)closePf()" style="align-items:center; justify-content:center;">
+    <div class="panel" style="height:auto; width:min(440px,94vw); border-radius:var(--r-lg); border:1px solid var(--stroke); animation:fade .25s ease;">
+      <div class="panel-head">
+        <div>
+          <h2>Excluir plataforma</h2>
+          <p>Existem despesas usando <b id="pfName">Débito</b>. Escolha uma substituta.</p>
+        </div>
+        <button class="x-btn" onclick="closePf()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="field">
+        <label>Plataforma substituta</label>
+        <select class="input"><option>Crédito</option><option>PIX</option><option>Dinheiro</option></select>
+      </div>
+      <p class="muted" style="font-size:var(--fs-sm); margin-bottom:18px;">Todas as despesas serão movidas para a plataforma escolhida antes da exclusão.</p>
+      <div style="display:flex; gap:12px;">
+        <button class="btn ghost" style="flex:1; justify-content:center;" onclick="closePf()">Cancelar</button>
+        <button class="btn danger" style="flex:1; justify-content:center;" onclick="closePf()">Excluir e mover</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  /* ===================== FIXTURE ===================== */
+  const EXPENSES = [
+    { d:'Mercado da semana', p:'fer', pf:'credito', date:'01/06/2026', cents:34280 },
+    { d:'Farmácia',          p:'tat', pf:'pix',     date:'03/06/2026', cents:8990 },
+    { d:'Conta de luz',      p:'fer', pf:'debito',  date:'05/06/2026', cents:21547 },
+    { d:'Jantar aniversário',p:'tat', pf:'credito', date:'10/06/2026', cents:18000, custom:true },
+    { d:'Uber casa→trabalho',p:'fer', pf:'dinheiro',date:'12/06/2026', cents:3250 },
+    { d:'Streaming',         p:'tat', pf:'pix',     date:'15/06/2026', cents:5590 },
+  ];
+  const PEOPLE = { fer:{name:'Fernando', cls:'fer'}, tat:{name:'Tatiana', cls:'tat'} };
+  const PLATFORMS = {
+    credito:{name:'Crédito', cls:'pf-credito', count:12, color:'var(--teal)', pct:60},
+    pix:    {name:'PIX',     cls:'pf-pix',     count:8,  color:'var(--magenta)', pct:40},
+    dinheiro:{name:'Dinheiro',cls:'pf-dinheiro',count:5, color:'#FBBF24', pct:25},
+    debito: {name:'Débito',  cls:'pf-debito',  count:3,  color:'var(--indigo)', pct:15},
+  };
+  const SHOPPING = [
+    { name:'Café em grão', done:false },
+    { name:'Detergente',   done:false },
+    { name:'Papel toalha', done:true, by:'Fernando' },
+    { name:'Sabão em pó',  done:true, by:'Tatiana' },
+  ];
+
+  const fmt = c => 'R$ ' + (c/100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const parseBR = s => Math.round((parseFloat(String(s).replace(/\./g,'').replace(',','.'))||0)*100);
+
+  /* ===================== AUTH / SHELL ===================== */
+  function enterApp(e){ e.preventDefault(); document.getElementById('authApp').classList.add('hide'); document.getElementById('mainApp').classList.remove('hide'); show('despesas'); }
+  function logout(){ document.getElementById('mainApp').classList.add('hide'); document.getElementById('authApp').classList.remove('hide'); }
+  function enterHouse(){ show('despesas'); }
+
+  document.querySelectorAll('[data-auth]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-auth]').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    const t = b.dataset.auth;
+    document.querySelectorAll('.auth-form').forEach(f=>f.classList.toggle('on', f.dataset.form===t));
+  }));
+
+  /* ===================== NAV ===================== */
+  function show(name){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    const el = document.getElementById('screen-'+name); if(el) el.classList.add('active');
+    document.querySelectorAll('.nav-btn[data-nav]').forEach(b=>b.classList.toggle('active', b.dataset.nav===name));
+    document.getElementById('sidebar').classList.remove('open');
+    // re-trigger reveal
+    el && el.querySelectorAll('.reveal').forEach(r=>{ r.style.animation='none'; void r.offsetWidth; r.style.animation=''; });
+    window.scrollTo({top:0});
+  }
+  document.querySelectorAll('.nav-btn[data-nav]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.nav)));
+
+  /* ===================== EXPENSES TABLE ===================== */
+  function rowOrb(p){ return `<span class="who"><span class="orb ${PEOPLE[p].cls} sm"></span><span class="lbl">${PEOPLE[p].name}</span></span>`; }
+  function pfTag(pf){ const P=PLATFORMS[pf]; return `<span class="tag ${P.cls}"><span class="dot"></span>${P.name}</span>`; }
+
+  function buildTable(){
+    document.getElementById('expBody').innerHTML = EXPENSES.map((e,i)=>`
+      <tr id="row${i}">
+        <td><input type="checkbox" class="chk rowchk" data-i="${i}" onchange="onRowChk()"></td>
+        <td><b>${e.d}</b>${e.custom?' <span class="tag" style="font-size:var(--fs-xs);padding:2px 8px;">divisão personalizada</span>':''}</td>
+        <td>${rowOrb(e.p)}</td>
+        <td>${pfTag(e.pf)}</td>
+        <td class="muted">${e.date}</td>
+        <td class="right"><span class="amt">${fmt(e.cents)}</span></td>
+      </tr>`).join('');
+  }
+  function buildPerson(){
+    let html='';
+    for(const k of ['fer','tat']){
+      const rows = EXPENSES.filter(e=>e.p===k);
+      const tot = rows.reduce((a,b)=>a+b.cents,0);
+      html += `<div class="group-block">
+        <div class="group-head"><span class="orb ${PEOPLE[k].cls} lg"></span>
+          <div><div style="font-family:'Unbounded';font-weight:600;font-size:var(--fs-3)">${PEOPLE[k].name}</div>
+          <div class="muted" style="font-size:var(--fs-sm)">${rows.length} despesas</div></div>
+          <span class="gtot">${fmt(tot)}</span></div>
+        <div class="table-wrap"><table><tbody>
+        ${rows.map(e=>`<tr><td style="width:50%"><b>${e.d}</b></td><td>${pfTag(e.pf)}</td><td class="muted">${e.date}</td><td class="right"><span class="amt">${fmt(e.cents)}</span></td></tr>`).join('')}
+        </tbody></table></div></div>`;
+    }
+    document.getElementById('view-person').innerHTML = html;
+  }
+  function setView(v, btn){
+    document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+    document.getElementById('view-list').classList.toggle('hide', v!=='list');
+    document.getElementById('view-person').classList.toggle('hide', v!=='person');
+  }
+  function sortHint(th){
+    const cur = th.querySelector('.sort');
+    document.querySelectorAll('thead th .sort').forEach(s=>{ if(s!==cur) s.remove(); });
+    if(cur){ cur.textContent = cur.textContent==='▲'?'▼':'▲'; }
+    else { const s=document.createElement('span'); s.className='sort'; s.textContent='▲'; th.appendChild(s); }
+  }
+
+  /* selection */
+  function onRowChk(){
+    const checked = [...document.querySelectorAll('.rowchk:checked')];
+    document.querySelectorAll('.rowchk').forEach(c=>document.getElementById('row'+c.dataset.i).classList.toggle('sel', c.checked));
+    document.getElementById('bulkbar').classList.toggle('show', checked.length>0);
+    document.getElementById('bulkCount').textContent = checked.length;
+    document.getElementById('chkAll').checked = checked.length===EXPENSES.length;
+  }
+  function toggleAll(c){ document.querySelectorAll('.rowchk').forEach(x=>x.checked=c.checked); onRowChk(); }
+  function clearSel(){ document.querySelectorAll('.rowchk, #chkAll').forEach(x=>x.checked=false); onRowChk(); }
+
+  /* ===================== EXPENSE MODAL ===================== */
+  function openExpense(){ document.getElementById('expOverlay').classList.add('show'); recalcSplit(); }
+  function closeExpense(){ document.getElementById('expOverlay').classList.remove('show'); }
+  let splitMode='equal';
+  function setSplit(m, btn){
+    splitMode=m;
+    btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+    document.getElementById('splitCustom').classList.toggle('hide', m!=='custom');
+    recalcSplit();
+  }
+  function recalcSplit(){
+    const total = parseBR(document.getElementById('expValor').value);
+    if(splitMode==='equal'){
+      const half = Math.floor(total/2), other = total-half;
+      document.getElementById('splitFer').value = (half/100).toLocaleString('pt-BR',{minimumFractionDigits:2});
+      document.getElementById('splitTat').value = (other/100).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    }
+    const fer = parseBR(document.getElementById('splitFer').value);
+    const tat = parseBR(document.getElementById('splitTat').value);
+    const sum = fer+tat, ok = sum===total;
+    const hint = document.getElementById('sumHint');
+    hint.className = 'sum-hint ' + (ok?'ok':'bad');
+    document.getElementById('sumLabel').textContent = ok ? 'Soma confere' : (sum>total?'Soma maior que o total':'Faltam '+fmt(total-sum));
+    document.getElementById('sumVal').textContent = fmt(sum)+' / '+fmt(total);
+  }
+
+  /* ===================== PLATFORM MODAL ===================== */
+  function openPf(name){ document.getElementById('pfName').textContent = name; document.getElementById('pfOverlay').classList.add('show'); }
+  function closePf(){ document.getElementById('pfOverlay').classList.remove('show'); }
+
+  function buildPlatforms(){
+    document.getElementById('pfList').innerHTML = Object.entries(PLATFORMS).map(([k,P])=>`
+      <div class="pf-row">
+        <div class="pf-icon" style="background:rgba(255,255,255,0.06);"><span class="dot" style="width:12px;height:12px;border-radius:50%;background:${P.color};box-shadow:0 0 14px -2px ${P.color};"></span></div>
+        <div style="flex:1;min-width:0;">
+          <div class="pf-name">${P.name}</div>
+          <div class="pf-count">${P.count} despesas</div>
+          <div class="stat-bar"><i style="width:${P.pct}%;background:${P.color};"></i></div>
+        </div>
+        <div class="pf-actions">
+          <button class="btn sm ghost">Editar</button>
+          <button class="btn sm danger" onclick="openPf('${P.name}')">Excluir</button>
+        </div>
+      </div>`).join('');
+  }
+
+  /* ===================== SHOPPING ===================== */
+  function buildShop(){
+    const pend = SHOPPING.filter(s=>!s.done), done = SHOPPING.filter(s=>s.done);
+    document.getElementById('shopPending').innerHTML = pend.length ? pend.map((s,i)=>shopRow(s,i,false)).join('') : '<p class="muted" style="font-size:var(--fs-sm);padding:4px;">Tudo comprado!</p>';
+    document.getElementById('shopDone').innerHTML = done.length ? done.map((s,i)=>shopRow(s,i,true)).join('') : '<p class="muted" style="font-size:var(--fs-sm);padding:4px;">Nada comprado ainda.</p>';
+  }
+  function shopRow(s, i, done){
+    return `<div class="shop-item ${done?'done':''}">
+      <input type="checkbox" class="chk" ${done?'checked':''} onchange="toggleShop('${s.name.replace(/'/g,"")}')">
+      <span class="name">${s.name}</span>
+      ${done ? `<span class="by">por ${s.by}</span>` : '<span class="tag" style="font-size:var(--fs-xs);padding:2px 9px;">pendente</span>'}
+    </div>`;
+  }
+  function toggleShop(name){ const it=SHOPPING.find(s=>s.name===name); if(it){ it.done=!it.done; if(it.done&&!it.by)it.by='Fernando'; } buildShop(); }
+  function addShop(){ const v=document.getElementById('shopInput').value.trim(); if(!v)return; SHOPPING.unshift({name:v,done:false}); document.getElementById('shopInput').value=''; buildShop(); }
+
+  /* ===================== INIT ===================== */
+  buildTable(); buildPerson(); buildPlatforms(); buildShop();
+
+  /* close dropdown on outside click */
+  document.addEventListener('click', e=>{
+    const hp = document.getElementById('housePick');
+    if(hp && !hp.contains(e.target)) hp.classList.remove('open');
+  });
+</script>
+</body>
+</html>

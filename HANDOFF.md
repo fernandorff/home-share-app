@@ -1,8 +1,14 @@
-# HANDOFF — La Casa das Bolitas API (para construir o front novo)
+# HANDOFF — Home Share (referência de arquitetura & API)
 
-Este backend é **headless** (Next.js só com route handlers). O front é um projeto
-**totalmente novo**, em qualquer stack (React/Vite, Next, mobile…), que consome esta
-API por HTTP com **Bearer token**. Este documento é tudo que você precisa pra construir.
+Este repo é um **monolito Next.js 16 (App Router)**: o **frontend e a API vivem no
+mesmo app**, mesma origem (same-origin). O front já existe aqui dentro — não é um
+projeto separado a construir. Este documento é uma **referência de arquitetura e
+contrato da API**, útil pra entender o sistema, manter as rotas ou escrever um cliente.
+
+> O front mora em `src/app/(app)/**` (despesas, saldos, compras, plataformas, casa) +
+> `src/app/auth/**` (login, register, set-password), com um design system retrô
+> editorial mono em `src/components/ui/**`. Ele consome a própria API por `fetch`
+> same-origin; os cookies de sessão viajam automaticamente.
 
 ---
 
@@ -16,18 +22,19 @@ casas; cada casa tem membros com papel ADMIN ou MEMBER.
 
 ---
 
-## 2. Base URL & como rodar
+## 2. Como rodar
 
-- Local: `npm install && npm run dev` → `http://localhost:3000`
-- Health check (público): `GET /api/health` → `{ "ok": true, "service": "la-casa-das-bolitas-api" }`
-- Todas as rotas ficam sob `/api`.
+- Local: `npm install && npm run dev` → `http://localhost:3000` (front + API juntos).
+- Health check (público): `GET /api/health` → `{ "ok": true, "service": "home-share" }`
+- Todas as rotas de API ficam sob `/api`. As páginas do front ficam fora de `/api`.
 
 ---
 
 ## 3. Modelo de dados
 
 ```
-User        id, publicId(uuid), name, username(único), password?(bcrypt, null=legado)
+User        id, publicId(uuid), name, username(único), password?(bcrypt, null=legado),
+            email?(único, null), googleId?(único, null)
 Group       id, publicId, name, description?, joinCode?(único, 6 chars)
 GroupMember userId+groupId(único), role(ADMIN|MEMBER), colorIndex(0-11)
 Platform    id, publicId, name, groupId           (escopada por casa)
@@ -42,35 +49,55 @@ ExpenseParticipant N—1 User · Expense N—1 Platform? · ShoppingItem N—1 G
 
 **IDs:** toda entidade tem `id` (int interno) e `publicId` (uuid). As rotas que
 recebem id na URL usam **publicId** (uuid) para expense/platform/shopping-item.
-Membros/casas/payer usam o `id` int no corpo das requisições.
+Membro/pagador/participante usam o `id` int no corpo das requisições.
+
+**Colunas de login social:** `email` e `googleId` (ambos nullable e únicos) ligam a
+conta a um login Google. Usuários por usuário+senha não preenchem `googleId`.
 
 ---
 
-## 4. Autenticação (Bearer, stateless) — LEIA COM ATENÇÃO
+## 4. Autenticação (cookie httpOnly) — LEIA COM ATENÇÃO
 
-Não há cookies. O fluxo:
+Não há Bearer token nem header `Authorization`. A sessão é um **cookie httpOnly**
+assinado (JWT HS256 via `jose`). Por ser same-origin, o front nem manipula o token: o
+browser anexa o cookie sozinho.
 
-1. **Registro ou login** retornam `{ token, user }`. Guarde o `token` (ex: localStorage,
-   secure storage no mobile).
-2. Em **toda** chamada protegida, envie: `Authorization: Bearer <token>`.
-3. A **casa ativa** vai no header `X-Group-Id: <group.id>` (int). Se omitir, o backend
-   usa a primeira casa do usuário. Trocar de casa = só mudar esse header.
-4. **Logout** é client-side: descarte o token. (Não há endpoint de logout.)
-5. Token expira em **30 dias**.
+1. **Registro / login / set-password** **setam o cookie `bolitas_session`** e retornam
+   apenas `{ user }` (sem token no corpo).
+2. A **casa ativa** é outro cookie httpOnly: **`bolitas_group`**. Trocar de casa é
+   `POST /api/groups/active { groupId }` (valida que você é membro antes de gravar).
+   O cookie é só preferência de UI — **toda request revalida a participação no banco**.
+3. **Logout EXISTE**: `POST /api/auth/logout` limpa os dois cookies. Não é client-side.
+4. O cookie de sessão expira em **30 dias**.
 
-### Fluxo de primeiro acesso (usuários legados)
-Existem usuários (Fernando, Tatiana) criados antes da senha existir — `password = null`.
-- `POST /api/auth/login` com esse usuário retorna **`{ "requiresPasswordSetup": true }`**
-  (sem token, sem erro). 
-- O front então mostra "defina sua senha" e chama `POST /api/auth/set-password`
-  `{ username, password }` → retorna `{ token, user }`. Pronto, logado.
+Não existe header `X-Group-Id` em lugar nenhum: a casa ativa vem do cookie.
 
-### Headers padrão
-| Header | Quando | Valor |
-|---|---|---|
-| `Authorization` | toda rota protegida | `Bearer <token>` |
-| `X-Group-Id` | rotas com escopo de casa | `<group.id>` (int) |
-| `Content-Type` | requests com body | `application/json` |
+### Login com Google (OAuth)
+- `GET /api/auth/google` — redireciona pro consent do Google (grava cookie de `state`).
+- `GET /api/auth/google/callback` — valida `state`, troca o code pelo perfil,
+  faz **find-or-create** do usuário (por `googleId`/`email`) e seta o mesmo cookie
+  `bolitas_session`, redirecionando pra `/`.
+- Protegido por env `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. Sem essas variáveis,
+  o botão volta pra `/auth/login?error=google_indisponivel` (mensagem amigável).
+
+### Primeiro acesso (usuários legados)
+Existem usuários criados antes da senha existir — `password = null`.
+- `POST /api/auth/login` com esse usuário retorna **`{ requiresPasswordSetup: true }`**
+  (sem cookie, sem erro).
+- O front mostra "defina sua senha" e chama `POST /api/auth/set-password`
+  `{ username, password }` → seta o cookie e retorna `{ user }`. Pronto, logado.
+
+### Gate de autenticação (middleware)
+O `middleware.ts` (matcher amplo) protege páginas e API ao mesmo tempo:
+- Públicas: páginas sob `/auth` e APIs sob `/api/auth` e `/api/health`.
+- Sem cookie válido → API responde `401 { error: "Não autenticado" }`; página
+  redireciona pra `/auth/login`.
+
+### Cliente de origem diferente (NÃO suportado hoje)
+Como é monolito same-origin, **não há CORS no código** e o cookie é `SameSite=Lax`.
+Um cliente em outra origem (app separado, mobile com webview cross-site) **não
+funcionaria** sem adicionar CORS + trocar o cookie pra `SameSite=None; Secure` — isso
+**não existe** atualmente.
 
 ---
 
@@ -82,7 +109,7 @@ Erros sempre: `{ "error": "mensagem em pt-BR" }` (alguns com `"code"`).
 |---|---|
 | 200 / 201 | sucesso |
 | 400 | input inválido (mensagem explica) |
-| 401 | sem token / token inválido (`{ "error": "Não autenticado" }`) |
+| 401 | sem sessão / cookie inválido (`{ "error": "Não autenticado" }`) |
 | 403 | sem permissão / sem casa (`code: "NO_GROUP"` quando o user não tem casa) |
 | 404 | recurso não encontrado |
 | 409 | conflito (ex: usuário já existe) |
@@ -96,22 +123,29 @@ Erros sempre: `{ "error": "mensagem em pt-BR" }` (alguns com `"code"`).
 
 ## 6. Referência de endpoints
 
+Todas sob `/api`. **Auth e health são públicas**; o resto exige o cookie de sessão.
+As rotas com escopo de casa exigem **casa ativa** (senão `403 code: "NO_GROUP"`).
+
 ### Auth (públicas)
 
 **POST `/api/auth/register`** — body `{ name, username, password }`
 - `username`: 3-30 chars, `[a-z0-9._-]`, único. `password`: 8-72 chars. `name`: ≤80.
-- 201 → `{ token, user: { id, publicId, name } }`
+- 201 → `{ user: { id, publicId, name } }` + seta cookie `bolitas_session`
 - 409 → `{ error: "Este usuário já existe" }`
 
 **POST `/api/auth/login`** — body `{ username, password }`
-- 200 → `{ token, user: { id, publicId, name } }`
+- 200 → `{ user: { id, publicId, name } }` + seta cookie `bolitas_session`
 - 200 → `{ requiresPasswordSetup: true }` (usuário legado sem senha)
 - 401 → `{ error: "Usuário ou senha incorretos" }`
 
 **POST `/api/auth/set-password`** — body `{ username, password }` (só p/ legado sem senha)
-- 200 → `{ token, user }` · 400 se já tem senha / inválido
+- 200 → `{ user }` + seta cookie · 400 se já tem senha / inválido
 
-### Sessão (Bearer)
+**GET `/api/auth/google`** — redireciona pro Google (ou pra `/auth/login` se sem env).
+
+**GET `/api/auth/google/callback`** — find-or-create + seta cookie → redireciona pra `/`.
+
+### Sessão (cookie)
 
 **GET `/api/auth/me`** → dados do usuário + casas
 ```json
@@ -127,25 +161,30 @@ Erros sempre: `{ "error": "mensagem em pt-BR" }` (alguns com `"code"`).
 }
 ```
 `joinCode` só vem preenchido se o user for ADMIN daquela casa (senão `null`).
-Use `X-Group-Id` pra controlar qual `activeGroupId` retorna.
+`activeGroupId` reflete o cookie `bolitas_group` (ou a primeira casa, como fallback).
 
-### Casas (Bearer)
+**POST `/api/auth/logout`** → `{ ok: true }` + limpa os cookies `bolitas_session` e `bolitas_group`.
+
+### Casas (cookie)
 
 **GET `/api/groups`** → `{ groups: [{ id, publicId, name, role, colorIndex }] }`
 
 **POST `/api/groups`** — body `{ name }` (≤80) → cria casa, user vira ADMIN
-- 201 → `{ group: { id, publicId, name, joinCode } }` (guarde o `id` p/ X-Group-Id)
+- 201 → `{ group: { id, publicId, name, joinCode } }`
 
 **POST `/api/groups/join`** — body `{ code }` (6 chars) → entra na casa
 - 200 → `{ group: { id, publicId, name } }` · 404 se código inválido · idempotente
 
-**GET `/api/groups/active/members`** (Bearer + X-Group-Id)
+**POST `/api/groups/active`** — body `{ groupId }` (int) → troca a casa ativa
+- 200 → `{ ok: true, groupId }` + seta cookie `bolitas_group` · 403 se não for membro
+
+**GET `/api/groups/active/members`**
 → `{ members: [{ id, publicId, name, username, role, colorIndex }], groupId }`
 
-**POST `/api/groups/active/regenerate-code`** (Bearer + X-Group-Id, **só ADMIN**)
+**POST `/api/groups/active/regenerate-code`** (**só ADMIN**)
 → `{ joinCode: "XYZ789" }` · 403 se não for admin
 
-### Despesas (Bearer + X-Group-Id)
+### Despesas (escopo de casa)
 
 **GET `/api/expenses?page=1&pageSize=10&sortField=date&sortDirection=desc`**
 - `sortField` ∈ `date | amount | description | payer | platformId | createdAt` (400 se outro)
@@ -183,24 +222,26 @@ Use `X-Group-Id` pra controlar qual `activeGroupId` retorna.
 }
 ```
 - `splitEqually: true` → backend divide igual entre TODOS os membros da casa (centavos
-  exatos; o resto vai pro primeiro). Ignora `participants`.
-- `splitEqually: false` → soma de `participants[].amount` deve bater **exatamente** com
-  `amount` (senão 400). `payerId` e todo `userId` devem ser membros da casa (senão 400).
+  exatos; o resto é distribuído 1 centavo por vez a partir da primeira parte). Ignora `participants`.
+- `splitEqually: false` → soma de `participants[].amount` (em centavos) deve bater
+  **exatamente** com `amount` (senão 400). `payerId` e todo `userId` devem ser membros
+  da casa (senão 400).
 - 201 → `{ expense: {...mesmo shape do GET} }`
 
 **PUT `/api/expenses/{publicId}`** — mesmo body do POST → `{ expense }`
 **DELETE `/api/expenses/{publicId}`** → `{ message }`
 **POST `/api/expenses/bulk-delete`** — body `{ publicIds: ["uuid", ...] }` → `{ message, deleted }`
 
-**POST `/api/expenses/import`** (multipart) — campos: `file` (CSV), `platformId`,
-`payerId` (opcional, default = user logado), `splitEqually` ("true"/"false")
+**POST `/api/expenses/import`** (multipart) — campos: `file` (CSV), `platformId`
+(obrigatório), `payerId` (opcional, default = user logado), `splitEqually` ("true"/"false")
 - CSV colunas: `description,amount,date,notes` (date/notes opcionais; data DD/MM/YYYY ou YYYY-MM-DD)
-- Transacional (tudo-ou-nada). 201 →
+- Limites: ≤1000 linhas / ≤1MB. Transacional (tudo-ou-nada). 201 →
   `{ message, created: <n>, invalidRows: [{ line, reason }], totalValue, expenses }`
 
-**GET `/api/expenses/export`** → CSV (text/csv, com `Content-Disposition`), BOM incluso.
+**GET `/api/expenses/export`** → CSV (text/csv, com `Content-Disposition`), BOM incluso,
+datas formatadas em UTC.
 
-### Saldos (Bearer + X-Group-Id)
+### Saldos (escopo de casa)
 
 **GET `/api/balances`**
 ```json
@@ -211,8 +252,9 @@ Use `X-Group-Id` pra controlar qual `activeGroupId` retorna.
 }
 ```
 `balance` > 0 = tem a receber; < 0 = deve. `settlements` = transferências mínimas pra zerar.
+(Aqui os valores são **number**, não string.)
 
-### Plataformas (Bearer + X-Group-Id)
+### Plataformas (escopo de casa)
 
 **GET `/api/platforms`** → `{ platforms: [{ id, publicId, name, groupId, createdAt }] }`
 - `?counts=true` inclui `_count.expenses` em cada uma.
@@ -222,7 +264,7 @@ Use `X-Group-Id` pra controlar qual `activeGroupId` retorna.
 **DELETE `/api/platforms/{publicId}`** — `{ replacementId: "<publicId>" }` → move as despesas
 pra plataforma substituta e apaga. → `{ message }`
 
-### Lista de compras (Bearer + X-Group-Id)
+### Lista de compras (escopo de casa)
 
 **GET `/api/shopping-items`** → `{ items: [{ id, publicId, name, isPurchased, createdAt, addedBy: { id, name } | null }] }`
 (ordenado: não-comprados primeiro, depois por data desc)
@@ -235,71 +277,59 @@ pra plataforma substituta e apaga. → `{ message }`
 
 ---
 
-## 7. Regras de domínio (implemente o front respeitando)
+## 7. Regras de domínio
 
-- **Dinheiro**: o backend trabalha em centavos inteiros; divisão igual sempre soma exato.
-  No front, exiba `R$ 1.234,56` (pt-BR). Lembre que `amount` vem como string.
-- **Cores de membro**: cada membro tem `colorIndex` (0-11). O front mapeia índice → cor
-  (paleta livre; sugestão de 12 cores no app antigo). Útil pra colorir por pessoa.
-- **Papéis**: só ADMIN vê/regenera o `joinCode` da casa.
-- **Validação de despesa custom**: quando não é divisão igual, a soma das partes tem que
-  bater com o total — valide no front antes de enviar (o backend rejeita com 400).
-- **Datas**: mande `YYYY-MM-DD`. O backend grava ao meio-dia local (evita off-by-one).
-- **Multi-casa**: se `GET /api/auth/me` retornar `groups: []`, mande o usuário criar/entrar
-  numa casa antes de usar o resto (rotas com X-Group-Id dão 403 `NO_GROUP`).
-
----
-
-## 8. Telas/fluxos que o front precisa cobrir
-
-1. **Registro** (`name, username, password`) → cria conta → tela criar/entrar casa.
-2. **Login** (`username, password`) → trata `requiresPasswordSetup` → tela definir senha.
-3. **Criar casa / Entrar com código** (quando `groups` vazio ou por escolha).
-4. **Despesas**: lista (tabela + por pessoa), criar/editar/excluir, divisão igual ou custom,
-   import/export CSV, seletor de plataforma e pagador.
-5. **Saldos**: quem deve quanto pra quem (de `/api/balances`).
-6. **Lista de compras**: adicionar, marcar comprado, limpar comprados.
-7. **Plataformas**: CRUD, com substituição ao excluir.
-8. **Header/menu**: usuário logado, seletor de casa (set `X-Group-Id`), código da casa
-   (se ADMIN), sair (descartar token).
+- **Dinheiro**: tudo em centavos inteiros internamente (`lib/currency`: toCents /
+  fromCents / splitCents); banco em `Decimal(10,2)`. Divisão igual distribui o resto
+  1 centavo por vez a partir da primeira parte; divisão custom precisa somar **exato**
+  ao total (em centavos). Comparações são exatas, sem epsilon.
+- **Limites de input**: descrição ≤200, notas ≤1000, CSV ≤1000 linhas / 1MB.
+- **Código de convite**: 6 chars do alfabeto `ABCDEFGHJKMNPQRSTUVWXYZ23456789`
+  (sem 0/O/1/I/L). Só ADMIN vê/regenera o `joinCode` da casa.
+- **Papéis**: ADMIN / MEMBER. `colorIndex` do membro vai de 0 a 11 (mapeia índice → cor).
+- **Datas**: mande `YYYY-MM-DD`. O backend grava ao meio-dia local (`T12:00`, evita
+  off-by-one) e formata em UTC no export.
+- **IDs nas URLs**: rotas de entidade usam `publicId` (UUID); membro/pagador/participante
+  usam o `id` numérico no body.
+- **`groupId` nunca vem do body** — sempre da casa ativa (cookie). Se `GET /api/auth/me`
+  retornar `groups: []`, o user precisa criar/entrar numa casa antes de usar rotas com
+  escopo de casa (elas dão `403 code: "NO_GROUP"`).
 
 ---
 
-## 9. CORS & ambiente
+## 8. Telas/fluxos cobertos pelo front
 
-- CORS liberado; restrinja com `ALLOWED_ORIGINS` (csv) no `.env` do backend; vazio = `*`.
-  Preflight `OPTIONS` é tratado. Headers liberados: `Authorization, Content-Type, X-Group-Id`.
-- Env do backend: `DATABASE_URL` (Neon), `JWT_SECRET`, `ALLOWED_ORIGINS`.
-- Banco: hoje aponta pro Neon **dev** (cópia dos dados reais de prod) — bom pra desenvolver
-  o front sem medo.
+1. **Registro** (`name, username, password`) e **Login** (`username, password`), com
+   Google como opção. Login trata `requiresPasswordSetup` → tela definir senha.
+2. **Criar casa / Entrar com código** (quando `groups` vazio ou por escolha).
+3. **Despesas**: lista (tabela + por pessoa), criar/editar/excluir, divisão igual ou
+   custom, import/export CSV, seletor de plataforma e pagador.
+4. **Saldos**: quem deve quanto pra quem (de `/api/balances`).
+5. **Lista de compras**: adicionar, marcar comprado, limpar comprados.
+6. **Plataformas**: CRUD, com substituição ao excluir.
+7. **Casa / header**: usuário logado, seletor de casa (`POST /api/groups/active`),
+   código da casa (se ADMIN), sair (`POST /api/auth/logout`).
 
 ---
 
-## 10. Dica de cliente HTTP (front)
+## 9. Ambiente
 
-Crie um wrapper único que injeta os headers e trata 401:
+- **Env**: `DATABASE_URL` (Neon), `JWT_SECRET`, `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET`. Existe `ALLOWED_ORIGINS` no env, mas hoje está **sem uso**
+  (não há CORS no código).
+- **Build**: `npm run build` = `prisma db push && prisma generate && next build`
+  (sem `--accept-data-loss`). `npm run test` (vitest) é gate obrigatório.
+- **Banco**: aponta pro Neon **dev** (cópia dos dados reais de prod) — bom pra
+  desenvolver sem medo.
 
-```ts
-const API = "http://localhost:3000"
-let token = localStorage.getItem("token")
-let groupId = localStorage.getItem("groupId")
+---
 
-async function api(path: string, opts: RequestInit = {}) {
-  const res = await fetch(API + path, {
-    ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(groupId ? { "X-Group-Id": groupId } : {}),
-      ...opts.headers,
-    },
-  })
-  if (res.status === 401) { /* limpar token + redirecionar pro login */ }
-  const data = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`)
-  return data
-}
-```
+## 10. Onde está a fonte da verdade
 
-Pronto — com isso dá pra construir o front inteiro. Qualquer dúvida de contrato, os
-route handlers em `src/app/api/**` e os services em `src/services/**` são a fonte da verdade.
+- **Auth/cookies/CORS**: `src/lib/auth.ts`, `src/lib/api-helpers.ts`, `src/middleware.ts`.
+- **Route handlers**: `src/app/api/**` (finos: validam, chamam service, respondem).
+- **Lógica de negócio**: `src/services/**` (singletons agnósticos de framework).
+- **Helpers**: `src/lib/**` (currency, balance, csv-parser, join-code, date, etc.).
+- **Front**: `src/app/(app)/**` + `src/app/auth/**`; design system em `src/components/ui/**`.
+
+Qualquer dúvida de contrato, esses arquivos mandam.
