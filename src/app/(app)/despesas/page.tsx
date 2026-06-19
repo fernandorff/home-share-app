@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/Button";
-import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
+import { Card, SectionTitle } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
 import { MemberDot } from "@/components/ui/Member";
 import { Tag } from "@/components/ui/Stamp";
@@ -19,19 +19,13 @@ import { api } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { formatDateLocale } from "@/lib/money";
 import { money } from "@/lib/format";
-import type {
-  Expense,
-  ExpenseListResponse,
-  ExpenseSortField,
-  Platform,
-} from "@/lib/types";
+import { memberStyle } from "@/lib/members";
+import type { Expense, ExpenseListResponse, ExpenseSortField, Platform } from "@/lib/types";
 import { ExpenseFormModal } from "@/components/expenses/ExpenseFormModal";
 import { ImportCsvModal } from "@/components/expenses/ImportCsvModal";
 
 type SortDirection = "asc" | "desc";
 type ViewMode = "list" | "byPayer";
-
-const PAGE_SIZE = 10;
 
 interface SortableCol {
   field: ExpenseSortField;
@@ -44,6 +38,55 @@ const COLUMNS: SortableCol[] = [
   { field: "payer", labelKey: "colPayer" },
   { field: "amount", labelKey: "colAmount", className: "text-right" },
 ];
+
+interface MonthGroup {
+  key: string;
+  label: string;
+  subtotal: number;
+  items: Expense[];
+}
+interface PersonGroup {
+  payerId: number;
+  name: string;
+  colorIndex: number;
+  total: number;
+  months: MonthGroup[];
+}
+
+/** "Junho / 2026" — locale-aware month, capitalized. */
+function monthLabel(d: Date, locale: string): string {
+  const m = new Intl.DateTimeFormat(locale, { month: "long" }).format(d);
+  return `${m.charAt(0).toUpperCase()}${m.slice(1)} / ${d.getFullYear()}`;
+}
+
+function compareExpenses(
+  a: Expense,
+  b: Expense,
+  field: ExpenseSortField,
+  locale: string
+): number {
+  let cmp = 0;
+  switch (field) {
+    case "amount":
+      cmp = money(a.amount) - money(b.amount);
+      break;
+    case "description":
+      cmp = a.description.localeCompare(b.description, locale);
+      break;
+    case "payer":
+      cmp = a.payer.name.localeCompare(b.payer.name, locale);
+      break;
+    case "platformId":
+      cmp = (a.platform?.name ?? "").localeCompare(b.platform?.name ?? "", locale);
+      break;
+    case "createdAt":
+      cmp = a.createdAt.localeCompare(b.createdAt);
+      break;
+    default:
+      cmp = a.date.localeCompare(b.date);
+  }
+  return cmp !== 0 ? cmp : a.date.localeCompare(b.date);
+}
 
 function SortIndicator({
   active,
@@ -64,9 +107,9 @@ export default function DespesasPage() {
   const apiErr = useApiError();
   const locale = useLocale();
 
-  const [data, setData] = useState<ExpenseListResponse | null>(null);
+  // Everything is loaded once and scrolled (no pagination).
+  const [allData, setAllData] = useState<ExpenseListResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
   const [sortField, setSortField] = useState<ExpenseSortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [view, setView] = useState<ViewMode>("list");
@@ -82,61 +125,83 @@ export default function DespesasPage() {
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchExpenses = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const qs = new URLSearchParams({
-        page: String(page),
-        pageSize: String(PAGE_SIZE),
-        sortField,
-        sortDirection,
-      });
-      const res = await api.get<ExpenseListResponse>(`/api/expenses?${qs}`);
-      setData(res);
+      const res = await api.get<ExpenseListResponse>(
+        "/api/expenses?page=1&pageSize=100000&sortField=date&sortDirection=desc"
+      );
+      setAllData(res);
     } catch (err) {
-      const message = apiErr(err, t("loadError"));
-      toast(message, "error");
+      toast(apiErr(err, t("loadError")), "error");
     } finally {
       setLoading(false);
     }
-  }, [page, sortField, sortDirection, toast, t]);
+  }, [toast, t, apiErr]);
 
+  // `load` is recreated every render (it closes over translation/toast hooks
+  // that aren't memoized), so depend only on the active group — otherwise the
+  // effect refires each render and the fetch never settles.
   useEffect(() => {
-    fetchExpenses();
-  }, [fetchExpenses]);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroup?.id]);
 
-  // Platforms (for the form + import selects). Refetch when the house changes.
   useEffect(() => {
     let active = true;
     api
       .get<{ platforms: Platform[] }>("/api/platforms")
-      .then((res) => {
-        if (active) setPlatforms(res.platforms);
-      })
-      .catch(() => {
-        if (active) setPlatforms([]);
-      });
+      .then((res) => active && setPlatforms(res.platforms))
+      .catch(() => active && setPlatforms([]));
     return () => {
       active = false;
     };
   }, [activeGroup?.id]);
 
-  const expenses = data?.expenses ?? [];
-  const pagination = data?.pagination;
+  const all = useMemo(() => allData?.expenses ?? [], [allData]);
 
-  // Selection is scoped to the current page.
-  useEffect(() => {
-    setSelected(new Set());
-  }, [page, sortField, sortDirection]);
+  // List view: client-side sorted (all rows, infinite scroll).
+  const listItems = useMemo(() => {
+    const dir = sortDirection === "asc" ? 1 : -1;
+    return [...all].sort((a, b) => compareExpenses(a, b, sortField, locale) * dir);
+  }, [all, sortField, sortDirection, locale]);
+
+  // By person → grouped by month (newest first).
+  const byPerson = useMemo<PersonGroup[]>(() => {
+    return members.map((m) => {
+      const monthsMap = new Map<string, MonthGroup>();
+      let total = 0;
+      for (const e of all) {
+        if (e.payerId !== m.id) continue;
+        const amt = money(e.amount);
+        total += amt;
+        const d = new Date(e.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        let mg = monthsMap.get(key);
+        if (!mg) {
+          mg = { key, label: monthLabel(d, locale), subtotal: 0, items: [] };
+          monthsMap.set(key, mg);
+        }
+        mg.subtotal += amt;
+        mg.items.push(e);
+      }
+      const monthsArr = Array.from(monthsMap.values()).sort((a, b) =>
+        b.key.localeCompare(a.key)
+      );
+      return { payerId: m.id, name: m.name, colorIndex: m.colorIndex, total, months: monthsArr };
+    });
+  }, [all, members, locale]);
+
+  const byPersonEmpty = byPerson.every((p) => p.months.length === 0);
+  const selectedCount = selected.size;
+  const allSelected = listItems.length > 0 && listItems.every((e) => selected.has(e.publicId));
 
   function toggleSort(field: ExpenseSortField) {
-    if (field === sortField) {
-      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
+    if (field === sortField) setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    else {
       setSortField(field);
       setSortDirection("desc");
     }
-    setPage(1);
   }
 
   function toggleRow(publicId: string) {
@@ -148,28 +213,18 @@ export default function DespesasPage() {
     });
   }
 
-  const allOnPageSelected =
-    expenses.length > 0 && expenses.every((e) => selected.has(e.publicId));
-
   function toggleSelectAll() {
-    setSelected((prev) => {
-      if (allOnPageSelected) return new Set();
-      const next = new Set(prev);
-      expenses.forEach((e) => next.add(e.publicId));
-      return next;
-    });
+    setSelected(allSelected ? new Set() : new Set(listItems.map((e) => e.publicId)));
   }
 
   function openCreate() {
     setEditing(null);
     setFormOpen(true);
   }
-
   function openEdit(expense: Expense) {
     setEditing(expense);
     setFormOpen(true);
   }
-
   function memberColorFor(payerId: number): number {
     return members.find((m) => m.id === payerId)?.colorIndex ?? 0;
   }
@@ -181,12 +236,9 @@ export default function DespesasPage() {
       await api.del(`/api/expenses/${deleteTarget.publicId}`);
       toast(t("toastDeleted"), "success");
       setDeleteTarget(null);
-      // If we just removed the last row on a page > 1, step back a page.
-      if (expenses.length === 1 && page > 1) setPage((p) => p - 1);
-      else fetchExpenses();
+      load();
     } catch (err) {
-      const message = apiErr(err, t("deleteError"));
-      toast(message, "error");
+      toast(apiErr(err, t("deleteError")), "error");
     } finally {
       setDeleting(false);
     }
@@ -197,50 +249,19 @@ export default function DespesasPage() {
     if (publicIds.length === 0) return;
     setDeleting(true);
     try {
-      const res = await api.post<{ deleted: number }>(
-        "/api/expenses/bulk-delete",
-        { publicIds }
-      );
+      const res = await api.post<{ deleted: number }>("/api/expenses/bulk-delete", { publicIds });
       toast(t("toastBulkDeleted", { count: res.deleted }), "success");
       setBulkConfirm(false);
       setSelected(new Set());
-      if (expenses.length === publicIds.length && page > 1) setPage((p) => p - 1);
-      else fetchExpenses();
+      load();
     } catch (err) {
-      const message = apiErr(err, t("bulkDeleteError"));
-      toast(message, "error");
+      toast(apiErr(err, t("bulkDeleteError")), "error");
     } finally {
       setDeleting(false);
     }
   }
 
-  // Grouped view: group current page's expenses by payer with a subtotal.
-  const byPayer = useMemo(() => {
-    const groups = new Map<
-      number,
-      { payerId: number; name: string; colorIndex: number; items: Expense[]; subtotal: number }
-    >();
-    for (const e of expenses) {
-      const g = groups.get(e.payerId);
-      if (g) {
-        g.items.push(e);
-        g.subtotal += money(e.amount);
-      } else {
-        const colorIndex =
-          members.find((m) => m.id === e.payerId)?.colorIndex ?? 0;
-        groups.set(e.payerId, {
-          payerId: e.payerId,
-          name: e.payer.name,
-          colorIndex,
-          items: [e],
-          subtotal: money(e.amount),
-        });
-      }
-    }
-    return Array.from(groups.values());
-  }, [expenses, members]);
-
-  const selectedCount = selected.size;
+  const total = allData?.pagination.total ?? listItems.length;
 
   return (
     <div className="flex flex-col gap-5">
@@ -259,10 +280,7 @@ export default function DespesasPage() {
               <MenuItem onSelect={() => setImportOpen(true)}>{t("importCsv")}</MenuItem>
               <MenuSeparator />
               <MenuItem>
-                <a
-                  href="/api/expenses/export"
-                  className="flex w-full items-center"
-                >
+                <a href="/api/expenses/export" className="flex w-full items-center">
                   {t("exportCsv")}
                 </a>
               </MenuItem>
@@ -273,7 +291,8 @@ export default function DespesasPage() {
           </div>
         }
       >
-        {t("title")}
+        {t("title")}{" "}
+        {!loading && <span className="font-normal text-faint">({total})</span>}
       </SectionTitle>
 
       {/* View toggle */}
@@ -300,18 +319,12 @@ export default function DespesasPage() {
         ))}
       </div>
 
-      {/* Bulk bar */}
-      {selectedCount > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-md border border-ink bg-panel px-4 py-2.5">
-          <span className="label-mono">
-            {t("selectedCount", { count: selectedCount })}
-          </span>
+      {/* Bulk bar (list only) */}
+      {view === "list" && selectedCount > 0 && (
+        <div className="sticky top-20 z-10 flex items-center justify-between gap-3 rounded-md border border-ink bg-panel px-4 py-2.5">
+          <span className="label-mono">{t("selectedCount", { count: selectedCount })}</span>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelected(new Set())}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
               {t("clear")}
             </Button>
             <Button variant="danger" size="sm" onClick={() => setBulkConfirm(true)}>
@@ -321,267 +334,246 @@ export default function DespesasPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden">
-        {loading ? (
-          <SkeletonRows rows={6} />
-        ) : expenses.length === 0 ? (
+      {loading || allData === null ? (
+        view === "byPayer" ? (
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card className="p-2"><SkeletonRows rows={6} /></Card>
+            <Card className="p-2"><SkeletonRows rows={6} /></Card>
+          </div>
+        ) : (
+          <Card className="overflow-hidden"><SkeletonRows rows={8} /></Card>
+        )
+      ) : total === 0 ? (
+        <Card>
           <EmptyState
             title={t("emptyTitle")}
             hint={t("emptyHint")}
             icon="₪"
             action={<Button onClick={openCreate}>{t("newExpense")}</Button>}
           />
-        ) : view === "byPayer" ? (
-          /* ===== GROUPED BY PAYER ===== */
-          <div className="flex flex-col">
-            {byPayer.map((group, gi) => (
-              <div key={group.payerId}>
-                {gi > 0 && <ReceiptDivider />}
-                <div className="flex items-center justify-between gap-3 bg-panel/40 px-4 py-2.5">
-                  <span className="flex items-center gap-2 min-w-0">
-                    <MemberDot
-                      colorIndex={group.colorIndex}
-                      name={group.name}
-                      size={22}
-                    />
-                    <span className="truncate font-display text-sm font-bold uppercase tracking-wide text-ink">
-                      {group.name}
-                    </span>
-                    <span className="text-xs text-faint">
-                      ({group.items.length})
-                    </span>
-                  </span>
-                  <Money value={group.subtotal} />
-                </div>
-                <ul>
-                  {group.items.map((e) => (
-                    <li
-                      key={e.publicId}
-                      className="flex items-center justify-between gap-3 border-t border-dotted border-rule px-4 py-2.5"
+        </Card>
+      ) : view === "byPayer" ? (
+        /* ===== BY PERSON ===== */
+        byPersonEmpty ? (
+          <Card>
+            <EmptyState title={t("emptyTitle")} hint={t("emptyHint")} icon="₪" />
+          </Card>
+        ) : (
+          <div className="grid items-start gap-5 lg:grid-cols-2">
+            {byPerson.map((person, pi) => {
+              const s = memberStyle(person.colorIndex);
+              return (
+                <div key={person.payerId} className="reveal" style={revealDelay(pi)}>
+                  <Card className="overflow-hidden">
+                    <div
+                      className="flex items-center justify-between gap-3 border-b border-rule px-4 py-3"
+                      style={{ background: `${s.bg}1a`, borderColor: `${s.bg}55` }}
                     >
-                      <span className="flex min-w-0 flex-col">
-                        <span className="truncate text-sm text-ink">
-                          {e.description}
-                        </span>
-                        <span className="flex items-center gap-2 text-xs text-faint">
-                          {formatDateLocale(e.date, locale)}
-                          {e.platform && <Tag>{e.platform.name}</Tag>}
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        <MemberDot colorIndex={person.colorIndex} name={person.name} size={26} />
+                        <span className="truncate font-display text-base font-bold text-ink">
+                          {person.name}
                         </span>
                       </span>
-                      <div className="flex items-center gap-2">
-                        <Money value={e.amount} />
-                        <RowMenu
-                          onEdit={() => openEdit(e)}
-                          onDelete={() => setDeleteTarget(e)}
-                        />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+                      <Money value={person.total} className="font-display text-base font-bold" />
+                    </div>
+
+                    {person.months.length === 0 ? (
+                      <p className="px-4 py-8 text-center text-sm text-faint">{t("emptyTitle")}</p>
+                    ) : (
+                      person.months.map((mg) => (
+                        <div key={mg.key}>
+                          <div className="flex items-center justify-between gap-3 border-t border-dashed border-rule bg-panel/40 px-4 py-2">
+                            <span className="label-mono">▦ {mg.label}</span>
+                            <Money value={mg.subtotal} className="text-ink-soft" />
+                          </div>
+                          <table className="w-full table-fixed">
+                            <thead>
+                              <tr className="border-t border-dotted border-rule">
+                                <th className="label-mono px-4 py-1.5 text-left">{t("colDescription")}</th>
+                                <th className="label-mono hidden w-20 px-2 py-1.5 text-left sm:table-cell">{t("colPlatform")}</th>
+                                <th className="label-mono w-[86px] px-2 py-1.5 text-left">{t("colDate")}</th>
+                                <th className="label-mono w-[92px] px-4 py-1.5 text-right">{t("colAmount")}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {mg.items.map((e) => (
+                                <tr key={e.publicId} className="group border-t border-dotted border-rule transition-colors hover:bg-panel/30">
+                                  <td className="truncate px-4 py-2 text-sm text-ink" title={e.description}>
+                                    {e.description}
+                                  </td>
+                                  <td className="hidden px-2 py-2 sm:table-cell">
+                                    {e.platform ? (
+                                      <span className="block truncate text-xs text-faint">{e.platform.name}</span>
+                                    ) : (
+                                      <span className="text-faint">—</span>
+                                    )}
+                                  </td>
+                                  <td className="whitespace-nowrap px-2 py-2 text-xs text-ink-soft">
+                                    {formatDateLocale(e.date, locale)}
+                                  </td>
+                                  <td className="px-4 py-2 text-right">
+                                    <span className="inline-flex items-center justify-end gap-1">
+                                      <Money value={e.amount} />
+                                      <span className="opacity-0 transition-opacity group-hover:opacity-100">
+                                        <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
+                                      </span>
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ))
+                    )}
+                  </Card>
+                </div>
+              );
+            })}
           </div>
-        ) : (
-          /* ===== LIST VIEW ===== */
-          <>
-            {/* Desktop ledger table */}
-            <table className="hidden w-full md:table">
-              <thead>
-                <tr className="border-b border-dashed border-rule text-left">
-                  <th className="w-10 px-4 py-2.5">
-                    <input
-                      type="checkbox"
-                      aria-label={t("selectAll")}
-                      checked={allOnPageSelected}
-                      onChange={toggleSelectAll}
-                      className="h-4 w-4 accent-ink"
-                    />
-                  </th>
-                  {COLUMNS.map((col) => (
-                    <th
-                      key={col.field}
-                      className={cn("px-4 py-2.5", col.className)}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleSort(col.field)}
-                        className={cn(
-                          "label-mono inline-flex items-center gap-1.5 hover:text-ink",
-                          col.className === "text-right" && "flex-row-reverse"
-                        )}
-                      >
-                        {t(col.labelKey)}
-                        <SortIndicator
-                          active={sortField === col.field}
-                          direction={sortDirection}
-                        />
-                      </button>
-                    </th>
-                  ))}
-                  <th className="px-4 py-2.5">
-                    <span className="label-mono">{t("colPlatform")}</span>
-                  </th>
-                  <th className="px-4 py-2.5">
+        )
+      ) : (
+        /* ===== LIST VIEW (all rows, scroll) ===== */
+        <Card className="overflow-hidden">
+          {/* Desktop ledger table */}
+          <table className="hidden w-full md:table">
+            <thead className="bg-card">
+              <tr className="border-b border-dashed border-rule text-left">
+                <th className="w-10 px-4 py-2.5">
+                  <input
+                    type="checkbox"
+                    aria-label={t("selectAll")}
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 accent-ink"
+                  />
+                </th>
+                {COLUMNS.map((col) => (
+                  <th key={col.field} className={cn("px-4 py-2.5", col.className)}>
                     <button
                       type="button"
-                      onClick={() => toggleSort("date")}
-                      className="label-mono inline-flex items-center gap-1.5 hover:text-ink"
+                      onClick={() => toggleSort(col.field)}
+                      className={cn(
+                        "label-mono inline-flex items-center gap-1.5 hover:text-ink",
+                        col.className === "text-right" && "flex-row-reverse"
+                      )}
                     >
-                      {t("colDate")}
-                      <SortIndicator
-                        active={sortField === "date"}
-                        direction={sortDirection}
-                      />
+                      {t(col.labelKey)}
+                      <SortIndicator active={sortField === col.field} direction={sortDirection} />
                     </button>
                   </th>
-                  <th className="w-10 px-4 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.map((e, i) => (
-                  <tr
-                    key={e.publicId}
-                    className={cn(
-                      "reveal border-b border-dotted border-rule last:border-b-0 transition-colors",
-                      selected.has(e.publicId) ? "bg-panel/60" : "hover:bg-panel/30"
-                    )}
-                    style={revealDelay(i)}
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        aria-label={t("selectRow", { description: e.description })}
-                        checked={selected.has(e.publicId)}
-                        onChange={() => toggleRow(e.publicId)}
-                        className="h-4 w-4 accent-ink"
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-sm text-ink">
-                      {e.description}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="flex items-center gap-2 min-w-0">
-                        <MemberDot
-                          colorIndex={memberColorFor(e.payerId)}
-                          name={e.payer.name}
-                          size={22}
-                        />
-                        <span className="truncate text-sm text-ink">
-                          {e.payer.name}
-                        </span>
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Money value={e.amount} />
-                    </td>
-                    <td className="px-4 py-3">
-                      {e.platform ? <Tag>{e.platform.name}</Tag> : <span className="text-faint">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-ink-soft whitespace-nowrap">
-                      {formatDateLocale(e.date, locale)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <RowMenu
-                        onEdit={() => openEdit(e)}
-                        onDelete={() => setDeleteTarget(e)}
-                      />
-                    </td>
-                  </tr>
                 ))}
-              </tbody>
-            </table>
-
-            {/* Mobile stacked cards */}
-            <div className="flex flex-col md:hidden">
-              {/* select-all on mobile */}
-              <label className="flex items-center gap-2 border-b border-dashed border-rule px-4 py-2.5 text-xs text-ink-soft">
-                <input
-                  type="checkbox"
-                  aria-label={t("selectAll")}
-                  checked={allOnPageSelected}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 accent-ink"
-                />
-                <span className="label-mono">{t("selectAll")}</span>
-              </label>
-              <ul>
-                {expenses.map((e, i) => (
-                  <li
-                    key={e.publicId}
-                    className={cn(
-                      "reveal flex gap-3 border-b border-dotted border-rule px-4 py-3 last:border-b-0",
-                      selected.has(e.publicId) && "bg-panel/60"
-                    )}
-                    style={revealDelay(i)}
+                <th className="px-4 py-2.5">
+                  <span className="label-mono">{t("colPlatform")}</span>
+                </th>
+                <th className="px-4 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("date")}
+                    className="label-mono inline-flex items-center gap-1.5 hover:text-ink"
                   >
+                    {t("colDate")}
+                    <SortIndicator active={sortField === "date"} direction={sortDirection} />
+                  </button>
+                </th>
+                <th className="w-10 px-4 py-2.5" />
+              </tr>
+            </thead>
+            <tbody>
+              {listItems.map((e) => (
+                <tr
+                  key={e.publicId}
+                  className={cn(
+                    "border-b border-dotted border-rule last:border-b-0 transition-colors",
+                    selected.has(e.publicId) ? "bg-panel/60" : "hover:bg-panel/30"
+                  )}
+                >
+                  <td className="px-4 py-3">
                     <input
                       type="checkbox"
                       aria-label={t("selectRow", { description: e.description })}
                       checked={selected.has(e.publicId)}
                       onChange={() => toggleRow(e.publicId)}
-                      className="mt-1 h-4 w-4 shrink-0 accent-ink"
+                      className="h-4 w-4 accent-ink"
                     />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="truncate text-sm font-medium text-ink">
-                          {e.description}
-                        </span>
-                        <Money value={e.amount} className="shrink-0" />
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-faint">
-                        <span className="flex items-center gap-1.5">
-                          <MemberDot
-                            colorIndex={memberColorFor(e.payerId)}
-                            name={e.payer.name}
-                            size={18}
-                          />
-                          {e.payer.name}
-                        </span>
-                        <span aria-hidden>·</span>
-                        <span>{formatDateLocale(e.date, locale)}</span>
-                        {e.platform && <Tag>{e.platform.name}</Tag>}
-                      </div>
-                    </div>
-                    <div className="shrink-0">
-                      <RowMenu
-                        onEdit={() => openEdit(e)}
-                        onDelete={() => setDeleteTarget(e)}
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </>
-        )}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-ink">{e.description}</td>
+                  <td className="px-4 py-3">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <MemberDot colorIndex={memberColorFor(e.payerId)} name={e.payer.name} size={22} />
+                      <span className="truncate text-sm text-ink">{e.payer.name}</span>
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Money value={e.amount} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {e.platform ? <Tag>{e.platform.name}</Tag> : <span className="text-faint">—</span>}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-soft">
+                    {formatDateLocale(e.date, locale)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-        {/* Pagination footer */}
-        {!loading && pagination && pagination.total > 0 && (
-          <div className="flex items-center justify-between gap-3 border-t border-dashed border-rule px-4 py-3">
-            <span className="label-mono">
-              {t("pageOf", { page: pagination.page, total: pagination.totalPages || 1 })}
-            </span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                ← {t("previous")}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={page >= (pagination.totalPages || 1)}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                {t("next")} →
-              </Button>
-            </div>
+          {/* Mobile stacked cards */}
+          <div className="flex flex-col md:hidden">
+            <label className="flex items-center gap-2 border-b border-dashed border-rule px-4 py-2.5 text-xs text-ink-soft">
+              <input
+                type="checkbox"
+                aria-label={t("selectAll")}
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 accent-ink"
+              />
+              <span className="label-mono">{t("selectAll")}</span>
+            </label>
+            <ul>
+              {listItems.map((e) => (
+                <li
+                  key={e.publicId}
+                  className={cn(
+                    "flex gap-3 border-b border-dotted border-rule px-4 py-3 last:border-b-0",
+                    selected.has(e.publicId) && "bg-panel/60"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={t("selectRow", { description: e.description })}
+                    checked={selected.has(e.publicId)}
+                    onChange={() => toggleRow(e.publicId)}
+                    className="mt-1 h-4 w-4 shrink-0 accent-ink"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="truncate text-sm font-medium text-ink">{e.description}</span>
+                      <Money value={e.amount} className="shrink-0" />
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-faint">
+                      <span className="flex items-center gap-1.5">
+                        <MemberDot colorIndex={memberColorFor(e.payerId)} name={e.payer.name} size={18} />
+                        {e.payer.name}
+                      </span>
+                      <span aria-hidden>·</span>
+                      <span>{formatDateLocale(e.date, locale)}</span>
+                      {e.platform && <Tag>{e.platform.name}</Tag>}
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Create / edit modal */}
       <ExpenseFormModal
@@ -589,16 +581,11 @@ export default function DespesasPage() {
         onOpenChange={setFormOpen}
         expense={editing}
         platforms={platforms}
-        onSaved={fetchExpenses}
+        onSaved={load}
       />
 
       {/* Import modal */}
-      <ImportCsvModal
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        platforms={platforms}
-        onImported={fetchExpenses}
-      />
+      <ImportCsvModal open={importOpen} onOpenChange={setImportOpen} platforms={platforms} onImported={load} />
 
       {/* Delete one confirm */}
       <Modal
@@ -619,10 +606,7 @@ export default function DespesasPage() {
       >
         <p className="text-sm text-ink">
           {t("deletePrompt")}{" "}
-          <span className="font-display font-bold">
-            {deleteTarget?.description}
-          </span>
-          ?
+          <span className="font-display font-bold">{deleteTarget?.description}</span>?
         </p>
       </Modal>
 
@@ -643,22 +627,14 @@ export default function DespesasPage() {
           </>
         }
       >
-        <p className="text-sm text-ink">
-          {t("bulkDeletePrompt", { count: selectedCount })}
-        </p>
+        <p className="text-sm text-ink">{t("bulkDeletePrompt", { count: selectedCount })}</p>
       </Modal>
     </div>
   );
 }
 
 /** Per-row actions menu (⋯). */
-function RowMenu({
-  onEdit,
-  onDelete,
-}: {
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
+function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
   return (
