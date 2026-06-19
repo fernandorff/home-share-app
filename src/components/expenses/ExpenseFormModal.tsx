@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea, Select, Label } from "@/components/ui/Field";
@@ -34,13 +34,14 @@ type CustomMode = "valor" | "percent";
 
 function participantsToMasked(
   expense: Expense | null | undefined,
-  members: Member[]
+  members: Member[],
+  locale: string
 ): Record<number, string> {
   const map: Record<number, string> = {};
   if (!expense) return map;
   for (const m of members) {
     const p = expense.participants.find((x) => x.userId === m.id);
-    if (p) map[m.id] = maskAmountInput(String(toCents(p.amount)));
+    if (p) map[m.id] = maskAmountInput(String(toCents(p.amount)), locale);
   }
   return map;
 }
@@ -77,7 +78,7 @@ function distributeByPercent(totalCents: number, percents: number[]): number[] {
   }
   const raw = percents.map((p) => (totalCents * p) / 100);
   const floors = raw.map((r) => Math.floor(r));
-  let remainder = totalCents - floors.reduce((a, b) => a + b, 0);
+  const remainder = totalCents - floors.reduce((a, b) => a + b, 0);
   const order = raw
     .map((r, i) => ({ i, frac: r - Math.floor(r) }))
     .sort((a, b) => b.frac - a.frac);
@@ -98,7 +99,10 @@ export function ExpenseFormModal({
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
   const apiErr = useApiError();
+  const locale = useLocale();
   const isEdit = Boolean(expense);
+
+  const zeroPlaceholder = maskAmountInput("0", locale);
 
   const [payerId, setPayerId] = useState<string>("");
   const [platformId, setPlatformId] = useState<string>("");
@@ -128,11 +132,11 @@ export function ExpenseFormModal({
       setPlatformId(expense.platformId != null ? String(expense.platformId) : "");
       setDescription(expense.description);
       setNotes(expense.notes ?? "");
-      setAmountMasked(maskAmountInput(String(toCents(expense.amount))));
+      setAmountMasked(maskAmountInput(String(toCents(expense.amount)), locale));
       setDate(toDateInputValue(expense.date));
       const equal = detectSplitEqually(expense, members);
       setSplitEqually(equal);
-      setCustom(equal ? {} : participantsToMasked(expense, members));
+      setCustom(equal ? {} : participantsToMasked(expense, members, locale));
     } else {
       setPayerId(me ? String(me.user.id) : "");
       setPlatformId("");
@@ -148,18 +152,18 @@ export function ExpenseFormModal({
     members.forEach((m, i) => (seeded[m.id] = eq[i] ?? 0));
     setPercent(seeded);
     setFormError(null);
-  }, [open, expense, members, me]);
+  }, [open, expense, members, me, locale]);
 
-  const totalCents = toCents(parseAmountInput(amountMasked));
+  const totalCents = toCents(parseAmountInput(amountMasked, locale));
 
   // ---- Custom by value ----
   const customSumCents = useMemo(
     () =>
       members.reduce(
-        (sum, m) => sum + toCents(parseAmountInput(custom[m.id] ?? "")),
+        (sum, m) => sum + toCents(parseAmountInput(custom[m.id] ?? "", locale)),
         0
       ),
-    [custom, members]
+    [custom, members, locale]
   );
   const diffCents = totalCents - customSumCents;
   const valorMatches = totalCents > 0 && diffCents === 0;
@@ -189,7 +193,7 @@ export function ExpenseFormModal({
     !submitting;
 
   function setCustomAmount(memberId: number, raw: string) {
-    setCustom((prev) => ({ ...prev, [memberId]: maskAmountInput(raw) }));
+    setCustom((prev) => ({ ...prev, [memberId]: maskAmountInput(raw, locale) }));
   }
   function setPercentValue(memberId: number, value: number) {
     setPercent((prev) => ({ ...prev, [memberId]: value }));
@@ -198,7 +202,7 @@ export function ExpenseFormModal({
     if (members.length === 0 || totalCents <= 0) return;
     const parts = splitCents(totalCents, members.length);
     const next: Record<number, string> = {};
-    members.forEach((m, i) => (next[m.id] = maskAmountInput(String(parts[i]))));
+    members.forEach((m, i) => (next[m.id] = maskAmountInput(String(parts[i]), locale)));
     setCustom(next);
   }
 
@@ -207,7 +211,7 @@ export function ExpenseFormModal({
     setSubmitting(true);
     setFormError(null);
 
-    const amount = parseAmountInput(amountMasked);
+    const amount = parseAmountInput(amountMasked, locale);
     const body: Record<string, unknown> = {
       payerId: Number(payerId),
       platformId: platformId === "" ? null : Number(platformId),
@@ -227,7 +231,7 @@ export function ExpenseFormModal({
       } else {
         body.participants = members.map((m) => ({
           userId: m.id,
-          amount: fromCents(toCents(parseAmountInput(custom[m.id] ?? ""))),
+          amount: fromCents(toCents(parseAmountInput(custom[m.id] ?? "", locale))),
         }));
       }
     }
@@ -327,9 +331,9 @@ export function ExpenseFormModal({
               id="exp-amount"
               inputMode="numeric"
               value={amountMasked}
-              placeholder="0,00"
+              placeholder={zeroPlaceholder}
               className="text-right tnum tabular-nums"
-              onChange={(e) => setAmountMasked(maskAmountInput(e.target.value))}
+              onChange={(e) => setAmountMasked(maskAmountInput(e.target.value, locale))}
             />
           </Field>
 
@@ -376,7 +380,7 @@ export function ExpenseFormModal({
               onClick={() => {
                 setSplitEqually(false);
                 const empty = members.every(
-                  (m) => !custom[m.id] || parseAmountInput(custom[m.id]) === 0
+                  (m) => !custom[m.id] || parseAmountInput(custom[m.id], locale) === 0
                 );
                 if (empty) fillEqualIntoCustom();
                 if (totalPct !== 100) seedPercentEqual();
@@ -434,7 +438,7 @@ export function ExpenseFormModal({
                       <Input
                         inputMode="numeric"
                         value={custom[m.id] ?? ""}
-                        placeholder="0,00"
+                        placeholder={zeroPlaceholder}
                         className="w-28 text-right tnum tabular-nums"
                         onChange={(e) => setCustomAmount(m.id, e.target.value)}
                       />

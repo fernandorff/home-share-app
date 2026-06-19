@@ -48,19 +48,34 @@ export function todayInputValue(): string {
   return toDateInputValue();
 }
 
-/** Currency input mask working in cents: "12345" → "123,45". */
-export function maskAmountInput(raw: string): string {
+/** The grouping + decimal separators a locale uses for plain numbers. */
+function localeSeparators(locale: string): { group: string; decimal: string } {
+  const parts = new Intl.NumberFormat(locale).formatToParts(11111.11);
+  return {
+    group: parts.find((p) => p.type === "group")?.value ?? ",",
+    decimal: parts.find((p) => p.type === "decimal")?.value ?? ".",
+  };
+}
+
+/** Currency input mask working in cents, formatted for `locale`. "12345" → "123.45"/"123,45". */
+export function maskAmountInput(raw: string, locale = "pt-BR"): string {
   const digits = raw.replace(/\D/g, "");
   if (!digits) return "";
   const cents = parseInt(digits, 10);
-  return (cents / 100).toLocaleString("pt-BR", {
+  return (cents / 100).toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 }
 
-/** Parse a masked "1.234,56" back to a number 1234.56. */
-export function parseAmountInput(masked: string): number {
-  const cleaned = masked.replace(/\./g, "").replace(",", ".");
+/** Parse a locale-formatted masked amount back to a number (e.g. en "1,234.56" → 1234.56). */
+export function parseAmountInput(masked: string, locale = "pt-BR"): number {
+  const { group, decimal } = localeSeparators(locale);
+  const cleaned = masked
+    .split(group)
+    .join("")
+    .split(decimal)
+    .join(".")
+    .replace(/[^\d.-]/g, "");
   return parseFloat(cleaned) || 0;
 }
