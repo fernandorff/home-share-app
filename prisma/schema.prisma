@@ -32,6 +32,7 @@ model Group {
   name        String   @map("nome")
   description String?  @map("descricao")
   joinCode    String?  @unique @map("codigo_convite")
+  currency    String   @default("BRL") @map("moeda")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

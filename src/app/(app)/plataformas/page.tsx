@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { useApiError } from "@/lib/api-errors";
 import { useToast } from "@/components/ui/Toast";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
@@ -26,6 +27,7 @@ export default function PlataformasPage() {
   const toast = useToast();
   const t = useTranslations("Platforms");
   const tc = useTranslations("Common");
+  const apiErr = useApiError();
 
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,10 +49,7 @@ export default function PlataformasPage() {
       );
       setPlatforms(data.platforms);
     } catch (err) {
-      toast(
-        err instanceof ApiError ? err.message : t("loadError"),
-        "error"
-      );
+      toast(apiErr(err, t("loadError")), "error");
     } finally {
       setLoading(false);
     }
@@ -96,10 +95,7 @@ export default function PlataformasPage() {
       setEdit(null);
       await load();
     } catch (err) {
-      toast(
-        err instanceof ApiError ? err.message : t("saveError"),
-        "error"
-      );
+      toast(apiErr(err, t("saveError")), "error");
     } finally {
       setSaving(false);
     }
@@ -125,10 +121,7 @@ export default function PlataformasPage() {
       setDeleting(null);
       await load();
     } catch (err) {
-      toast(
-        err instanceof ApiError ? err.message : t("deleteError"),
-        "error"
-      );
+      toast(apiErr(err, t("deleteError")), "error");
     } finally {
       setRemoving(false);
     }

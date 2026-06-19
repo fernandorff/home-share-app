@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
-import { api, ApiError } from "@/lib/api";
-import { formatDateBR } from "@/lib/format";
+import { useTranslations, useLocale } from "next-intl";
+import { api } from "@/lib/api";
+import { useApiError } from "@/lib/api-errors";
+import { formatDateLocale } from "@/lib/money";
 import type { ShoppingItem } from "@/lib/types";
 import { cn } from "@/components/ui/cn";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +23,7 @@ const NAME_MAX = 200;
 export default function ComprasPage() {
   const t = useTranslations("Shopping");
   const tc = useTranslations("Common");
+  const apiErr = useApiError();
   const toast = useToast();
 
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -43,8 +45,7 @@ export default function ComprasPage() {
   const [confirmDelete, setConfirmDelete] = useState<ShoppingItem | null>(null);
   const [clearingPurchased, setClearingPurchased] = useState(false);
 
-  const errMsg = (e: unknown) =>
-    e instanceof ApiError ? e.message : t("genericError");
+  const errMsg = (e: unknown) => apiErr(e, t("genericError"));
 
   const setItemBusy = (publicId: string, on: boolean) =>
     setBusy((prev) => {
@@ -361,6 +362,7 @@ function ItemRow({
 }) {
   const t = useTranslations("Shopping");
   const tc = useTranslations("Common");
+  const locale = useLocale();
   return (
     <div className={cn("flex items-center gap-3 px-4 py-3", busy && "opacity-60")}>
       {/* Checkbox-style toggle — [ ] / [x] in mono */}
@@ -396,7 +398,7 @@ function ItemRow({
       </div>
 
       <span className="hidden shrink-0 text-xs text-faint sm:inline">
-        {formatDateBR(item.createdAt)}
+        {formatDateLocale(item.createdAt, locale)}
       </span>
 
       <Menu

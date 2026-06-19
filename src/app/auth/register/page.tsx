@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { useApiError } from "@/lib/api-errors";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
@@ -14,6 +15,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const t = useTranslations("Auth");
   const tc = useTranslations("Common");
+  const apiErr = useApiError();
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -32,7 +34,7 @@ export default function RegisterPage() {
       });
       router.replace("/");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("errorRegister"));
+      setError(apiErr(err, t("errorRegister")));
       setLoading(false);
     }
   }

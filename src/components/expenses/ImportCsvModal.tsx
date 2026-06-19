@@ -9,7 +9,8 @@ import { Money } from "@/components/ui/Money";
 import { ReceiptDivider } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
 import { useSession } from "@/lib/session";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { useApiError } from "@/lib/api-errors";
 import type { Platform, ImportResult } from "@/lib/types";
 
 interface ImportCsvModalProps {
@@ -34,6 +35,7 @@ export function ImportCsvModal({
   const toast = useToast();
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
+  const apiErr = useApiError();
 
   const [file, setFile] = useState<File | null>(null);
   const [platformId, setPlatformId] = useState<string>("");
@@ -78,8 +80,7 @@ export function ImportCsvModal({
       );
       if (n > 0) onImported();
     } catch (err) {
-      const message =
-        err instanceof ApiError ? err.message : t("importError");
+      const message = apiErr(err, t("importError"));
       setFormError(message);
       toast(message, "error");
     } finally {

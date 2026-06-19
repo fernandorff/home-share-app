@@ -21,7 +21,7 @@ export async function requireSession(): Promise<SessionCheck> {
   if (!session) {
     return {
       ok: false,
-      response: NextResponse.json({ error: 'Não autenticado' }, { status: 401 }),
+      response: NextResponse.json({ error: 'Não autenticado', code: 'NOT_AUTHENTICATED' }, { status: 401 }),
     }
   }
   return { ok: true, session }

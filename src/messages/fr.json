@@ -263,5 +263,31 @@
     "emptyHint": "Ajoutez le premier article.",
     "cleared": "{count, plural, one {# article supprimé.} other {# articles supprimés.}}",
     "genericError": "Une erreur s'est produite. Veuillez réessayer."
+  },
+  "ApiErrors": {
+    "INVALID_NAME": "Le nom est obligatoire (max. 80 caractères).",
+    "INVALID_USERNAME": "Identifiant invalide (3–30 caractères : minuscules, chiffres, . - _).",
+    "INVALID_PASSWORD": "Le mot de passe doit comporter au moins 8 caractères.",
+    "USERNAME_TAKEN": "Cet identifiant est déjà pris.",
+    "MISSING_USERNAME": "Saisissez votre identifiant.",
+    "INVALID_CREDENTIALS": "Identifiant ou mot de passe incorrect.",
+    "INVALID_CODE_FORMAT": "Code invalide — il doit comporter 6 caractères.",
+    "INVALID_CODE": "Code invalide — vérifiez avec la personne qui vous a invité.",
+    "CANNOT_SET_PASSWORD": "Impossible de définir le mot de passe pour cet utilisateur.",
+    "NOT_AUTHENTICATED": "Non authentifié.",
+    "NOT_ADMIN": "Seul l'admin du foyer peut faire cela.",
+    "INVALID_CURRENCY": "Devise invalide.",
+    "NO_GROUP": "Vous n'êtes encore dans aucun foyer."
+  },
+  "Currency": {
+    "title": "Devise",
+    "hint": "Comment les montants sont affichés dans ce foyer (affichage uniquement — sans conversion).",
+    "changed": "Devise mise à jour",
+    "error": "Impossible de changer la devise",
+    "adminOnly": "Seul l'admin du foyer peut changer la devise.",
+    "BRL": "Real (R$)",
+    "USD": "Dollar ($)",
+    "EUR": "Euro (€)",
+    "GBP": "Livre (£)"
   }
 }

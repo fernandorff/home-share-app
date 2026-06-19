@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
@@ -15,8 +15,10 @@ import { revealDelay } from "@/components/ui/motion";
 import { cn } from "@/components/ui/cn";
 import { useToast } from "@/components/ui/Toast";
 import { useSession } from "@/lib/session";
-import { api, ApiError } from "@/lib/api";
-import { formatDateBR, money } from "@/lib/format";
+import { api } from "@/lib/api";
+import { useApiError } from "@/lib/api-errors";
+import { formatDateLocale } from "@/lib/money";
+import { money } from "@/lib/format";
 import type {
   Expense,
   ExpenseListResponse,
@@ -59,6 +61,8 @@ export default function DespesasPage() {
   const toast = useToast();
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
+  const apiErr = useApiError();
+  const locale = useLocale();
 
   const [data, setData] = useState<ExpenseListResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,8 +94,7 @@ export default function DespesasPage() {
       const res = await api.get<ExpenseListResponse>(`/api/expenses?${qs}`);
       setData(res);
     } catch (err) {
-      const message =
-        err instanceof ApiError ? err.message : t("loadError");
+      const message = apiErr(err, t("loadError"));
       toast(message, "error");
     } finally {
       setLoading(false);
@@ -182,8 +185,7 @@ export default function DespesasPage() {
       if (expenses.length === 1 && page > 1) setPage((p) => p - 1);
       else fetchExpenses();
     } catch (err) {
-      const message =
-        err instanceof ApiError ? err.message : t("deleteError");
+      const message = apiErr(err, t("deleteError"));
       toast(message, "error");
     } finally {
       setDeleting(false);
@@ -205,8 +207,7 @@ export default function DespesasPage() {
       if (expenses.length === publicIds.length && page > 1) setPage((p) => p - 1);
       else fetchExpenses();
     } catch (err) {
-      const message =
-        err instanceof ApiError ? err.message : t("bulkDeleteError");
+      const message = apiErr(err, t("bulkDeleteError"));
       toast(message, "error");
     } finally {
       setDeleting(false);
@@ -363,7 +364,7 @@ export default function DespesasPage() {
                           {e.description}
                         </span>
                         <span className="flex items-center gap-2 text-xs text-faint">
-                          {formatDateBR(e.date)}
+                          {formatDateLocale(e.date, locale)}
                           {e.platform && <Tag>{e.platform.name}</Tag>}
                         </span>
                       </span>
@@ -477,7 +478,7 @@ export default function DespesasPage() {
                       {e.platform ? <Tag>{e.platform.name}</Tag> : <span className="text-faint">—</span>}
                     </td>
                     <td className="px-4 py-3 text-sm text-ink-soft whitespace-nowrap">
-                      {formatDateBR(e.date)}
+                      {formatDateLocale(e.date, locale)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <RowMenu
@@ -537,7 +538,7 @@ export default function DespesasPage() {
                           {e.payer.name}
                         </span>
                         <span aria-hidden>·</span>
-                        <span>{formatDateBR(e.date)}</span>
+                        <span>{formatDateLocale(e.date, locale)}</span>
                         {e.platform && <Tag>{e.platform.name}</Tag>}
                       </div>
                     </div>

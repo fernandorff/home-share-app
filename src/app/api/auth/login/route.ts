@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const password = typeof body.password === 'string' ? body.password : ''
 
     if (!username) {
-      return NextResponse.json({ error: 'Informe o usuário' }, { status: 400 })
+      return NextResponse.json({ error: 'Informe o usuário', code: 'MISSING_USERNAME' }, { status: 400 })
     }
 
     const result = await authService.login(username, password)
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     }
 
     if (result.status === 'invalid') {
-      return NextResponse.json({ error: 'Usuário ou senha incorretos' }, { status: 401 })
+      return NextResponse.json({ error: 'Usuário ou senha incorretos', code: 'INVALID_CREDENTIALS' }, { status: 401 })
     }
 
     const token = await signSession({

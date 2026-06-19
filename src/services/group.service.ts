@@ -14,16 +14,21 @@ class GroupService {
       select: {
         role: true,
         colorIndex: true,
-        group: { select: { id: true, publicId: true, name: true } },
+        group: { select: { id: true, publicId: true, name: true, currency: true } },
       },
     })
     return memberships.map(m => ({
       id: m.group.id,
       publicId: m.group.publicId,
       name: m.group.name,
+      currency: m.group.currency,
       role: m.role,
       colorIndex: m.colorIndex,
     }))
+  }
+
+  async updateCurrency(groupId: number, currency: string) {
+    return prisma.group.update({ where: { id: groupId }, data: { currency } })
   }
 
   async create(userId: number, name: string) {

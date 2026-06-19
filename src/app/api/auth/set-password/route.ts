@@ -12,13 +12,13 @@ export async function POST(request: Request) {
 
     const passwordError = authService.validatePassword(password)
     if (passwordError) {
-      return NextResponse.json({ error: passwordError }, { status: 400 })
+      return NextResponse.json({ error: passwordError, code: 'INVALID_PASSWORD' }, { status: 400 })
     }
 
     const result = await authService.setInitialPassword(username, password)
     if (result.status !== 'ok') {
       return NextResponse.json(
-        { error: 'Não foi possível definir a senha para este usuário' },
+        { error: 'Não foi possível definir a senha para este usuário', code: 'CANNOT_SET_PASSWORD' },
         { status: 400 }
       )
     }

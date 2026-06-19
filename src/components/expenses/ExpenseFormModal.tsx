@@ -11,7 +11,8 @@ import { ReceiptDivider } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { useToast } from "@/components/ui/Toast";
 import { useSession } from "@/lib/session";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { useApiError } from "@/lib/api-errors";
 import {
   maskAmountInput,
   parseAmountInput,
@@ -96,6 +97,7 @@ export function ExpenseFormModal({
   const toast = useToast();
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
+  const apiErr = useApiError();
   const isEdit = Boolean(expense);
 
   const [payerId, setPayerId] = useState<string>("");
@@ -241,7 +243,7 @@ export function ExpenseFormModal({
       onOpenChange(false);
       onSaved();
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : t("saveError");
+      const message = apiErr(err, t("saveError"));
       setFormError(message);
       toast(message, "error");
     } finally {

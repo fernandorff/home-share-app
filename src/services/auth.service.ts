@@ -135,7 +135,7 @@ class AuthService {
           select: {
             role: true,
             colorIndex: true,
-            group: { select: { id: true, publicId: true, name: true, joinCode: true } },
+            group: { select: { id: true, publicId: true, name: true, joinCode: true, currency: true } },
           },
           orderBy: { createdAt: 'asc' },
         },
@@ -152,6 +152,7 @@ class AuthService {
         id: m.group.id,
         publicId: m.group.publicId,
         name: m.group.name,
+        currency: m.group.currency,
         role: m.role,
         colorIndex: m.colorIndex,
         // joinCode only exposed to admins (it grants entry to the house)

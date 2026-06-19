@@ -263,5 +263,31 @@
     "emptyHint": "Adicione o primeiro item.",
     "cleared": "{count, plural, one {# item removido.} other {# itens removidos.}}",
     "genericError": "Algo deu errado. Tente novamente."
+  },
+  "ApiErrors": {
+    "INVALID_NAME": "Nome é obrigatório (máx. 80 caracteres).",
+    "INVALID_USERNAME": "Usuário inválido (3–30 caracteres: minúsculas, números, . - _).",
+    "INVALID_PASSWORD": "A senha deve ter pelo menos 8 caracteres.",
+    "USERNAME_TAKEN": "Este usuário já existe.",
+    "MISSING_USERNAME": "Informe o usuário.",
+    "INVALID_CREDENTIALS": "Usuário ou senha incorretos.",
+    "INVALID_CODE_FORMAT": "Código inválido — deve ter 6 caracteres.",
+    "INVALID_CODE": "Código inválido — confira com quem te convidou.",
+    "CANNOT_SET_PASSWORD": "Não foi possível definir a senha para este usuário.",
+    "NOT_AUTHENTICATED": "Não autenticado.",
+    "NOT_ADMIN": "Apenas o admin da casa pode fazer isso.",
+    "INVALID_CURRENCY": "Moeda inválida.",
+    "NO_GROUP": "Você ainda não está em nenhuma casa."
+  },
+  "Currency": {
+    "title": "Moeda",
+    "hint": "Como os valores são exibidos nesta casa (só exibição — sem conversão).",
+    "changed": "Moeda atualizada",
+    "error": "Não foi possível mudar a moeda",
+    "adminOnly": "Apenas o admin da casa pode mudar a moeda.",
+    "BRL": "Real (R$)",
+    "USD": "Dólar ($)",
+    "EUR": "Euro (€)",
+    "GBP": "Libra (£)"
   }
 }

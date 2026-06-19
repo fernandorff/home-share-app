@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSession } from "@/lib/session";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { useApiError } from "@/lib/api-errors";
 import { useToast } from "@/components/ui/Toast";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
@@ -14,6 +15,7 @@ export function Onboarding() {
   const { me, refresh } = useSession();
   const toast = useToast();
   const t = useTranslations("Onboarding");
+  const apiErr = useApiError();
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [creating, setCreating] = useState(false);
@@ -27,7 +29,7 @@ export function Onboarding() {
       toast(t("created"), "success");
       await refresh();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : t("createError"), "error");
+      toast(apiErr(err, t("createError")), "error");
       setCreating(false);
     }
   }
@@ -40,7 +42,7 @@ export function Onboarding() {
       toast(t("joined"), "success");
       await refresh();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : t("joinError"), "error");
+      toast(apiErr(err, t("joinError")), "error");
       setJoining(false);
     }
   }

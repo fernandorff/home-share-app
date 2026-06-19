@@ -12,12 +12,12 @@ export async function POST(request: Request) {
     const body = await request.json()
     const code = typeof body.code === 'string' ? normalizeJoinCode(body.code) : ''
     if (!isValidJoinCodeFormat(code)) {
-      return NextResponse.json({ error: 'Código inválido — deve ter 6 caracteres' }, { status: 400 })
+      return NextResponse.json({ error: 'Código inválido — deve ter 6 caracteres', code: 'INVALID_CODE_FORMAT' }, { status: 400 })
     }
 
     const result = await groupService.joinByCode(check.session.userId, code)
     if ('error' in result) {
-      return NextResponse.json({ error: result.error }, { status: 404 })
+      return NextResponse.json({ error: result.error, code: 'INVALID_CODE' }, { status: 404 })
     }
 
     const response = NextResponse.json({

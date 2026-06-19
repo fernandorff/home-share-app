@@ -10,13 +10,15 @@ import { EmptyState } from "@/components/ui/Feedback";
 import { Skeleton, SkeletonRows } from "@/components/ui/Skeleton";
 import { revealDelay } from "@/components/ui/motion";
 import { cn } from "@/components/ui/cn";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { useApiError } from "@/lib/api-errors";
 import { useSession } from "@/lib/session";
 import { useToast } from "@/components/ui/Toast";
 import type { BalancesResponse } from "@/lib/types";
 
 export default function SaldosPage() {
   const t = useTranslations("Balances");
+  const apiErr = useApiError();
   const { members } = useSession();
   const toast = useToast();
   const [data, setData] = useState<BalancesResponse | null>(null);
@@ -29,8 +31,7 @@ export default function SaldosPage() {
         const res = await api.get<BalancesResponse>("/api/balances");
         if (alive) setData(res);
       } catch (err) {
-        const message =
-          err instanceof ApiError ? err.message : t("loadError");
+        const message = apiErr(err, t("loadError"));
         toast(message, "error");
       } finally {
         if (alive) setLoading(false);

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { useApiError } from "@/lib/api-errors";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 export default function SetPasswordPage() {
   const router = useRouter();
   const t = useTranslations("Auth");
+  const apiErr = useApiError();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -38,7 +40,7 @@ export default function SetPasswordPage() {
       });
       router.replace("/");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("errorSetPassword"));
+      setError(apiErr(err, t("errorSetPassword")));
       setLoading(false);
     }
   }

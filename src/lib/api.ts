@@ -22,16 +22,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
-  // Global 401 handling: bounce to login (unless already there).
-  if (res.status === 401) {
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth")) {
-      window.location.href = "/auth/login";
-    }
-    throw new ApiError("Não autenticado", 401);
-  }
-
   const ct = res.headers.get("content-type") || "";
   const data = ct.includes("application/json") ? await res.json().catch(() => null) : null;
+
+  if (res.status === 401) {
+    // Expired/missing session on a protected route → bounce to login.
+    // The login endpoint's own "wrong credentials" 401 carries a different code
+    // and must surface to the form instead of redirecting.
+    if (
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/auth") &&
+      (!data?.code || data.code === "NOT_AUTHENTICATED")
+    ) {
+      window.location.href = "/auth/login";
+    }
+    throw new ApiError(
+      data && typeof data.error === "string" ? data.error : "Não autenticado",
+      401,
+      data?.code
+    );
+  }
 
   if (!res.ok) {
     const message = (data && typeof data.error === "string") ? data.error : `Erro ${res.status}`;

@@ -263,5 +263,31 @@
     "emptyHint": "Add the first item.",
     "cleared": "{count, plural, one {# item removed.} other {# items removed.}}",
     "genericError": "Something went wrong. Please try again."
+  },
+  "ApiErrors": {
+    "INVALID_NAME": "Name is required (max. 80 characters).",
+    "INVALID_USERNAME": "Invalid username (3–30 chars: lowercase letters, numbers, . - _).",
+    "INVALID_PASSWORD": "Password must be at least 8 characters.",
+    "USERNAME_TAKEN": "This username is already taken.",
+    "MISSING_USERNAME": "Enter your username.",
+    "INVALID_CREDENTIALS": "Wrong username or password.",
+    "INVALID_CODE_FORMAT": "Invalid code — it must have 6 characters.",
+    "INVALID_CODE": "Invalid code — check with whoever invited you.",
+    "CANNOT_SET_PASSWORD": "Couldn't set the password for this user.",
+    "NOT_AUTHENTICATED": "Not signed in.",
+    "NOT_ADMIN": "Only the house admin can do this.",
+    "INVALID_CURRENCY": "Invalid currency.",
+    "NO_GROUP": "You're not in any house yet."
+  },
+  "Currency": {
+    "title": "Currency",
+    "hint": "How amounts are displayed in this house (display only — no conversion).",
+    "changed": "Currency updated",
+    "error": "Couldn't change the currency",
+    "adminOnly": "Only the house admin can change the currency.",
+    "BRL": "Real (R$)",
+    "USD": "US Dollar ($)",
+    "EUR": "Euro (€)",
+    "GBP": "Pound (£)"
   }
 }

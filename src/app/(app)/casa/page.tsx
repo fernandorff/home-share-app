@@ -7,7 +7,7 @@ import { useSession } from "@/lib/session";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/components/ui/cn";
 import { Button } from "@/components/ui/Button";
-import { Field, Input } from "@/components/ui/Field";
+import { Field, Input, Select } from "@/components/ui/Field";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { MemberDot } from "@/components/ui/Member";
@@ -15,6 +15,8 @@ import { Tag } from "@/components/ui/Stamp";
 import { Spinner } from "@/components/ui/Feedback";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import { revealDelay } from "@/components/ui/motion";
+import { SUPPORTED_CURRENCIES } from "@/lib/currencies";
+import { useApiError } from "@/lib/api-errors";
 
 export default function CasaPage() {
   const t = useTranslations("Household");
@@ -22,6 +24,8 @@ export default function CasaPage() {
   const { me, activeGroup, members, membersLoading, refresh, switchGroup } =
     useSession();
   const toast = useToast();
+  const tcur = useTranslations("Currency");
+  const apiErr = useApiError();
 
   function roleLabel(role: "ADMIN" | "MEMBER"): string {
     return role === "ADMIN" ? t("admin") : t("member");
@@ -41,6 +45,9 @@ export default function CasaPage() {
   // Join with code
   const [joinCode, setJoinCode] = useState("");
   const [joining, setJoining] = useState(false);
+
+  // Currency (ADMIN)
+  const [savingCurrency, setSavingCurrency] = useState(false);
 
   if (!me || !activeGroup) return null;
 
@@ -121,6 +128,19 @@ export default function CasaPage() {
     }
   }
 
+  async function onCurrency(value: string) {
+    setSavingCurrency(true);
+    try {
+      await api.post("/api/groups/active/currency", { currency: value });
+      await refresh();
+      toast(tcur("changed"), "success");
+    } catch (err) {
+      toast(apiErr(err, tcur("error")), "error");
+    } finally {
+      setSavingCurrency(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       {/* 1 — Header: active house + role */}
@@ -179,6 +199,34 @@ export default function CasaPage() {
             <p className="text-sm text-faint">
               {t("adminOnlyNote")}
             </p>
+          )}
+        </Card>
+      </section>
+
+      {/* 2b — Currency */}
+      <section className="flex flex-col gap-4">
+        <SectionTitle>{tcur("title")}</SectionTitle>
+        <Card className="reveal p-4">
+          {isAdmin ? (
+            <Field label={tcur("title")} htmlFor="currency" hint={tcur("hint")}>
+              <Select
+                id="currency"
+                value={activeGroup.currency}
+                disabled={savingCurrency}
+                onChange={(e) => onCurrency(e.target.value)}
+              >
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {tcur(c)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <p className="text-sm text-ink">{tcur(activeGroup.currency)}</p>
+              <p className="text-sm text-faint">{tcur("adminOnly")}</p>
+            </div>
           )}
         </Card>
       </section>

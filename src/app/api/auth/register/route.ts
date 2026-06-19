@@ -11,20 +11,20 @@ export async function POST(request: Request) {
     const password = typeof body.password === 'string' ? body.password : ''
 
     if (!name || name.length > 80) {
-      return NextResponse.json({ error: 'Nome é obrigatório (máx. 80 caracteres)' }, { status: 400 })
+      return NextResponse.json({ error: 'Nome é obrigatório (máx. 80 caracteres)', code: 'INVALID_NAME' }, { status: 400 })
     }
     const usernameError = authService.validateUsername(username)
     if (usernameError) {
-      return NextResponse.json({ error: usernameError }, { status: 400 })
+      return NextResponse.json({ error: usernameError, code: 'INVALID_USERNAME' }, { status: 400 })
     }
     const passwordError = authService.validatePassword(password)
     if (passwordError) {
-      return NextResponse.json({ error: passwordError }, { status: 400 })
+      return NextResponse.json({ error: passwordError, code: 'INVALID_PASSWORD' }, { status: 400 })
     }
 
     const result = await authService.register(name, username, password)
     if ('error' in result) {
-      return NextResponse.json({ error: result.error }, { status: 409 })
+      return NextResponse.json({ error: result.error, code: 'USERNAME_TAKEN' }, { status: 409 })
     }
 
     const token = await signSession({

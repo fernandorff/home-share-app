@@ -19,6 +19,7 @@ export interface MeGroup {
   role: Role;
   colorIndex: number;
   joinCode: string | null; // only present for ADMINs
+  currency: string; // ISO 4217 (BRL | USD | EUR | GBP) — display only
 }
 
 export interface Me {
