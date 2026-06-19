@@ -1,69 +1,71 @@
 # Home Share
 
-Despesas compartilhadas da casa: registre gastos, divida entre os moradores
-(**igual**, **por valor** ou **por slider de %**) e veja **quem deve quanto pra quem**.
-Tem lista de compras, plataformas de pagamento e suporte a múltiplas casas.
+🌐 **English** · [Português](README.pt-BR.md) · [Español](README.es.md) · [Français](README.fr.md)
 
-**🔗 Ao vivo:** https://home-share-app-xi.vercel.app
+Shared household expenses: log spending, split it between housemates (**equally**,
+**by amount**, or **with a % slider**), and see **who owes whom**. Includes a shopping
+list, payment platforms, and multi-household support.
 
-Interface **retro editorial mono** (estética de recibo/extrato): monoespaçada, números
-tabulares, regras pontilhadas e um acento "carimbo". Mobile-first, com animações de
-entrada escalonadas e skeletons de carregamento (respeitando `prefers-reduced-motion`).
+**🔗 Live:** https://home-share-app-xi.vercel.app
 
-## Funcionalidades
+A **retro editorial mono** interface (receipt/ledger aesthetic): monospaced, tabular
+numbers, dotted rules, and a single "stamp" accent. Mobile-first, with staggered
+entrance animations and loading skeletons (respecting `prefers-reduced-motion`).
 
-- **Auth** — usuário/senha + **login com Google**, sessão por **cookie httpOnly** (JWT).
-  Fluxo de primeiro acesso para usuários legados (definir senha).
-- **Casas** — criar / entrar por código de 6 caracteres, papéis ADMIN/MEMBER, trocar de casa.
-- **Despesas** — criar/editar/excluir, divisão **igual / por valor / por %** (centavos
-  exatos), seleção em massa, **import/export CSV**, ordenação e paginação.
-- **Saldos** — quem deve a quem, com as transferências mínimas para zerar.
-- **Lista de compras** e **plataformas de pagamento** (com substituição ao excluir).
+## Features
+
+- **Auth** — username/password + **Google sign-in**, session via **httpOnly cookie**
+  (JWT). First-access flow for legacy users (set password).
+- **Households** — create / join with a 6-character code, ADMIN/MEMBER roles, switch household.
+- **Expenses** — create/edit/delete, split **equally / by amount / by %** (exact cents),
+  bulk selection, **CSV import/export**, sorting and pagination.
+- **Balances** — who owes whom, with the minimal set of transfers to settle up.
+- **Shopping list** and **payment platforms** (with reassignment on delete).
 
 ## Stack
 
-- **Next.js 16** (App Router) + **React 19** — monólito: frontend e API no mesmo app, same-origin
-- **Tailwind v4** + Radix primitives · fontes **Space Mono** / **JetBrains Mono**
+- **Next.js 16** (App Router) + **React 19** — monolith: frontend and API in one app, same-origin
+- **Tailwind v4** + Radix primitives · **Space Mono** / **JetBrains Mono** fonts
 - **Prisma 7** (`@prisma/adapter-pg`) + **PostgreSQL** (Neon)
 - **jose** (JWT) · **bcryptjs** · **Vitest**
 
-## Rodar local
+## Run locally
 
 ```bash
-cp .env.example .env      # preencha DATABASE_URL e JWT_SECRET
+cp .env.example .env      # fill in DATABASE_URL and JWT_SECRET
 npm install
-npx prisma db push        # cria o schema no banco
+npx prisma db push        # create the schema in the database
 npm run dev               # http://localhost:3000
 npm run test              # vitest (currency, balance, csv-parser, auth)
 ```
 
-### Variáveis de ambiente
+### Environment variables
 
-| Variável | Obrigatória | Descrição |
+| Variable | Required | Description |
 |---|---|---|
-| `DATABASE_URL` | sim | Postgres (Neon) |
-| `JWT_SECRET` | sim em produção | segredo de assinatura da sessão |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | não | habilita o login com Google. Redirect: `<origin>/api/auth/google/callback` |
+| `DATABASE_URL` | yes | Postgres (Neon) |
+| `JWT_SECRET` | yes in production | session signing secret |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | no | enables Google sign-in. Redirect: `<origin>/api/auth/google/callback` |
 
-## Autenticação
+## Authentication
 
-Sessão por **cookie httpOnly** (`bolitas_session`, JWT HS256) — o cliente não vê nem
-guarda token. A **casa ativa** fica em outro cookie (`bolitas_group`); para trocar,
-`POST /api/groups/active`. Por ser same-origin, não há CORS. O login com Google reusa
-o mesmo cookie de sessão.
+Session via **httpOnly cookie** (`bolitas_session`, JWT HS256) — the client never sees
+or stores a token. The **active household** lives in a separate cookie (`bolitas_group`);
+to switch, `POST /api/groups/active`. Being same-origin, there's no CORS. Google sign-in
+reuses the same session cookie.
 
-Dinheiro é tratado em **centavos inteiros** (`src/lib/currency`), evitando erro de
-ponto flutuante; a divisão sempre soma exatamente o total.
+Money is handled in **integer cents** (`src/lib/currency`) to avoid floating-point
+drift; splits always sum exactly to the total.
 
-## Estrutura
+## Structure
 
 ```
 src/
 ├── app/
 │   ├── api/**       # route handlers (auth[+google], groups, expenses, balances, platforms, shopping-items, health)
-│   ├── auth/**      # páginas públicas: login, register, set-password
-│   └── (app)/**     # área logada: despesas, saldos, compras, plataformas, casa
-├── components/      # ui/ (design system retro-mono) · app/ · expenses/ · auth/
+│   ├── auth/**      # public pages: login, register, set-password
+│   └── (app)/**     # logged-in area: expenses, balances, shopping, platforms, household
+├── components/      # ui/ (retro-mono design system) · app/ · expenses/ · auth/
 ├── lib/             # auth, api (client), session, currency, balance, format, members, ...
 └── services/        # auth, group, expense, platform, shopping-item
 prisma/              # schema + config
@@ -71,13 +73,13 @@ prisma/              # schema + config
 
 ## Deploy
 
-Hospedado na **Vercel** com banco **Neon** (integração). O build roda
-`prisma generate && next build` — o schema é aplicado deliberadamente com
-`prisma db push` (não no CI). Dois ambientes: **Production** (branch `main`) e
+Hosted on **Vercel** with a **Neon** database (integration). The build runs
+`prisma generate && next build` — the schema is applied deliberately with
+`prisma db push` (not in CI). Two environments: **Production** (`main` branch) and
 **Preview** (branches/PRs).
 
-## Explorações de design
+## Design explorations
 
-A pasta [`design-samples/`](design-samples) guarda 7 direções visuais exploradas antes
-de escolher a retro editorial mono (cozy/clay, candy, dark fintech, glassmorphism,
-neo-brutalist, bauhaus, retro mono). Abra o `index.html` para comparar.
+The [`design-samples/`](design-samples) folder holds 7 visual directions explored
+before settling on retro editorial mono (cozy/clay, candy, dark fintech, glassmorphism,
+neo-brutalist, bauhaus, retro mono). Open `index.html` to compare.
