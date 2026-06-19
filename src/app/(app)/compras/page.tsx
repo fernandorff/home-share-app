@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { api, ApiError } from "@/lib/api";
 import { formatDateBR } from "@/lib/format";
 import type { ShoppingItem } from "@/lib/types";
@@ -19,6 +20,8 @@ import { revealDelay } from "@/components/ui/motion";
 const NAME_MAX = 200;
 
 export default function ComprasPage() {
+  const t = useTranslations("Shopping");
+  const tc = useTranslations("Common");
   const toast = useToast();
 
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -41,7 +44,7 @@ export default function ComprasPage() {
   const [clearingPurchased, setClearingPurchased] = useState(false);
 
   const errMsg = (e: unknown) =>
-    e instanceof ApiError ? e.message : "Algo deu errado. Tente novamente.";
+    e instanceof ApiError ? e.message : t("genericError");
 
   const setItemBusy = (publicId: string, on: boolean) =>
     setBusy((prev) => {
@@ -160,10 +163,7 @@ export default function ComprasPage() {
         "/api/shopping-items/clear-purchased"
       );
       setItems((prev) => prev.filter((it) => !it.isPurchased));
-      toast(
-        deleted === 1 ? "1 item removido." : `${deleted} itens removidos.`,
-        "success"
-      );
+      toast(t("cleared", { count: deleted }), "success");
     } catch (e) {
       toast(errMsg(e), "error");
     } finally {
@@ -178,9 +178,9 @@ export default function ComprasPage() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
-          Compras
+          {t("title")}
         </h1>
-        <p className="text-sm text-faint">Lista de compras da casa.</p>
+        <p className="text-sm text-faint">{t("subtitle")}</p>
       </header>
 
       {/* Quick-add bar */}
@@ -194,13 +194,13 @@ export default function ComprasPage() {
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Adicionar item…"
+          placeholder={t("addPlaceholder")}
           maxLength={NAME_MAX}
-          aria-label="Nome do item"
+          aria-label={t("nameLabel")}
           autoComplete="off"
         />
         <Button type="submit" loading={adding} disabled={!draft.trim()}>
-          Adicionar
+          {t("addButton")}
         </Button>
       </form>
 
@@ -208,17 +208,17 @@ export default function ComprasPage() {
         <SkeletonRows rows={5} />
       ) : items.length === 0 ? (
         <Card>
-          <EmptyState title="Lista vazia" hint="Adicione o primeiro item." icon="🛒" />
+          <EmptyState title={t("emptyTitle")} hint={t("emptyHint")} icon="🛒" />
         </Card>
       ) : (
         <div className="flex flex-col gap-6">
           {/* A comprar */}
           <section className="flex flex-col gap-3">
             <SectionTitle right={<span className="label-mono">{toBuy.length}</span>}>
-              A comprar
+              {t("toBuy")}
             </SectionTitle>
             {toBuy.length === 0 ? (
-              <p className="px-1 text-sm text-faint">Tudo comprado. 🎉</p>
+              <p className="px-1 text-sm text-faint">{t("allBought")}</p>
             ) : (
               <Card>
                 <ul>
@@ -250,11 +250,11 @@ export default function ComprasPage() {
                     loading={clearingPurchased}
                     onClick={clearPurchased}
                   >
-                    Limpar comprados
+                    {t("clearPurchased")}
                   </Button>
                 }
               >
-                Comprados
+                {t("purchased")}
               </SectionTitle>
               <Card>
                 <ul>
@@ -281,11 +281,11 @@ export default function ComprasPage() {
       <Modal
         open={editing !== null}
         onOpenChange={(o) => !o && setEditing(null)}
-        title="Editar item"
+        title={t("editTitle")}
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={() => setEditing(null)}>
-              Cancelar
+              {tc("cancel")}
             </Button>
             <Button
               size="sm"
@@ -293,7 +293,7 @@ export default function ComprasPage() {
               disabled={!editName.trim()}
               onClick={saveEdit}
             >
-              Salvar
+              {tc("save")}
             </Button>
           </>
         }
@@ -307,9 +307,9 @@ export default function ComprasPage() {
           <Input
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
-            placeholder="Nome do item"
+            placeholder={t("nameLabel")}
             maxLength={NAME_MAX}
-            aria-label="Nome do item"
+            aria-label={t("nameLabel")}
             autoFocus
           />
         </form>
@@ -319,25 +319,27 @@ export default function ComprasPage() {
       <Modal
         open={confirmDelete !== null}
         onOpenChange={(o) => !o && setConfirmDelete(null)}
-        title="Remover item"
+        title={t("deleteTitle")}
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(null)}>
-              Cancelar
+              {tc("cancel")}
             </Button>
             <Button
               variant="danger"
               size="sm"
               onClick={() => confirmDelete && void remove(confirmDelete)}
             >
-              Remover
+              {tc("remove")}
             </Button>
           </>
         }
       >
         <p className="text-sm text-ink">
-          Remover{" "}
-          <span className="font-semibold">{confirmDelete?.name}</span> da lista?
+          {t.rich("deleteConfirm", {
+            name: confirmDelete?.name ?? "",
+            strong: (chunks) => <span className="font-semibold">{chunks}</span>,
+          })}
         </p>
       </Modal>
     </div>
@@ -357,6 +359,8 @@ function ItemRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const t = useTranslations("Shopping");
+  const tc = useTranslations("Common");
   return (
     <div className={cn("flex items-center gap-3 px-4 py-3", busy && "opacity-60")}>
       {/* Checkbox-style toggle — [ ] / [x] in mono */}
@@ -365,7 +369,7 @@ function ItemRow({
         onClick={onToggle}
         disabled={busy}
         aria-pressed={item.isPurchased}
-        aria-label={item.isPurchased ? "Marcar como não comprado" : "Marcar como comprado"}
+        aria-label={item.isPurchased ? t("markNotPurchased") : t("markPurchased")}
         className={cn(
           "shrink-0 select-none font-mono text-base leading-none transition-colors",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-card rounded-sm",
@@ -386,7 +390,7 @@ function ItemRow({
         </p>
         {item.addedBy && (
           <span className="mt-1 inline-block">
-            <Tag>por {item.addedBy.name}</Tag>
+            <Tag>{t("addedBy", { name: item.addedBy.name })}</Tag>
           </span>
         )}
       </div>
@@ -399,7 +403,7 @@ function ItemRow({
         trigger={
           <button
             type="button"
-            aria-label="Ações do item"
+            aria-label={t("itemActions")}
             disabled={busy}
             className="shrink-0 rounded-sm px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink disabled:opacity-50"
           >
@@ -407,10 +411,10 @@ function ItemRow({
           </button>
         }
       >
-        <MenuItem onSelect={onEdit}>Editar</MenuItem>
+        <MenuItem onSelect={onEdit}>{tc("edit")}</MenuItem>
         <MenuSeparator />
         <MenuItem danger onSelect={onDelete}>
-          Remover
+          {tc("remove")}
         </MenuItem>
       </Menu>
     </div>

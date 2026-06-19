@@ -83,3 +83,5 @@ neon-dev-url.tmp
 
 # manter exemplo
 !.env.example
+
+.env*.local

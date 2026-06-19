@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Mono, JetBrains_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale } from "next-intl/server";
 import "./globals.css";
 
 const spaceMono = Space_Mono({
@@ -16,8 +18,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Home Share — contas da casa",
-  description: "Despesas compartilhadas da casa, divididas direitinho.",
+  title: "Home Share",
+  description: "Shared household expenses, split right.",
 };
 
 export const viewport: Viewport = {
@@ -26,14 +28,17 @@ export const viewport: Viewport = {
   themeColor: "#16140f",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
   return (
-    <html lang="pt-BR" className={`${spaceMono.variable} ${jetbrainsMono.variable}`}>
-      <body className="antialiased">{children}</body>
+    <html lang={locale} className={`${spaceMono.variable} ${jetbrainsMono.variable}`}>
+      <body className="antialiased">
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+      </body>
     </html>
   );
 }

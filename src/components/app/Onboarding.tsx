@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useSession } from "@/lib/session";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { LanguageSelector } from "@/components/app/LanguageSelector";
 
 export function Onboarding() {
   const { me, refresh } = useSession();
   const toast = useToast();
+  const t = useTranslations("Onboarding");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [creating, setCreating] = useState(false);
@@ -21,10 +24,10 @@ export function Onboarding() {
     setCreating(true);
     try {
       await api.post("/api/groups", { name: name.trim() });
-      toast("Casa criada!", "success");
-      await refresh(); // shell re-renders into the app once groups exist
+      toast(t("created"), "success");
+      await refresh();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Erro ao criar casa", "error");
+      toast(err instanceof ApiError ? err.message : t("createError"), "error");
       setCreating(false);
     }
   }
@@ -34,10 +37,10 @@ export function Onboarding() {
     setJoining(true);
     try {
       await api.post("/api/groups/join", { code: code.trim().toUpperCase() });
-      toast("Você entrou na casa!", "success");
+      toast(t("joined"), "success");
       await refresh();
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Código inválido", "error");
+      toast(err instanceof ApiError ? err.message : t("joinError"), "error");
       setJoining(false);
     }
   }
@@ -51,47 +54,48 @@ export function Onboarding() {
   };
 
   return (
-    <main className="paper-grain min-h-dvh px-4 py-10">
+    <main className="paper-grain relative min-h-dvh px-4 py-10">
+      <div className="absolute right-4 top-4">
+        <LanguageSelector />
+      </div>
       <div className="mx-auto max-w-2xl">
         <header className="mb-8 text-center">
           <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
             HOME<span className="text-stamp">SHARE</span>
           </h1>
-          <p className="mt-2 text-sm text-ink-soft">
-            Olá, {me?.user.name}. Você ainda não está em nenhuma casa.
-          </p>
-          <p className="label-mono mt-1">crie uma ou entre com um código</p>
+          <p className="mt-2 text-sm text-ink-soft">{t("greeting", { name: me?.user.name ?? "" })}</p>
+          <p className="label-mono mt-1">{t("subtitle")}</p>
         </header>
 
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="p-5">
             <form onSubmit={createCasa} className="flex flex-col gap-4">
               <h2 className="font-display text-base font-bold uppercase tracking-wide text-ink">
-                Criar casa
+                {t("createTitle")}
               </h2>
-              <Field label="Nome da casa" htmlFor="casa-name">
+              <Field label={t("houseName")} htmlFor="casa-name">
                 <Input
                   id="casa-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={80}
                   required
-                  placeholder="Ex: Casa Bolitas"
+                  placeholder={t("houseNamePlaceholder")}
                 />
               </Field>
               <Button type="submit" loading={creating} disabled={!name.trim()} className="w-full">
-                Criar casa
+                {t("createButton")}
               </Button>
-              <p className="text-xs text-faint">Você vira admin e recebe um código para convidar.</p>
+              <p className="text-xs text-faint">{t("createHint")}</p>
             </form>
           </Card>
 
           <Card className="p-5">
             <form onSubmit={joinCasa} className="flex flex-col gap-4">
               <h2 className="font-display text-base font-bold uppercase tracking-wide text-ink">
-                Entrar com código
+                {t("joinTitle")}
               </h2>
-              <Field label="Código da casa" htmlFor="casa-code" hint="6 caracteres">
+              <Field label={t("houseCode")} htmlFor="casa-code" hint={t("codeHint")}>
                 <Input
                   id="casa-code"
                   value={code}
@@ -109,16 +113,16 @@ export function Onboarding() {
                 disabled={code.trim().length !== 6}
                 className="w-full"
               >
-                Entrar
+                {t("joinButton")}
               </Button>
-              <p className="text-xs text-faint">Peça o código para quem administra a casa.</p>
+              <p className="text-xs text-faint">{t("joinHint")}</p>
             </form>
           </Card>
         </div>
 
         <div className="mt-8 text-center">
           <button onClick={logout} className="label-mono underline underline-offset-2 hover:text-ink">
-            sair
+            {t("logout")}
           </button>
         </div>
       </div>

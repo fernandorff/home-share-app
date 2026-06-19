@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { api, ApiError } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { useToast } from "@/components/ui/Toast";
@@ -15,14 +16,16 @@ import { Spinner } from "@/components/ui/Feedback";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import { revealDelay } from "@/components/ui/motion";
 
-function roleLabel(role: "ADMIN" | "MEMBER"): string {
-  return role === "ADMIN" ? "Admin" : "Membro";
-}
-
 export default function CasaPage() {
+  const t = useTranslations("Household");
+  const tc = useTranslations("Common");
   const { me, activeGroup, members, membersLoading, refresh, switchGroup } =
     useSession();
   const toast = useToast();
+
+  function roleLabel(role: "ADMIN" | "MEMBER"): string {
+    return role === "ADMIN" ? t("admin") : t("member");
+  }
 
   // Regenerate code (ADMIN)
   const [regenerating, setRegenerating] = useState(false);
@@ -48,9 +51,9 @@ export default function CasaPage() {
     if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
-      toast("Código copiado", "success");
+      toast(t("codeCopied"), "success");
     } catch {
-      toast("Não foi possível copiar o código", "error");
+      toast(t("copyFailed"), "error");
     }
   }
 
@@ -59,10 +62,10 @@ export default function CasaPage() {
     try {
       await api.post("/api/groups/active/regenerate-code");
       await refresh();
-      toast("Novo código gerado", "success");
+      toast(t("codeGenerated"), "success");
     } catch (err) {
       toast(
-        err instanceof ApiError ? err.message : "Erro ao gerar novo código",
+        err instanceof ApiError ? err.message : t("codeGenerateError"),
         "error"
       );
     } finally {
@@ -75,9 +78,9 @@ export default function CasaPage() {
     setSwitchingId(groupId);
     try {
       await switchGroup(groupId);
-      toast("Casa ativa alterada", "success");
+      toast(t("activeHouseChanged"), "success");
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Erro ao trocar de casa", "error");
+      toast(err instanceof ApiError ? err.message : t("switchError"), "error");
     } finally {
       setSwitchingId(null);
     }
@@ -93,9 +96,9 @@ export default function CasaPage() {
       await refresh();
       setNewName("");
       setCreateOpen(false);
-      toast("Casa criada", "success");
+      toast(t("houseCreated"), "success");
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Erro ao criar casa", "error");
+      toast(err instanceof ApiError ? err.message : t("createError"), "error");
     } finally {
       setCreating(false);
     }
@@ -110,9 +113,9 @@ export default function CasaPage() {
       await api.post("/api/groups/join", { code: c });
       await refresh();
       setJoinCode("");
-      toast("Você entrou na casa", "success");
+      toast(t("youJoined"), "success");
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : "Erro ao entrar na casa", "error");
+      toast(err instanceof ApiError ? err.message : t("joinError"), "error");
     } finally {
       setJoining(false);
     }
@@ -122,7 +125,7 @@ export default function CasaPage() {
     <div className="flex flex-col gap-8">
       {/* 1 — Header: active house + role */}
       <section className="flex flex-col gap-4">
-        <SectionTitle>Casa</SectionTitle>
+        <SectionTitle>{t("title")}</SectionTitle>
         <Card className="reveal flex items-center gap-3 p-4">
           <MemberDot
             colorIndex={activeGroup.colorIndex}
@@ -136,31 +139,31 @@ export default function CasaPage() {
               </h1>
               <Tag>{roleLabel(activeGroup.role)}</Tag>
             </div>
-            <p className="label-mono mt-0.5">Casa ativa</p>
+            <p className="label-mono mt-0.5">{t("activeHouse")}</p>
           </div>
         </Card>
       </section>
 
       {/* 2 — Invite / join code */}
       <section className="flex flex-col gap-4">
-        <SectionTitle>Convite</SectionTitle>
+        <SectionTitle>{t("invite")}</SectionTitle>
         <Card className="reveal p-4">
           {isAdmin && code ? (
             <div className="flex flex-col gap-4">
               <div>
-                <p className="label-mono mb-2">Código de entrada — Ref.</p>
+                <p className="label-mono mb-2">{t("joinCodeLabel")}</p>
                 <div className="rule-dashed flex items-baseline gap-3 pb-3">
                   <span className="font-mono text-3xl font-bold uppercase tracking-[0.35em] text-ink tnum">
                     {code}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-faint">
-                  Compartilhe este código para alguém entrar nesta casa.
+                  {t("shareCode")}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="secondary" size="sm" onClick={copyCode}>
-                  Copiar
+                  {tc("copy")}
                 </Button>
                 <Button
                   variant="ghost"
@@ -168,13 +171,13 @@ export default function CasaPage() {
                   loading={regenerating}
                   onClick={regenerateCode}
                 >
-                  Regenerar código
+                  {t("regenerateCode")}
                 </Button>
               </div>
             </div>
           ) : (
             <p className="text-sm text-faint">
-              Apenas administradores gerenciam o código de entrada desta casa.
+              {t("adminOnlyNote")}
             </p>
           )}
         </Card>
@@ -183,13 +186,13 @@ export default function CasaPage() {
       {/* 3 — Members */}
       <section className="flex flex-col gap-4">
         <SectionTitle right={<span className="label-mono">{members.length}</span>}>
-          Membros
+          {t("members")}
         </SectionTitle>
         <Card className="reveal p-2">
           {membersLoading ? (
             <SkeletonRows rows={3} className="px-2" />
           ) : members.length === 0 ? (
-            <p className="px-2 py-6 text-sm text-faint">Nenhum membro encontrado.</p>
+            <p className="px-2 py-6 text-sm text-faint">{t("noMembers")}</p>
           ) : (
             <ul>
               {members.map((m, i) => (
@@ -215,11 +218,11 @@ export default function CasaPage() {
         <SectionTitle
           right={
             <Button size="sm" variant="secondary" onClick={() => setCreateOpen(true)}>
-              + Nova casa
+              {t("newHouse")}
             </Button>
           }
         >
-          Suas casas
+          {t("yourHouses")}
         </SectionTitle>
         <Card className="reveal p-2">
           <ul>
@@ -247,9 +250,9 @@ export default function CasaPage() {
                     {switchingId === g.id ? (
                       <Spinner />
                     ) : active ? (
-                      <span className="text-sm text-stamp">✓ ativa</span>
+                      <span className="text-sm text-stamp">{t("activeMark")}</span>
                     ) : (
-                      <span className="label-mono">trocar</span>
+                      <span className="label-mono">{t("switch")}</span>
                     )}
                   </button>
                 </li>
@@ -261,13 +264,13 @@ export default function CasaPage() {
 
       {/* 5 — Join with code */}
       <section className="flex flex-col gap-4">
-        <SectionTitle>Entrar com código</SectionTitle>
+        <SectionTitle>{t("joinWithCode")}</SectionTitle>
         <Card className="reveal p-4">
           <form onSubmit={onJoin} className="flex flex-col gap-3">
             <Field
-              label="Código de 6 caracteres"
+              label={t("codeFieldLabel")}
               htmlFor="join-code"
-              hint="Peça o código ao administrador da casa."
+              hint={t("codeFieldHint")}
             >
               <Input
                 id="join-code"
@@ -288,7 +291,7 @@ export default function CasaPage() {
               disabled={joinCode.trim().length !== 6}
               className="w-full"
             >
-              Entrar na casa
+              {t("joinButton")}
             </Button>
           </form>
         </Card>
@@ -298,7 +301,7 @@ export default function CasaPage() {
       <Modal
         open={createOpen}
         onOpenChange={setCreateOpen}
-        title="Nova casa"
+        title={t("createHouseTitle")}
         footer={
           <>
             <Button
@@ -306,7 +309,7 @@ export default function CasaPage() {
               size="sm"
               onClick={() => setCreateOpen(false)}
             >
-              Cancelar
+              {tc("cancel")}
             </Button>
             <Button
               size="sm"
@@ -315,13 +318,13 @@ export default function CasaPage() {
               loading={creating}
               disabled={!newName.trim()}
             >
-              Criar
+              {t("createButton")}
             </Button>
           </>
         }
       >
         <form id="create-house-form" onSubmit={onCreate}>
-          <Field label="Nome da casa" htmlFor="house-name">
+          <Field label={t("houseNameLabel")} htmlFor="house-name">
             <Input
               id="house-name"
               value={newName}
@@ -329,7 +332,7 @@ export default function CasaPage() {
               maxLength={80}
               autoFocus
               required
-              placeholder="Ex.: Apartamento 42"
+              placeholder={t("houseNamePlaceholder")}
             />
           </Field>
         </form>

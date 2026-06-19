@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
@@ -32,14 +33,14 @@ const PAGE_SIZE = 10;
 
 interface SortableCol {
   field: ExpenseSortField;
-  label: string;
+  labelKey: string;
   className?: string;
 }
 
 const COLUMNS: SortableCol[] = [
-  { field: "description", label: "Descrição" },
-  { field: "payer", label: "Pagador" },
-  { field: "amount", label: "Valor", className: "text-right" },
+  { field: "description", labelKey: "colDescription" },
+  { field: "payer", labelKey: "colPayer" },
+  { field: "amount", labelKey: "colAmount", className: "text-right" },
 ];
 
 function SortIndicator({
@@ -56,6 +57,8 @@ function SortIndicator({
 export default function DespesasPage() {
   const { activeGroup, members } = useSession();
   const toast = useToast();
+  const t = useTranslations("Expenses");
+  const tc = useTranslations("Common");
 
   const [data, setData] = useState<ExpenseListResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,12 +91,12 @@ export default function DespesasPage() {
       setData(res);
     } catch (err) {
       const message =
-        err instanceof ApiError ? err.message : "Erro ao carregar despesas";
+        err instanceof ApiError ? err.message : t("loadError");
       toast(message, "error");
     } finally {
       setLoading(false);
     }
-  }, [page, sortField, sortDirection, toast]);
+  }, [page, sortField, sortDirection, toast, t]);
 
   useEffect(() => {
     fetchExpenses();
@@ -173,14 +176,14 @@ export default function DespesasPage() {
     setDeleting(true);
     try {
       await api.del(`/api/expenses/${deleteTarget.publicId}`);
-      toast("Despesa excluída", "success");
+      toast(t("toastDeleted"), "success");
       setDeleteTarget(null);
       // If we just removed the last row on a page > 1, step back a page.
       if (expenses.length === 1 && page > 1) setPage((p) => p - 1);
       else fetchExpenses();
     } catch (err) {
       const message =
-        err instanceof ApiError ? err.message : "Erro ao excluir despesa";
+        err instanceof ApiError ? err.message : t("deleteError");
       toast(message, "error");
     } finally {
       setDeleting(false);
@@ -196,19 +199,14 @@ export default function DespesasPage() {
         "/api/expenses/bulk-delete",
         { publicIds }
       );
-      toast(
-        `${res.deleted} despesa${res.deleted === 1 ? "" : "s"} excluída${
-          res.deleted === 1 ? "" : "s"
-        }`,
-        "success"
-      );
+      toast(t("toastBulkDeleted", { count: res.deleted }), "success");
       setBulkConfirm(false);
       setSelected(new Set());
       if (expenses.length === publicIds.length && page > 1) setPage((p) => p - 1);
       else fetchExpenses();
     } catch (err) {
       const message =
-        err instanceof ApiError ? err.message : "Erro ao excluir despesas";
+        err instanceof ApiError ? err.message : t("bulkDeleteError");
       toast(message, "error");
     } finally {
       setDeleting(false);
@@ -257,32 +255,32 @@ export default function DespesasPage() {
                 </button>
               }
             >
-              <MenuItem onSelect={() => setImportOpen(true)}>Importar CSV</MenuItem>
+              <MenuItem onSelect={() => setImportOpen(true)}>{t("importCsv")}</MenuItem>
               <MenuSeparator />
               <MenuItem>
                 <a
                   href="/api/expenses/export"
                   className="flex w-full items-center"
                 >
-                  Exportar CSV
+                  {t("exportCsv")}
                 </a>
               </MenuItem>
             </Menu>
             <Button size="sm" onClick={openCreate}>
-              Nova despesa
+              {t("newExpense")}
             </Button>
           </div>
         }
       >
-        Despesas
+        {t("title")}
       </SectionTitle>
 
       {/* View toggle */}
       <div className="flex items-center gap-1">
         {(
           [
-            { id: "list", label: "Lista" },
-            { id: "byPayer", label: "Por pessoa" },
+            { id: "list", label: t("viewList") },
+            { id: "byPayer", label: t("viewByPayer") },
           ] as const
         ).map((v) => (
           <button
@@ -305,7 +303,7 @@ export default function DespesasPage() {
       {selectedCount > 0 && (
         <div className="flex items-center justify-between gap-3 rounded-md border border-ink bg-panel px-4 py-2.5">
           <span className="label-mono">
-            {selectedCount} selecionada{selectedCount === 1 ? "" : "s"}
+            {t("selectedCount", { count: selectedCount })}
           </span>
           <div className="flex items-center gap-2">
             <Button
@@ -313,10 +311,10 @@ export default function DespesasPage() {
               size="sm"
               onClick={() => setSelected(new Set())}
             >
-              Limpar
+              {t("clear")}
             </Button>
             <Button variant="danger" size="sm" onClick={() => setBulkConfirm(true)}>
-              Excluir selecionadas
+              {t("deleteSelected")}
             </Button>
           </div>
         </div>
@@ -327,10 +325,10 @@ export default function DespesasPage() {
           <SkeletonRows rows={6} />
         ) : expenses.length === 0 ? (
           <EmptyState
-            title="Nenhuma despesa ainda"
-            hint="Adicione a primeira."
+            title={t("emptyTitle")}
+            hint={t("emptyHint")}
             icon="₪"
-            action={<Button onClick={openCreate}>Nova despesa</Button>}
+            action={<Button onClick={openCreate}>{t("newExpense")}</Button>}
           />
         ) : view === "byPayer" ? (
           /* ===== GROUPED BY PAYER ===== */
@@ -392,7 +390,7 @@ export default function DespesasPage() {
                   <th className="w-10 px-4 py-2.5">
                     <input
                       type="checkbox"
-                      aria-label="Selecionar todas"
+                      aria-label={t("selectAll")}
                       checked={allOnPageSelected}
                       onChange={toggleSelectAll}
                       className="h-4 w-4 accent-ink"
@@ -411,7 +409,7 @@ export default function DespesasPage() {
                           col.className === "text-right" && "flex-row-reverse"
                         )}
                       >
-                        {col.label}
+                        {t(col.labelKey)}
                         <SortIndicator
                           active={sortField === col.field}
                           direction={sortDirection}
@@ -420,7 +418,7 @@ export default function DespesasPage() {
                     </th>
                   ))}
                   <th className="px-4 py-2.5">
-                    <span className="label-mono">Plataforma</span>
+                    <span className="label-mono">{t("colPlatform")}</span>
                   </th>
                   <th className="px-4 py-2.5">
                     <button
@@ -428,7 +426,7 @@ export default function DespesasPage() {
                       onClick={() => toggleSort("date")}
                       className="label-mono inline-flex items-center gap-1.5 hover:text-ink"
                     >
-                      Data
+                      {t("colDate")}
                       <SortIndicator
                         active={sortField === "date"}
                         direction={sortDirection}
@@ -451,7 +449,7 @@ export default function DespesasPage() {
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
-                        aria-label={`Selecionar ${e.description}`}
+                        aria-label={t("selectRow", { description: e.description })}
                         checked={selected.has(e.publicId)}
                         onChange={() => toggleRow(e.publicId)}
                         className="h-4 w-4 accent-ink"
@@ -498,12 +496,12 @@ export default function DespesasPage() {
               <label className="flex items-center gap-2 border-b border-dashed border-rule px-4 py-2.5 text-xs text-ink-soft">
                 <input
                   type="checkbox"
-                  aria-label="Selecionar todas"
+                  aria-label={t("selectAll")}
                   checked={allOnPageSelected}
                   onChange={toggleSelectAll}
                   className="h-4 w-4 accent-ink"
                 />
-                <span className="label-mono">Selecionar todas</span>
+                <span className="label-mono">{t("selectAll")}</span>
               </label>
               <ul>
                 {expenses.map((e, i) => (
@@ -517,7 +515,7 @@ export default function DespesasPage() {
                   >
                     <input
                       type="checkbox"
-                      aria-label={`Selecionar ${e.description}`}
+                      aria-label={t("selectRow", { description: e.description })}
                       checked={selected.has(e.publicId)}
                       onChange={() => toggleRow(e.publicId)}
                       className="mt-1 h-4 w-4 shrink-0 accent-ink"
@@ -560,7 +558,7 @@ export default function DespesasPage() {
         {!loading && pagination && pagination.total > 0 && (
           <div className="flex items-center justify-between gap-3 border-t border-dashed border-rule px-4 py-3">
             <span className="label-mono">
-              página {pagination.page} de {pagination.totalPages || 1}
+              {t("pageOf", { page: pagination.page, total: pagination.totalPages || 1 })}
             </span>
             <div className="flex items-center gap-2">
               <Button
@@ -569,7 +567,7 @@ export default function DespesasPage() {
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                ← Anterior
+                ← {t("previous")}
               </Button>
               <Button
                 variant="secondary"
@@ -577,7 +575,7 @@ export default function DespesasPage() {
                 disabled={page >= (pagination.totalPages || 1)}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Próxima →
+                {t("next")} →
               </Button>
             </div>
           </div>
@@ -605,21 +603,21 @@ export default function DespesasPage() {
       <Modal
         open={deleteTarget !== null}
         onOpenChange={(o) => !o && setDeleteTarget(null)}
-        title="Excluir despesa"
-        description="Esta ação não pode ser desfeita."
+        title={t("deleteTitle")}
+        description={t("deleteUndoNote")}
         footer={
           <>
             <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
-              Cancelar
+              {tc("cancel")}
             </Button>
             <Button variant="danger" loading={deleting} onClick={confirmDeleteOne}>
-              Excluir
+              {tc("delete")}
             </Button>
           </>
         }
       >
         <p className="text-sm text-ink">
-          Excluir{" "}
+          {t("deletePrompt")}{" "}
           <span className="font-display font-bold">
             {deleteTarget?.description}
           </span>
@@ -631,22 +629,21 @@ export default function DespesasPage() {
       <Modal
         open={bulkConfirm}
         onOpenChange={setBulkConfirm}
-        title="Excluir selecionadas"
-        description="Esta ação não pode ser desfeita."
+        title={t("deleteSelected")}
+        description={t("deleteUndoNote")}
         footer={
           <>
             <Button variant="ghost" onClick={() => setBulkConfirm(false)}>
-              Cancelar
+              {tc("cancel")}
             </Button>
             <Button variant="danger" loading={deleting} onClick={confirmBulkDelete}>
-              Excluir {selectedCount}
+              {t("deleteCount", { count: selectedCount })}
             </Button>
           </>
         }
       >
         <p className="text-sm text-ink">
-          Excluir {selectedCount} despesa{selectedCount === 1 ? "" : "s"}{" "}
-          selecionada{selectedCount === 1 ? "" : "s"}?
+          {t("bulkDeletePrompt", { count: selectedCount })}
         </p>
       </Modal>
     </div>
@@ -661,22 +658,24 @@ function RowMenu({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const t = useTranslations("Expenses");
+  const tc = useTranslations("Common");
   return (
     <Menu
       align="end"
       trigger={
         <button
-          aria-label="Ações"
+          aria-label={t("rowActions")}
           className="rounded-md px-2 py-1 text-lg leading-none text-ink-soft transition-colors hover:bg-panel hover:text-ink"
         >
           ⋯
         </button>
       }
     >
-      <MenuItem onSelect={onEdit}>Editar</MenuItem>
+      <MenuItem onSelect={onEdit}>{tc("edit")}</MenuItem>
       <MenuSeparator />
       <MenuItem danger onSelect={onDelete}>
-        Excluir
+        {tc("delete")}
       </MenuItem>
     </Menu>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea, Select, Label } from "@/components/ui/Field";
@@ -93,6 +94,8 @@ export function ExpenseFormModal({
 }: ExpenseFormModalProps) {
   const { me, members } = useSession();
   const toast = useToast();
+  const t = useTranslations("Expenses");
+  const tc = useTranslations("Common");
   const isEdit = Boolean(expense);
 
   const [payerId, setPayerId] = useState<string>("");
@@ -230,15 +233,15 @@ export function ExpenseFormModal({
     try {
       if (isEdit && expense) {
         await api.put(`/api/expenses/${expense.publicId}`, body);
-        toast("Despesa atualizada", "success");
+        toast(t("toastUpdated"), "success");
       } else {
         await api.post("/api/expenses", body);
-        toast("Despesa criada", "success");
+        toast(t("toastCreated"), "success");
       }
       onOpenChange(false);
       onSaved();
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : "Erro ao salvar despesa";
+      const message = err instanceof ApiError ? err.message : t("saveError");
       setFormError(message);
       toast(message, "error");
     } finally {
@@ -265,23 +268,23 @@ export function ExpenseFormModal({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? "Editar despesa" : "Nova despesa"}
+      title={isEdit ? t("editExpense") : t("newExpense")}
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancelar
+            {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={!canSubmit} loading={submitting}>
-            {isEdit ? "Salvar" : "Adicionar"}
+            {isEdit ? tc("save") : tc("add")}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <Field label="Pagador" htmlFor="exp-payer">
+        <Field label={t("payer")} htmlFor="exp-payer">
           <Select id="exp-payer" value={payerId} onChange={(e) => setPayerId(e.target.value)}>
             <option value="" disabled>
-              Selecione…
+              {t("selectPlaceholder")}
             </option>
             {members.map((m) => (
               <option key={m.id} value={String(m.id)}>
@@ -291,13 +294,13 @@ export function ExpenseFormModal({
           </Select>
         </Field>
 
-        <Field label="Plataforma" htmlFor="exp-platform">
+        <Field label={t("platform")} htmlFor="exp-platform">
           <Select
             id="exp-platform"
             value={platformId}
             onChange={(e) => setPlatformId(e.target.value)}
           >
-            <option value="">Sem plataforma</option>
+            <option value="">{t("noPlatform")}</option>
             {platforms.map((p) => (
               <option key={p.id} value={String(p.id)}>
                 {p.name}
@@ -306,18 +309,18 @@ export function ExpenseFormModal({
           </Select>
         </Field>
 
-        <Field label="Descrição" htmlFor="exp-desc" hint={`${description.length}/200`}>
+        <Field label={t("description")} htmlFor="exp-desc" hint={`${description.length}/200`}>
           <Input
             id="exp-desc"
             value={description}
             maxLength={200}
-            placeholder="Ex.: Mercado da semana"
+            placeholder={t("descriptionPlaceholder")}
             onChange={(e) => setDescription(e.target.value)}
           />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Valor (R$)" htmlFor="exp-amount">
+          <Field label={t("amountLabel")} htmlFor="exp-amount">
             <Input
               id="exp-amount"
               inputMode="numeric"
@@ -328,7 +331,7 @@ export function ExpenseFormModal({
             />
           </Field>
 
-          <Field label="Data" htmlFor="exp-date">
+          <Field label={t("date")} htmlFor="exp-date">
             <Input
               id="exp-date"
               type="date"
@@ -338,12 +341,12 @@ export function ExpenseFormModal({
           </Field>
         </div>
 
-        <Field label="Observação" htmlFor="exp-notes" hint={`${notes.length}/1000`}>
+        <Field label={t("notes")} htmlFor="exp-notes" hint={`${notes.length}/1000`}>
           <Textarea
             id="exp-notes"
             value={notes}
             maxLength={1000}
-            placeholder="Opcional"
+            placeholder={t("notesPlaceholder")}
             onChange={(e) => setNotes(e.target.value)}
           />
         </Field>
@@ -352,7 +355,7 @@ export function ExpenseFormModal({
 
         {/* Split toggle */}
         <div>
-          <Label>Divisão</Label>
+          <Label>{t("split")}</Label>
           <div className="flex gap-2">
             <button
               type="button"
@@ -364,7 +367,7 @@ export function ExpenseFormModal({
                   : "border-rule bg-card text-ink-soft hover:bg-panel"
               )}
             >
-              Dividir igualmente
+              {t("splitEqually")}
             </button>
             <button
               type="button"
@@ -383,7 +386,7 @@ export function ExpenseFormModal({
                   : "border-rule bg-card text-ink-soft hover:bg-panel"
               )}
             >
-              Personalizado
+              {t("custom")}
             </button>
           </div>
         </div>
@@ -391,7 +394,7 @@ export function ExpenseFormModal({
         {/* Equal-split preview */}
         {splitEqually && equalPreview.length > 0 && (
           <div className="rounded-md border border-dashed border-rule bg-panel/40 p-3">
-            <p className="label-mono mb-2">Prévia da divisão</p>
+            <p className="label-mono mb-2">{t("splitPreview")}</p>
             <ul className="flex flex-col gap-1.5">
               {members.map((m, i) => (
                 <li key={m.id} className="flex items-center justify-between gap-2 text-sm">
@@ -410,10 +413,10 @@ export function ExpenseFormModal({
         {!splitEqually && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <p className="label-mono">Dividir por</p>
+              <p className="label-mono">{t("splitBy")}</p>
               <div className="flex gap-1.5">
-                {subToggle("valor", "Valor")}
-                {subToggle("percent", "%")}
+                {subToggle("valor", t("byValue"))}
+                {subToggle("percent", t("byPercent"))}
               </div>
             </div>
 
@@ -442,25 +445,25 @@ export function ExpenseFormModal({
                     onClick={fillEqualIntoCustom}
                     className="label-mono underline decoration-dotted hover:text-ink"
                   >
-                    dividir igual
+                    {t("splitEqualLink")}
                   </button>
                   <span className="flex items-center gap-2">
-                    <span className="label-mono">Soma</span>
+                    <span className="label-mono">{t("sum")}</span>
                     <Money value={fromCents(customSumCents)} />
                   </span>
                 </div>
                 <p className="text-xs">
                   {valorMatches ? (
-                    <span className="text-credit">confere ✓</span>
+                    <span className="text-credit">{t("matches")}</span>
                   ) : totalCents <= 0 ? (
-                    <span className="text-faint">informe o valor total</span>
+                    <span className="text-faint">{t("enterTotal")}</span>
                   ) : diffCents > 0 ? (
                     <span className="text-debt">
-                      faltam <Money value={fromCents(diffCents)} className="text-debt" />
+                      {t("missing")} <Money value={fromCents(diffCents)} className="text-debt" />
                     </span>
                   ) : (
                     <span className="text-debt">
-                      sobram <Money value={fromCents(-diffCents)} className="text-debt" />
+                      {t("over")} <Money value={fromCents(-diffCents)} className="text-debt" />
                     </span>
                   )}
                 </p>
@@ -490,7 +493,7 @@ export function ExpenseFormModal({
                         value={percent[m.id] ?? 0}
                         onChange={(e) => setPercentValue(m.id, Number(e.target.value))}
                         className="w-full accent-ink"
-                        aria-label={`Porcentagem de ${m.name}`}
+                        aria-label={t("percentOf", { name: m.name })}
                       />
                     </li>
                   ))}
@@ -501,10 +504,10 @@ export function ExpenseFormModal({
                     onClick={seedPercentEqual}
                     className="label-mono underline decoration-dotted hover:text-ink"
                   >
-                    igualar
+                    {t("equalize")}
                   </button>
                   <span className="flex items-center gap-2">
-                    <span className="label-mono">Total</span>
+                    <span className="label-mono">{t("total")}</span>
                     <span
                       className={cn(
                         "tnum tabular-nums font-bold",
@@ -518,12 +521,12 @@ export function ExpenseFormModal({
                 {!percentMatches && totalCents > 0 && (
                   <p className="text-xs text-debt">
                     {totalPct < 100
-                      ? `faltam ${100 - totalPct}% para 100%`
-                      : `${totalPct - 100}% acima de 100%`}
+                      ? t("percentMissing", { pct: 100 - totalPct })
+                      : t("percentOver", { pct: totalPct - 100 })}
                   </p>
                 )}
                 {totalCents <= 0 && (
-                  <p className="text-xs text-faint">informe o valor total</p>
+                  <p className="text-xs text-faint">{t("enterTotal")}</p>
                 )}
               </>
             )}

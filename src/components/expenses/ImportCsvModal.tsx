@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
@@ -31,6 +32,8 @@ export function ImportCsvModal({
 }: ImportCsvModalProps) {
   const { me, members } = useSession();
   const toast = useToast();
+  const t = useTranslations("Expenses");
+  const tc = useTranslations("Common");
 
   const [file, setFile] = useState<File | null>(null);
   const [platformId, setPlatformId] = useState<string>("");
@@ -70,13 +73,13 @@ export function ImportCsvModal({
       setResult(res);
       const n = createdCount(res.created);
       toast(
-        `${n} despesa${n === 1 ? "" : "s"} importada${n === 1 ? "" : "s"}`,
+        t("toastImported", { count: n }),
         n > 0 ? "success" : "info"
       );
       if (n > 0) onImported();
     } catch (err) {
       const message =
-        err instanceof ApiError ? err.message : "Erro ao importar CSV";
+        err instanceof ApiError ? err.message : t("importError");
       setFormError(message);
       toast(message, "error");
     } finally {
@@ -90,24 +93,24 @@ export function ImportCsvModal({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title="Importar CSV"
-      description="Cada linha do CSV vira uma despesa."
+      title={t("importTitle")}
+      description={t("importDescription")}
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Fechar
+            {tc("close")}
           </Button>
           <Button onClick={handleSubmit} disabled={!canSubmit} loading={submitting}>
-            Importar
+            {t("importButton")}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
         <Field
-          label="Arquivo CSV"
+          label={t("csvFile")}
           htmlFor="imp-file"
-          hint="Apenas .csv (máx. 1MB / 1000 linhas)"
+          hint={t("csvFileHint")}
         >
           <Input
             id="imp-file"
@@ -118,14 +121,14 @@ export function ImportCsvModal({
           />
         </Field>
 
-        <Field label="Plataforma" htmlFor="imp-platform" hint="Obrigatória">
+        <Field label={t("platform")} htmlFor="imp-platform" hint={t("required")}>
           <Select
             id="imp-platform"
             value={platformId}
             onChange={(e) => setPlatformId(e.target.value)}
           >
             <option value="" disabled>
-              Selecione…
+              {t("selectPlaceholder")}
             </option>
             {platforms.map((p) => (
               <option key={p.id} value={String(p.id)}>
@@ -136,9 +139,9 @@ export function ImportCsvModal({
         </Field>
 
         <Field
-          label="Pagador"
+          label={t("payer")}
           htmlFor="imp-payer"
-          hint="Opcional — padrão: você"
+          hint={t("payerImportHint")}
         >
           <Select
             id="imp-payer"
@@ -160,7 +163,7 @@ export function ImportCsvModal({
             onChange={(e) => setSplitEqually(e.target.checked)}
             className="h-4 w-4 accent-ink"
           />
-          Dividir igualmente entre os membros
+          {t("splitEquallyMembers")}
         </label>
 
         {formError && <p className="text-sm text-debt">{formError}</p>}
@@ -169,26 +172,26 @@ export function ImportCsvModal({
           <div className="flex flex-col gap-3">
             <ReceiptDivider />
             <div className="flex items-center justify-between text-sm">
-              <span className="label-mono">Importadas</span>
+              <span className="label-mono">{t("imported")}</span>
               <span className="font-display font-bold text-ink tnum tabular-nums">
                 {created}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="label-mono">Valor total</span>
+              <span className="label-mono">{t("totalValue")}</span>
               <Money value={result.totalValue} />
             </div>
 
             {result.invalidRows.length > 0 && (
               <div>
                 <p className="label-mono mb-2 text-debt">
-                  Linhas inválidas ({result.invalidRows.length})
+                  {t("invalidRows", { count: result.invalidRows.length })}
                 </p>
                 <ul className="flex flex-col gap-1.5 rounded-md border border-dashed border-debt/40 bg-panel/40 p-3">
                   {result.invalidRows.map((row) => (
                     <li key={row.line} className="text-xs text-ink-soft">
                       <span className="font-display font-bold text-debt">
-                        Linha {row.line}:
+                        {t("rowLabel", { line: row.line })}
                       </span>{" "}
                       {row.reason}
                     </li>

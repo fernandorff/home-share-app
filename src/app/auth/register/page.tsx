@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
@@ -11,6 +12,8 @@ import { GoogleButton } from "@/components/auth/GoogleButton";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const t = useTranslations("Auth");
+  const tc = useTranslations("Common");
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +32,7 @@ export default function RegisterPage() {
       });
       router.replace("/");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erro ao criar conta");
+      setError(err instanceof ApiError ? err.message : t("errorRegister"));
       setLoading(false);
     }
   }
@@ -38,7 +41,7 @@ export default function RegisterPage() {
     <Card className="p-5">
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <h2 className="font-display text-lg font-bold uppercase tracking-wide text-ink">
-          Criar conta
+          {t("registerTitle")}
         </h2>
 
         {error && (
@@ -47,7 +50,7 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <Field label="Nome" htmlFor="name">
+        <Field label={t("name")} htmlFor="name">
           <Input
             id="name"
             value={name}
@@ -55,15 +58,11 @@ export default function RegisterPage() {
             autoComplete="name"
             maxLength={80}
             required
-            placeholder="Seu nome"
+            placeholder={t("namePlaceholder")}
           />
         </Field>
 
-        <Field
-          label="Usuário"
-          htmlFor="username"
-          hint="3–30 caracteres: letras minúsculas, números, . - _"
-        >
+        <Field label={t("username")} htmlFor="username" hint={t("usernameHint")}>
           <Input
             id="username"
             value={username}
@@ -71,11 +70,11 @@ export default function RegisterPage() {
             autoComplete="username"
             autoCapitalize="none"
             required
-            placeholder="seu_usuario"
+            placeholder={t("usernamePlaceholder")}
           />
         </Field>
 
-        <Field label="Senha" htmlFor="password" hint="Mínimo 8 caracteres">
+        <Field label={t("password")} htmlFor="password" hint={t("passwordHint")}>
           <Input
             id="password"
             type="password"
@@ -89,22 +88,22 @@ export default function RegisterPage() {
         </Field>
 
         <Button type="submit" loading={loading} className="w-full">
-          Criar conta
+          {t("registerButton")}
         </Button>
       </form>
 
       <div className="my-4 flex items-center gap-3">
         <span className="flex-1 border-t border-dashed border-rule" />
-        <span className="label-mono">ou</span>
+        <span className="label-mono">{tc("or")}</span>
         <span className="flex-1 border-t border-dashed border-rule" />
       </div>
 
-      <GoogleButton label="Criar conta com Google" />
+      <GoogleButton label={t("googleRegister")} />
 
       <p className="mt-5 text-center text-sm text-faint">
-        Já tem conta?{" "}
+        {t("hasAccount")}{" "}
         <Link href="/auth/login" className="text-ink underline underline-offset-2">
-          Entrar
+          {t("signin")}
         </Link>
       </p>
     </Card>

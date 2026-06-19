@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
@@ -9,15 +10,17 @@ import { Field, Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 
-const GOOGLE_ERRORS: Record<string, string> = {
-  google_indisponivel: "Login com Google ainda não está configurado.",
-  google_cancelado: "Login com Google cancelado.",
-  google_estado: "A sessão do Google expirou — tente novamente.",
-  google_falha: "Não foi possível entrar com o Google.",
+const CODE_TO_KEY: Record<string, string> = {
+  google_indisponivel: "googleUnavailable",
+  google_cancelado: "googleCancelled",
+  google_estado: "googleState",
+  google_falha: "googleFailed",
 };
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useTranslations("Auth");
+  const tc = useTranslations("Common");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,8 +28,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("error");
-    if (code) setError(GOOGLE_ERRORS[code] ?? "Não foi possível entrar.");
-  }, []);
+    if (code) setError(t(CODE_TO_KEY[code] ?? "genericError"));
+  }, [t]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,7 +47,7 @@ export default function LoginPage() {
       }
       router.replace("/");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erro ao entrar");
+      setError(err instanceof ApiError ? err.message : t("errorLogin"));
       setLoading(false);
     }
   }
@@ -53,7 +56,7 @@ export default function LoginPage() {
     <Card className="p-5">
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <h2 className="font-display text-lg font-bold uppercase tracking-wide text-ink">
-          Entrar
+          {t("loginTitle")}
         </h2>
 
         {error && (
@@ -62,7 +65,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <Field label="Usuário" htmlFor="username">
+        <Field label={t("username")} htmlFor="username">
           <Input
             id="username"
             value={username}
@@ -70,11 +73,11 @@ export default function LoginPage() {
             autoComplete="username"
             autoCapitalize="none"
             required
-            placeholder="seu_usuario"
+            placeholder={t("usernamePlaceholder")}
           />
         </Field>
 
-        <Field label="Senha" htmlFor="password">
+        <Field label={t("password")} htmlFor="password">
           <Input
             id="password"
             type="password"
@@ -87,22 +90,22 @@ export default function LoginPage() {
         </Field>
 
         <Button type="submit" loading={loading} className="w-full">
-          Entrar
+          {t("loginButton")}
         </Button>
       </form>
 
       <div className="my-4 flex items-center gap-3">
         <span className="flex-1 border-t border-dashed border-rule" />
-        <span className="label-mono">ou</span>
+        <span className="label-mono">{tc("or")}</span>
         <span className="flex-1 border-t border-dashed border-rule" />
       </div>
 
-      <GoogleButton label="Entrar com Google" />
+      <GoogleButton label={t("googleLogin")} />
 
       <p className="mt-5 text-center text-sm text-faint">
-        Não tem conta?{" "}
+        {t("noAccount")}{" "}
         <Link href="/auth/register" className="text-ink underline underline-offset-2">
-          Criar conta
+          {t("createAccount")}
         </Link>
       </p>
     </Card>

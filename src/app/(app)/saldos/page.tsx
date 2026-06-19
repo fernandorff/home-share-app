@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
 import { MemberDot, MemberChip } from "@/components/ui/Member";
@@ -15,6 +16,7 @@ import { useToast } from "@/components/ui/Toast";
 import type { BalancesResponse } from "@/lib/types";
 
 export default function SaldosPage() {
+  const t = useTranslations("Balances");
   const { members } = useSession();
   const toast = useToast();
   const [data, setData] = useState<BalancesResponse | null>(null);
@@ -28,7 +30,7 @@ export default function SaldosPage() {
         if (alive) setData(res);
       } catch (err) {
         const message =
-          err instanceof ApiError ? err.message : "Não foi possível carregar os saldos.";
+          err instanceof ApiError ? err.message : t("loadError");
         toast(message, "error");
       } finally {
         if (alive) setLoading(false);
@@ -37,7 +39,7 @@ export default function SaldosPage() {
     return () => {
       alive = false;
     };
-  }, [toast]);
+  }, [toast, t]);
 
   // userId → colorIndex (fallback 0 when the member isn't in the active group list).
   const colorOf = (userId: number) =>
@@ -68,8 +70,8 @@ export default function SaldosPage() {
     return (
       <Card>
         <EmptyState
-          title="Saldos indisponíveis"
-          hint="Não foi possível carregar o extrato. Tente novamente."
+          title={t("unavailableTitle")}
+          hint={t("unavailableHint")}
         />
       </Card>
     );
@@ -85,20 +87,20 @@ export default function SaldosPage() {
       <Card className="reveal overflow-hidden">
         <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
           <div>
-            <p className="label-mono text-faint">Extrato da casa</p>
+            <p className="label-mono text-faint">{t("statement")}</p>
             <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
-              Saldos
+              {t("title")}
             </h1>
           </div>
           <Stamp tone="ink" className="mt-1 shrink-0">
-            Conta
+            {t("account")}
           </Stamp>
         </div>
 
         <ReceiptDivider />
 
         <div className="flex items-baseline justify-between gap-4 px-5 py-4">
-          <span className="label-mono text-faint">Total de despesas</span>
+          <span className="label-mono text-faint">{t("totalExpenses")}</span>
           <Money value={totalExpenses} className="font-display text-2xl font-bold" />
         </div>
       </Card>
@@ -106,7 +108,7 @@ export default function SaldosPage() {
       {/* Balances per person */}
       <Card>
         <div className="px-5 pt-5">
-          <SectionTitle>Por pessoa</SectionTitle>
+          <SectionTitle>{t("perPerson")}</SectionTitle>
         </div>
 
         {hasExpenses ? (
@@ -122,8 +124,8 @@ export default function SaldosPage() {
                     <span className="min-w-0 flex-1 truncate text-sm text-ink">
                       {b.userName}
                     </span>
-                    {isCredit && <Stamp tone="credit">A RECEBER</Stamp>}
-                    {isDebt && <Stamp tone="debt">DEVE</Stamp>}
+                    {isCredit && <Stamp tone="credit">{t("toReceive")}</Stamp>}
+                    {isDebt && <Stamp tone="debt">{t("owes")}</Stamp>}
                     <Money
                       signed
                       value={b.balance}
@@ -136,8 +138,8 @@ export default function SaldosPage() {
           </ul>
         ) : (
           <EmptyState
-            title="Sem despesas ainda"
-            hint="Os saldos aparecem assim que a primeira despesa for lançada."
+            title={t("noExpensesTitle")}
+            hint={t("noExpensesHint")}
           />
         )}
       </Card>
@@ -146,7 +148,7 @@ export default function SaldosPage() {
       {hasExpenses && (
         <Card>
           <div className="px-5 pt-5">
-            <SectionTitle>Quem paga quem</SectionTitle>
+            <SectionTitle>{t("whoPaysWhom")}</SectionTitle>
           </div>
 
           {settlements.length > 0 ? (
@@ -178,8 +180,8 @@ export default function SaldosPage() {
             </ul>
           ) : (
             <EmptyState
-              title="Tudo quitado"
-              hint={allSettled ? "Sem dívidas no momento." : "Nenhuma transferência necessária."}
+              title={t("allSettledTitle")}
+              hint={allSettled ? t("allSettledHint") : t("noTransfersHint")}
             />
           )}
         </Card>

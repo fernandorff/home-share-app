@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useSession } from "@/lib/session";
 import { api } from "@/lib/api";
 import { cn } from "@/components/ui/cn";
 import { MemberDot } from "@/components/ui/Member";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/Menu";
+import { LanguageSelector } from "@/components/app/LanguageSelector";
 
 type IconProps = { className?: string };
 const ic = "h-[18px] w-[18px]";
@@ -50,11 +52,11 @@ function HomeIcon({ className }: IconProps) {
 }
 
 const NAV = [
-  { href: "/despesas", label: "Despesas", Icon: ReceiptIcon },
-  { href: "/saldos", label: "Saldos", Icon: ScaleIcon },
-  { href: "/compras", label: "Compras", Icon: CartIcon },
-  { href: "/plataformas", label: "Plataformas", Icon: TagIcon },
-  { href: "/casa", label: "Casa", Icon: HomeIcon },
+  { href: "/despesas", key: "expenses", Icon: ReceiptIcon },
+  { href: "/saldos", key: "balances", Icon: ScaleIcon },
+  { href: "/compras", key: "shopping", Icon: CartIcon },
+  { href: "/plataformas", key: "platforms", Icon: TagIcon },
+  { href: "/casa", key: "household", Icon: HomeIcon },
 ] as const;
 
 function useIsActive() {
@@ -65,6 +67,7 @@ function useIsActive() {
 function CasaSelector() {
   const { me, activeGroup, switchGroup } = useSession();
   const router = useRouter();
+  const t = useTranslations("Nav");
   if (!me || !activeGroup) return null;
 
   return (
@@ -78,7 +81,7 @@ function CasaSelector() {
         </button>
       }
     >
-      <MenuLabel>Suas casas</MenuLabel>
+      <MenuLabel>{t("yourHouses")}</MenuLabel>
       {me.user.groups.map((g) => (
         <MenuItem key={g.id} onSelect={() => g.id !== activeGroup.id && void switchGroup(g.id)}>
           <MemberDot colorIndex={g.colorIndex} name={g.name} size={18} />
@@ -87,7 +90,7 @@ function CasaSelector() {
         </MenuItem>
       ))}
       <MenuSeparator />
-      <MenuItem onSelect={() => router.push("/casa")}>+ Gerenciar / nova casa</MenuItem>
+      <MenuItem onSelect={() => router.push("/casa")}>+ {t("manageHouse")}</MenuItem>
     </Menu>
   );
 }
@@ -95,6 +98,7 @@ function CasaSelector() {
 function UserMenu() {
   const { me, activeGroup } = useSession();
   const router = useRouter();
+  const t = useTranslations("Nav");
   if (!me) return null;
 
   const logout = async () => {
@@ -116,10 +120,10 @@ function UserMenu() {
       }
     >
       <MenuLabel>@{me.user.username}</MenuLabel>
-      <MenuItem onSelect={() => router.push("/casa")}>Casa &amp; membros</MenuItem>
+      <MenuItem onSelect={() => router.push("/casa")}>{t("houseAndMembers")}</MenuItem>
       <MenuSeparator />
       <MenuItem danger onSelect={logout}>
-        Sair
+        {t("logout")}
       </MenuItem>
     </Menu>
   );
@@ -127,6 +131,7 @@ function UserMenu() {
 
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const isActive = useIsActive();
+  const t = useTranslations("Nav");
 
   return (
     <div className="min-h-dvh">
@@ -137,7 +142,8 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           </Link>
           <span className="hidden text-faint sm:inline" aria-hidden>·</span>
           <CasaSelector />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <LanguageSelector />
             <UserMenu />
           </div>
         </div>
@@ -147,7 +153,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         {/* Desktop sidebar */}
         <aside className="hidden w-44 shrink-0 md:block">
           <nav className="sticky top-20 flex flex-col gap-1">
-            {NAV.map(({ href, label, Icon }) => (
+            {NAV.map(({ href, key, Icon }) => (
               <Link
                 key={href}
                 href={href}
@@ -160,7 +166,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
               >
                 <Icon />
                 <span className="font-display font-bold uppercase tracking-wide text-[0.74rem]">
-                  {label}
+                  {t(key)}
                 </span>
               </Link>
             ))}
@@ -172,7 +178,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-rule bg-paper/95 backdrop-blur md:hidden">
-        {NAV.map(({ href, label, Icon }) => (
+        {NAV.map(({ href, key, Icon }) => (
           <Link
             key={href}
             href={href}
@@ -182,7 +188,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             )}
           >
             <Icon />
-            <span>{label}</span>
+            <span>{t(key)}</span>
           </Link>
         ))}
       </nav>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
@@ -23,6 +24,8 @@ type EditState =
 
 export default function PlataformasPage() {
   const toast = useToast();
+  const t = useTranslations("Platforms");
+  const tc = useTranslations("Common");
 
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +48,7 @@ export default function PlataformasPage() {
       setPlatforms(data.platforms);
     } catch (err) {
       toast(
-        err instanceof ApiError ? err.message : "Erro ao carregar plataformas",
+        err instanceof ApiError ? err.message : t("loadError"),
         "error"
       );
     } finally {
@@ -83,18 +86,18 @@ export default function PlataformasPage() {
     try {
       if (edit.mode === "create") {
         await api.post("/api/platforms", { name: trimmed });
-        toast("Plataforma criada!", "success");
+        toast(t("createdToast"), "success");
       } else {
         await api.patch(`/api/platforms/${edit.platform.publicId}`, {
           name: trimmed,
         });
-        toast("Plataforma renomeada!", "success");
+        toast(t("renamedToast"), "success");
       }
       setEdit(null);
       await load();
     } catch (err) {
       toast(
-        err instanceof ApiError ? err.message : "Erro ao salvar plataforma",
+        err instanceof ApiError ? err.message : t("saveError"),
         "error"
       );
     } finally {
@@ -118,12 +121,12 @@ export default function PlataformasPage() {
     setRemoving(true);
     try {
       await api.del(`/api/platforms/${deleting.publicId}`, { replacementId });
-      toast("Plataforma excluída!", "success");
+      toast(t("deletedToast"), "success");
       setDeleting(null);
       await load();
     } catch (err) {
       toast(
-        err instanceof ApiError ? err.message : "Erro ao excluir plataforma",
+        err instanceof ApiError ? err.message : t("deleteError"),
         "error"
       );
     } finally {
@@ -141,11 +144,11 @@ export default function PlataformasPage() {
       <SectionTitle
         right={
           <Button size="sm" onClick={openCreate}>
-            Nova plataforma
+            {t("new")}
           </Button>
         }
       >
-        Plataformas
+        {t("title")}
       </SectionTitle>
 
       {loading ? (
@@ -153,9 +156,9 @@ export default function PlataformasPage() {
       ) : platforms.length === 0 ? (
         <Card>
           <EmptyState
-            title="Nenhuma plataforma"
-            hint="Crie a primeira forma de pagamento."
-            action={<Button onClick={openCreate}>Nova plataforma</Button>}
+            title={t("emptyTitle")}
+            hint={t("emptyHint")}
+            action={<Button onClick={openCreate}>{t("new")}</Button>}
           />
         </Card>
       ) : (
@@ -169,21 +172,21 @@ export default function PlataformasPage() {
                     {p.name}
                   </span>
                   <Tag className="tnum shrink-0">
-                    {p._count?.expenses ?? 0} despesas
+                    {t("expenseCount", { count: p._count?.expenses ?? 0 })}
                   </Tag>
                   <Menu
                     trigger={
                       <button
-                        aria-label={`Ações para ${p.name}`}
+                        aria-label={t("actionsFor", { name: p.name })}
                         className="shrink-0 rounded-md px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink"
                       >
                         ⋯
                       </button>
                     }
                   >
-                    <MenuItem onSelect={() => openRename(p)}>Renomear</MenuItem>
+                    <MenuItem onSelect={() => openRename(p)}>{t("rename")}</MenuItem>
                     <MenuItem danger onSelect={() => openDelete(p)}>
-                      Excluir
+                      {t("delete")}
                     </MenuItem>
                   </Menu>
                 </div>
@@ -197,12 +200,12 @@ export default function PlataformasPage() {
       <Modal
         open={edit !== null}
         onOpenChange={(o) => !o && closeEdit()}
-        title={edit?.mode === "rename" ? "Renomear plataforma" : "Nova plataforma"}
-        description="Formas de pagamento usadas nas despesas (ex: cartão, Pix, dinheiro)."
+        title={edit?.mode === "rename" ? t("renameTitle") : t("createTitle")}
+        description={t("modalDescription")}
         footer={
           <>
             <Button variant="ghost" onClick={closeEdit} disabled={saving}>
-              Cancelar
+              {tc("cancel")}
             </Button>
             <Button
               type="submit"
@@ -210,13 +213,13 @@ export default function PlataformasPage() {
               loading={saving}
               disabled={!name.trim()}
             >
-              {edit?.mode === "rename" ? "Salvar" : "Criar"}
+              {edit?.mode === "rename" ? tc("save") : t("createButton")}
             </Button>
           </>
         }
       >
         <form id="platform-form" onSubmit={submitEdit}>
-          <Field label="Nome" htmlFor="platform-name">
+          <Field label={t("nameLabel")} htmlFor="platform-name">
             <Input
               id="platform-name"
               value={name}
@@ -224,7 +227,7 @@ export default function PlataformasPage() {
               maxLength={NAME_MAX}
               required
               autoFocus
-              placeholder="Ex: Cartão Nubank"
+              placeholder={t("namePlaceholder")}
             />
           </Field>
         </form>
@@ -234,16 +237,16 @@ export default function PlataformasPage() {
       <Modal
         open={deleting !== null}
         onOpenChange={(o) => !o && closeDelete()}
-        title="Excluir plataforma"
+        title={t("deleteTitle")}
         footer={
           onlyOne ? (
             <Button variant="secondary" onClick={closeDelete}>
-              Fechar
+              {tc("close")}
             </Button>
           ) : (
             <>
               <Button variant="ghost" onClick={closeDelete} disabled={removing}>
-                Cancelar
+                {tc("cancel")}
               </Button>
               <Button
                 variant="danger"
@@ -251,35 +254,29 @@ export default function PlataformasPage() {
                 disabled={!replacementId}
                 onClick={confirmDelete}
               >
-                Excluir
+                {t("delete")}
               </Button>
             </>
           )
         }
       >
         {onlyOne ? (
-          <p className="text-sm text-ink-soft">
-            Você não pode excluir a única plataforma. Crie outra plataforma antes
-            de excluir esta.
-          </p>
+          <p className="text-sm text-ink-soft">{t("cannotDeleteOnly")}</p>
         ) : (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-ink-soft">
-              As despesas de{" "}
-              <span className="font-bold text-ink">{deleting?.name}</span>
-              {deleting?._count?.expenses ? (
-                <>
-                  {" "}
-                  (<span className="tnum">{deleting._count.expenses}</span>{" "}
-                  despesas)
-                </>
-              ) : null}{" "}
-              serão movidas para outra plataforma. Escolha qual:
+              {t.rich("deleteExplanation", {
+                count: deleting?._count?.expenses ?? 0,
+                name: () => (
+                  <span className="font-bold text-ink">{deleting?.name}</span>
+                ),
+                num: (chunks) => <span className="tnum">{chunks}</span>,
+              })}
             </p>
             <Field
-              label="Mover despesas para"
+              label={t("moveLabel")}
               htmlFor="replacement"
-              hint="Obrigatório — esta plataforma herdará as despesas."
+              hint={t("moveHint")}
             >
               <Select
                 id="replacement"
@@ -287,7 +284,7 @@ export default function PlataformasPage() {
                 onChange={(e) => setReplacementId(e.target.value)}
               >
                 <option value="" disabled>
-                  Selecione uma plataforma…
+                  {t("selectPlaceholder")}
                 </option>
                 {others.map((p) => (
                   <option key={p.publicId} value={p.publicId}>
