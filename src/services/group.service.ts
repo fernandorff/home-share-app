@@ -59,14 +59,21 @@ class GroupService {
     if (existing) return { group }
 
     const memberCount = await prisma.groupMember.count({ where: { groupId: group.id } })
-    await prisma.groupMember.create({
-      data: {
-        userId,
-        groupId: group.id,
-        role: 'MEMBER',
-        colorIndex: memberCount % MEMBER_COLORS_COUNT,
-      },
-    })
+    try {
+      await prisma.groupMember.create({
+        data: {
+          userId,
+          groupId: group.id,
+          role: 'MEMBER',
+          colorIndex: memberCount % MEMBER_COLORS_COUNT,
+        },
+      })
+    } catch (e) {
+      // Concurrent double-tap can violate @@unique([userId, groupId]); the user is
+      // already a member, so joining stays idempotent instead of surfacing a 500.
+      const code = e && typeof e === 'object' && 'code' in e ? (e as { code?: string }).code : undefined
+      if (code !== 'P2002') throw e
+    }
     return { group }
   }
 

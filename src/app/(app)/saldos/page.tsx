@@ -19,20 +19,22 @@ import type { BalancesResponse } from "@/lib/types";
 export default function SaldosPage() {
   const t = useTranslations("Balances");
   const apiErr = useApiError();
-  const { members } = useSession();
+  const { members, activeGroup } = useSession();
   const toast = useToast();
   const [data, setData] = useState<BalancesResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Re-fetch on mount AND whenever the active house changes (otherwise balances go stale
+  // after switching houses). toast/t are read via stable closures, so they're not deps.
   useEffect(() => {
     let alive = true;
+    setLoading(true);
     (async () => {
       try {
         const res = await api.get<BalancesResponse>("/api/balances");
         if (alive) setData(res);
       } catch (err) {
-        const message = apiErr(err, t("loadError"));
-        toast(message, "error");
+        toast(apiErr(err, t("loadError")), "error");
       } finally {
         if (alive) setLoading(false);
       }
@@ -40,7 +42,8 @@ export default function SaldosPage() {
     return () => {
       alive = false;
     };
-  }, [toast, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroup?.id]);
 
   // userId → colorIndex (fallback 0 when the member isn't in the active group list).
   const colorOf = (userId: number) =>

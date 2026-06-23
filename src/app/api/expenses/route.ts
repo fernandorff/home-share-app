@@ -14,8 +14,11 @@ export async function GET(request: Request) {
     if (!check.ok) return check.response
 
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '10')
+    // Guard against NaN / negative / absurd values reaching the query layer.
+    const pageRaw = parseInt(searchParams.get('page') || '1', 10)
+    const pageSizeRaw = parseInt(searchParams.get('pageSize') || '10', 10)
+    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1
+    const pageSize = Number.isFinite(pageSizeRaw) && pageSizeRaw > 0 ? Math.min(pageSizeRaw, 100_000) : 10
     const sortField = searchParams.get('sortField') || 'date'
     const sortDirection = searchParams.get('sortDirection') === 'asc' ? 'asc' as const : 'desc' as const
 

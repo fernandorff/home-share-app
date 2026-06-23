@@ -23,7 +23,9 @@ export async function GET() {
 
     const balances = calculateBalances(expenses)
     const settlements = simplifyDebts(balances)
-    const totalCents = balances.reduce((sum, b) => sum + Math.max(0, toCents(b.balance)), 0)
+    // Total household SPEND = sum of every expense amount (not the sum of outstanding
+    // credit, which is ~0 once everyone is split/settled).
+    const totalCents = expenses.reduce((sum, e) => sum + toCents(e.amount), 0)
 
     return NextResponse.json({
       balances,

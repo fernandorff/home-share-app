@@ -8,7 +8,10 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient() {
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL
+    connectionString: process.env.DATABASE_URL,
+    // Bound per-container connections so warm serverless instances can't exhaust Neon.
+    max: 5,
+    idleTimeoutMillis: 10_000,
   })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })
@@ -16,4 +19,6 @@ function createPrismaClient() {
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Cache on globalThis in EVERY environment: in dev it survives HMR; in prod it guarantees
+// a single Pool per warm container regardless of how many times this module is bundled/loaded.
+globalForPrisma.prisma = prisma

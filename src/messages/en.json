@@ -142,7 +142,7 @@
     "selectPlaceholder": "Select…",
     "description": "Description",
     "descriptionPlaceholder": "e.g. Weekly groceries",
-    "amountLabel": "Amount (R$)",
+    "amountLabel": "Amount ({symbol})",
     "date": "Date",
     "notes": "Notes",
     "notesPlaceholder": "Optional",

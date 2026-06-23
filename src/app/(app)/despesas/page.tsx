@@ -393,7 +393,7 @@ export default function DespesasPage() {
                                 <th className="label-mono px-4 py-1.5 text-left">{t("colDescription")}</th>
                                 <th className="label-mono hidden w-28 px-2 py-1.5 text-left sm:table-cell">{t("colPlatform")}</th>
                                 <th className="label-mono w-[86px] px-2 py-1.5 text-left">{t("colDate")}</th>
-                                <th className="label-mono w-[116px] px-2 py-1.5 text-right">{t("colAmount")}</th>
+                                <th className="label-mono w-[116px] px-2 py-1.5 text-right max-md:w-36">{t("colAmount")}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -412,10 +412,11 @@ export default function DespesasPage() {
                                   <td className="whitespace-nowrap px-2 py-2 text-xs text-ink-soft">
                                     {formatDateLocale(e.date, locale)}
                                   </td>
-                                  <td className="relative whitespace-nowrap px-2 py-2 text-right">
+                                  <td className="relative whitespace-nowrap px-2 py-2 text-right max-md:pr-12 pointer-coarse:pr-12">
                                     <Money value={e.amount} />
-                                    {/* ⋯ menu floats in on hover (gradient masks the value) — no reserved column */}
-                                    <span className="absolute inset-y-0 right-0.5 flex items-center bg-gradient-to-l from-card via-card to-transparent pl-10 opacity-0 transition-opacity group-hover:opacity-100">
+                                    {/* Desktop: ⋯ floats in on hover (gradient masks the value), no reserved column.
+                                        Touch / narrow: no hover exists, so the trigger stays visible in the reserved right padding. */}
+                                    <span className="absolute inset-y-0 right-0.5 flex items-center bg-gradient-to-l from-card via-card to-transparent pl-6 opacity-0 transition-opacity group-hover:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">
                                       <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
                                     </span>
                                   </td>

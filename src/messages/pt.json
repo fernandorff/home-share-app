@@ -142,7 +142,7 @@
     "selectPlaceholder": "Selecione…",
     "description": "Descrição",
     "descriptionPlaceholder": "Ex.: Mercado da semana",
-    "amountLabel": "Valor (R$)",
+    "amountLabel": "Valor ({symbol})",
     "date": "Data",
     "notes": "Observação",
     "notesPlaceholder": "Opcional",

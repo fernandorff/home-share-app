@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { expenseService } from '@/services/expense.service'
 import { groupService } from '@/services/group.service'
+import { platformService } from '@/services/platform.service'
 import { handleApiError, requireActiveGroup } from '@/lib/api-helpers'
 
 interface ParsedImportBody {
@@ -74,6 +75,11 @@ export async function POST(request: Request) {
 
     if (!platformId) {
       return NextResponse.json({ error: 'Plataforma é obrigatória' }, { status: 400 })
+    }
+
+    // Defense-in-depth: the platform id must belong to the active house (never trust a raw id).
+    if (!(await platformService.findInGroupById(check.groupId, platformId))) {
+      return NextResponse.json({ error: 'Plataforma não pertence a esta casa' }, { status: 400 })
     }
 
     const members = await groupService.listMembers(check.groupId)

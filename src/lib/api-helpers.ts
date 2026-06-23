@@ -3,11 +3,20 @@ import { cookies } from 'next/headers'
 import { toCents, fromCents } from '@/lib/currency'
 import { verifySession, SessionPayload, SESSION_COOKIE, GROUP_COOKIE } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ApiError } from '@/lib/errors'
 
 export function handleApiError(error: unknown, defaultMsg: string): NextResponse {
+  // Expected, typed failures (not-found, invalid input) carry their own status/code.
+  if (error instanceof ApiError) {
+    return NextResponse.json(
+      error.code ? { error: error.message, code: error.code } : { error: error.message },
+      { status: error.status }
+    )
+  }
+  // Anything else is unexpected: log the full detail server-side, but return a
+  // generic message so we never leak stack traces, file paths, or DB internals.
   console.error(defaultMsg, error)
-  const message = error instanceof Error ? error.message : defaultMsg
-  return NextResponse.json({ error: message }, { status: 500 })
+  return NextResponse.json({ error: defaultMsg }, { status: 500 })
 }
 
 export type SessionCheck =
@@ -118,13 +127,30 @@ export function validateExpenseInput(
     return { valid: false, response: NextResponse.json({ error: 'Valor deve ser maior que zero' }, { status: 400 }) }
   }
 
+  // amount is stored as Decimal(10,2) — reject values that would overflow the column (max 99.999.999,99)
+  if (toCents(amount) > 9_999_999_999) {
+    return { valid: false, response: NextResponse.json({ error: 'Valor muito alto (máx. 99.999.999,99)' }, { status: 400 }) }
+  }
+
   // Membership of payer/participants in the active group is validated by the route
   // via allGroupMembers() — here we only check presence.
   if (payerRequired && !payerId) {
     return { valid: false, response: NextResponse.json({ error: 'Pagador é obrigatório' }, { status: 400 }) }
   }
 
-  if (!splitEqually && participants.length > 0) {
+  // Custom split: every share must be a real, non-negative number, with no duplicate
+  // participants, and the parts must sum exactly to the total (integer-cents comparison).
+  if (!splitEqually) {
+    if (participants.length === 0) {
+      return { valid: false, response: NextResponse.json({ error: 'Divisão personalizada precisa de ao menos um participante' }, { status: 400 }) }
+    }
+    const ids = participants.map(p => p.userId)
+    if (new Set(ids).size !== ids.length) {
+      return { valid: false, response: NextResponse.json({ error: 'Há um participante repetido na divisão' }, { status: 400 }) }
+    }
+    if (participants.some(p => !Number.isFinite(p.amount) || p.amount < 0)) {
+      return { valid: false, response: NextResponse.json({ error: 'Valor de um participante não pode ser negativo' }, { status: 400 }) }
+    }
     const totalCents = participants.reduce((sum, p) => sum + toCents(p.amount), 0)
     const totalParticipants = fromCents(totalCents)
     if (totalCents !== toCents(amount)) {

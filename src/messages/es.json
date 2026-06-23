@@ -142,7 +142,7 @@
     "selectPlaceholder": "Selecciona…",
     "description": "Descripción",
     "descriptionPlaceholder": "Ej.: Compra de la semana",
-    "amountLabel": "Importe (R$)",
+    "amountLabel": "Importe ({symbol})",
     "date": "Fecha",
     "notes": "Observación",
     "notesPlaceholder": "Opcional",

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { uuidv7 } from '@/lib/uuid'
 import { parseCSVDetailed, ExpenseRow, InvalidRow } from '@/lib/csv-parser'
 import { toCents, fromCents, splitCents } from '@/lib/currency'
+import { ApiError } from '@/lib/errors'
 
 export interface CreateExpenseInput {
   payerId: number
@@ -146,7 +147,7 @@ export class ExpenseService {
         select: { id: true }
       })
       if (!existing) {
-        throw new Error('Despesa não encontrada nesta casa')
+        throw new ApiError('Despesa não encontrada nesta casa', 404)
       }
 
       if (participantData) {
@@ -202,7 +203,7 @@ export class ExpenseService {
       const detail = invalidRows.length > 0
         ? ` Linhas com erro: ${invalidRows.map(r => `${r.line} (${r.reason})`).join(', ')}`
         : ''
-      throw new Error(`Nenhuma despesa válida encontrada no CSV.${detail}`)
+      throw new ApiError(`Nenhuma despesa válida encontrada no CSV.${detail}`, 400)
     }
 
     // All-or-nothing: one failure rolls back the entire import (safe to retry).

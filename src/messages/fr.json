@@ -142,7 +142,7 @@
     "selectPlaceholder": "Sélectionner…",
     "description": "Description",
     "descriptionPlaceholder": "Ex. : Courses de la semaine",
-    "amountLabel": "Montant (R$)",
+    "amountLabel": "Montant ({symbol})",
     "date": "Date",
     "notes": "Remarque",
     "notesPlaceholder": "Facultatif",

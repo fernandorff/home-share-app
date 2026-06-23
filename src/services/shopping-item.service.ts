@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { generateUUID } from '@/lib/uuid'
+import { ApiError } from '@/lib/errors'
 
 const itemInclude = {
   addedBy: {
@@ -34,7 +35,7 @@ export class ShoppingItemService {
   /** Group-scoped lookup shared by the mutations below. */
   private async findOwned(groupId: number, publicId: string) {
     const item = await prisma.shoppingItem.findFirst({ where: { publicId, groupId } })
-    if (!item) throw new Error('Item não encontrado')
+    if (!item) throw new ApiError('Item não encontrado', 404)
     return item
   }
 

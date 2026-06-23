@@ -20,6 +20,7 @@ import {
   todayInputValue,
 } from "@/lib/format";
 import { toCents, fromCents, splitCents } from "@/lib/currency";
+import { CURRENCY_META, DEFAULT_CURRENCY, isCurrency } from "@/lib/currencies";
 import type { Expense, Platform, Member } from "@/lib/types";
 
 interface ExpenseFormModalProps {
@@ -94,13 +95,15 @@ export function ExpenseFormModal({
   platforms,
   onSaved,
 }: ExpenseFormModalProps) {
-  const { me, members } = useSession();
+  const { me, members, activeGroup } = useSession();
   const toast = useToast();
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
   const apiErr = useApiError();
   const locale = useLocale();
   const isEdit = Boolean(expense);
+  const currencySymbol =
+    CURRENCY_META[isCurrency(activeGroup?.currency) ? activeGroup.currency : DEFAULT_CURRENCY].symbol;
 
   const zeroPlaceholder = maskAmountInput("0", locale);
 
@@ -326,7 +329,7 @@ export function ExpenseFormModal({
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("amountLabel")} htmlFor="exp-amount">
+          <Field label={t("amountLabel", { symbol: currencySymbol })} htmlFor="exp-amount">
             <Input
               id="exp-amount"
               inputMode="numeric"

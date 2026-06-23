@@ -70,6 +70,14 @@ export function parseCSVDetailed(csvText: string): ParsedCSV {
       invalidRows.push({ line: i + 1, reason: 'descrição vazia' })
       continue
     }
+    if (descricao.length > 200) {
+      invalidRows.push({ line: i + 1, reason: 'descrição muito longa (máx. 200 caracteres)' })
+      continue
+    }
+    if (observacao && observacao.length > 1000) {
+      invalidRows.push({ line: i + 1, reason: 'observação muito longa (máx. 1000 caracteres)' })
+      continue
+    }
     if (!valorStr) {
       invalidRows.push({ line: i + 1, reason: 'valor vazio' })
       continue
