@@ -4,6 +4,7 @@ import { toCents, fromCents } from '@/lib/currency'
 import { verifySession, SessionPayload, SESSION_COOKIE, GROUP_COOKIE } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/errors'
+import { isExpenseCategory } from '@/lib/categories'
 import { auditService, type AuditEntry } from '@/services/audit.service'
 
 /** Append an activity-log entry. A logging failure NEVER breaks the user's mutation. */
@@ -95,6 +96,7 @@ export async function allGroupMembers(groupId: number, userIds: number[]): Promi
 interface ExpenseInputRaw {
   description?: string
   notes?: string
+  category?: string
   amount?: number
   date?: string
   payerId?: number
@@ -106,6 +108,7 @@ interface ExpenseInputRaw {
 export interface ValidatedExpenseInput {
   description: string
   notes?: string
+  category?: string | null
   amount: number
   date?: Date
   payerId: number
@@ -118,7 +121,7 @@ export function validateExpenseInput(
   body: ExpenseInputRaw,
   options: { payerRequired?: boolean } = {}
 ): { valid: true; data: ValidatedExpenseInput } | { valid: false; response: NextResponse } {
-  const { description, notes, amount, date, payerId, platformId, splitEqually = true, participants = [] } = body
+  const { description, notes, category, amount, date, payerId, platformId, splitEqually = true, participants = [] } = body
   const { payerRequired = true } = options
 
   if (!description || description.trim() === '') {
@@ -140,6 +143,11 @@ export function validateExpenseInput(
   // amount is stored as Decimal(10,2) — reject values that would overflow the column (max 99.999.999,99)
   if (toCents(amount) > 9_999_999_999) {
     return { valid: false, response: NextResponse.json({ error: 'Valor muito alto (máx. 99.999.999,99)' }, { status: 400 }) }
+  }
+
+  // Category is optional, but if present it must be one of the known keys.
+  if (category != null && category !== '' && !isExpenseCategory(category)) {
+    return { valid: false, response: NextResponse.json({ error: 'Categoria inválida' }, { status: 400 }) }
   }
 
   // Membership of payer/participants in the active group is validated by the route
@@ -178,6 +186,7 @@ export function validateExpenseInput(
     data: {
       description,
       notes,
+      category: category && isExpenseCategory(category) ? category : null,
       amount,
       date: date ? new Date(date + (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? 'T12:00:00' : '')) : undefined,
       payerId: payerId!,

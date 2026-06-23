@@ -73,6 +73,7 @@ export interface Expense {
   platformId: number | null;
   description: string;
   notes: string | null;
+  category: string | null;
   amount: Money;
   date: string;
   createdAt: string;

@@ -92,6 +92,7 @@ model Expense {
   platformId  Int?     @map("plataforma_id")
   description String   @map("descricao")
   notes       String?  @map("observacao")
+  category    String?  @map("categoria")
   amount      Decimal  @db.Decimal(10, 2) @map("valor")
   date        DateTime @default(now()) @map("data")
   createdAt   DateTime @default(now())

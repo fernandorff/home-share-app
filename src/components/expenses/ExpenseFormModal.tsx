@@ -21,6 +21,7 @@ import {
 } from "@/lib/format";
 import { toCents, fromCents, splitCents } from "@/lib/currency";
 import { CURRENCY_META, DEFAULT_CURRENCY, isCurrency } from "@/lib/currencies";
+import { EXPENSE_CATEGORIES } from "@/lib/categories";
 import type { Expense, Platform, Member } from "@/lib/types";
 
 interface ExpenseFormModalProps {
@@ -111,6 +112,7 @@ export function ExpenseFormModal({
   const [platformId, setPlatformId] = useState<string>("");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
+  const [category, setCategory] = useState<string>("");
   const [amountMasked, setAmountMasked] = useState("");
   const [date, setDate] = useState(todayInputValue());
   const [splitEqually, setSplitEqually] = useState(true);
@@ -135,6 +137,7 @@ export function ExpenseFormModal({
       setPlatformId(expense.platformId != null ? String(expense.platformId) : "");
       setDescription(expense.description);
       setNotes(expense.notes ?? "");
+      setCategory(expense.category ?? "");
       setAmountMasked(maskAmountInput(String(toCents(expense.amount)), locale));
       setDate(toDateInputValue(expense.date));
       const equal = detectSplitEqually(expense, members);
@@ -145,6 +148,7 @@ export function ExpenseFormModal({
       setPlatformId("");
       setDescription("");
       setNotes("");
+      setCategory("");
       setAmountMasked("");
       setDate(todayInputValue());
       setSplitEqually(true);
@@ -220,6 +224,7 @@ export function ExpenseFormModal({
       platformId: platformId === "" ? null : Number(platformId),
       description: description.trim(),
       notes: notes.trim() === "" ? undefined : notes.trim(),
+      category: category === "" ? null : category,
       amount,
       date,
       splitEqually,
@@ -313,6 +318,17 @@ export function ExpenseFormModal({
             {platforms.map((p) => (
               <option key={p.id} value={String(p.id)}>
                 {p.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field label={t("categoryLabel")} htmlFor="exp-category">
+          <Select id="exp-category" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="">{t("noCategory")}</option>
+            {EXPENSE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {t(`category.${c}`)}
               </option>
             ))}
           </Select>

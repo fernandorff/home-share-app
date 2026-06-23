@@ -9,6 +9,7 @@ export interface CreateExpenseInput {
   platformId?: number | null
   description: string
   notes?: string | null
+  category?: string | null
   amount: number
   date?: Date
   participants?: { userId: number; amount: number }[]
@@ -20,6 +21,7 @@ export interface UpdateExpenseInput {
   platformId?: number | null
   description?: string
   notes?: string | null
+  category?: string | null
   amount?: number
   date?: Date
   participants?: { userId: number; amount: number }[]
@@ -102,7 +104,7 @@ export class ExpenseService {
   }
 
   async create(groupId: number, memberIds: number[], input: CreateExpenseInput) {
-    const { payerId, platformId, description, notes, amount, date, participants, splitEqually } = input
+    const { payerId, platformId, description, notes, category, amount, date, participants, splitEqually } = input
 
     let participantData: { userId: number; amount: number }[]
 
@@ -120,6 +122,7 @@ export class ExpenseService {
         platformId,
         description: description.trim(),
         notes: notes?.trim() || null,
+        category: category ?? null,
         amount,
         date: date ?? new Date(),
         participants: { create: participantData }
@@ -129,7 +132,7 @@ export class ExpenseService {
   }
 
   async update(groupId: number, expenseId: number, memberIds: number[], input: UpdateExpenseInput) {
-    const { payerId, platformId, description, notes, amount, date, participants, splitEqually } = input
+    const { payerId, platformId, description, notes, category, amount, date, participants, splitEqually } = input
 
     let participantData: { userId: number; amount: number }[] | undefined
 
@@ -163,6 +166,7 @@ export class ExpenseService {
           ...(platformId !== undefined && { platformId }),
           ...(description && { description: description.trim() }),
           ...(notes !== undefined && { notes: notes?.trim() || null }),
+          ...(category !== undefined && { category }),
           ...(amount !== undefined && { amount }),
           ...(date && { date }),
           ...(participantData && {

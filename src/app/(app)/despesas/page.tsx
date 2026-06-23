@@ -20,6 +20,7 @@ import { useApiError } from "@/lib/api-errors";
 import { formatDateLocale } from "@/lib/money";
 import { money } from "@/lib/format";
 import { memberStyle } from "@/lib/members";
+import { EXPENSE_CATEGORIES } from "@/lib/categories";
 import type { Expense, ExpenseListResponse, ExpenseSortField, Platform } from "@/lib/types";
 import { ExpenseFormModal } from "@/components/expenses/ExpenseFormModal";
 import { ImportCsvModal } from "@/components/expenses/ImportCsvModal";
@@ -119,6 +120,7 @@ export default function DespesasPage() {
   const [query, setQuery] = useState("");
   const [payerFilter, setPayerFilter] = useState<number | "">("");
   const [platformFilter, setPlatformFilter] = useState<number | "">("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -173,6 +175,7 @@ export default function DespesasPage() {
     return all.filter((e) => {
       if (payerFilter !== "" && e.payerId !== payerFilter) return false;
       if (platformFilter !== "" && (e.platform?.id ?? -1) !== platformFilter) return false;
+      if (categoryFilter !== "" && (e.category ?? "") !== categoryFilter) return false;
       const day = e.date.slice(0, 10);
       if (fromDate && day < fromDate) return false;
       if (toDate && day > toDate) return false;
@@ -182,17 +185,19 @@ export default function DespesasPage() {
       }
       return true;
     });
-  }, [all, query, payerFilter, platformFilter, fromDate, toDate]);
+  }, [all, query, payerFilter, platformFilter, categoryFilter, fromDate, toDate]);
 
   const activeFilterCount = [
-    query.trim() !== "", payerFilter !== "", platformFilter !== "", fromDate !== "", toDate !== "",
+    query.trim() !== "", payerFilter !== "", platformFilter !== "", categoryFilter !== "", fromDate !== "", toDate !== "",
   ].filter(Boolean).length;
   const filtersActive = activeFilterCount > 0;
+  const filteredTotal = useMemo(() => filtered.reduce((s, e) => s + money(e.amount), 0), [filtered]);
 
   function clearFilters() {
     setQuery("");
     setPayerFilter("");
     setPlatformFilter("");
+    setCategoryFilter("");
     setFromDate("");
     setToDate("");
   }
@@ -393,6 +398,17 @@ export default function DespesasPage() {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                aria-label={t("categoryLabel")}
+                className={fieldCls}
+              >
+                <option value="">{t("filterAllCategories")}</option>
+                {EXPENSE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{t(`category.${c}`)}</option>
+                ))}
+              </select>
               <input
                 type="date"
                 value={fromDate}
@@ -418,6 +434,15 @@ export default function DespesasPage() {
               </button>
             )}
           </div>
+          {filtersActive && (
+            <div className="mt-2 flex items-center justify-between gap-3 border-t border-dotted border-rule pt-2">
+              <span className="label-mono">{t("filteredCount", { count: filtered.length })}</span>
+              <span className="flex items-baseline gap-1.5">
+                <span className="label-mono text-faint">{t("filteredTotal")}</span>
+                <Money value={filteredTotal} className="font-display text-sm font-bold" />
+              </span>
+            </div>
+          )}
         </Card>
       )}
 
@@ -609,7 +634,12 @@ export default function DespesasPage() {
                       className="h-4 w-4 accent-ink"
                     />
                   </td>
-                  <td className="px-4 py-3 text-sm text-ink">{e.description}</td>
+                  <td className="px-4 py-3 text-sm text-ink">
+                    {e.description}
+                    {e.category && t.has(`category.${e.category}`) && (
+                      <span className="mt-0.5 block text-xs text-faint">▘ {t(`category.${e.category}`)}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span className="flex min-w-0 items-center gap-2">
                       <MemberDot colorIndex={memberColorFor(e.payerId)} name={e.payer.name} size={22} />
@@ -674,6 +704,9 @@ export default function DespesasPage() {
                       <span aria-hidden>·</span>
                       <span>{formatDateLocale(e.date, locale)}</span>
                       {e.platform && <Tag>{e.platform.name}</Tag>}
+                      {e.category && t.has(`category.${e.category}`) && (
+                        <span className="text-faint">▘ {t(`category.${e.category}`)}</span>
+                      )}
                     </div>
                   </div>
                   <div className="shrink-0">
