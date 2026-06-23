@@ -98,7 +98,10 @@
     "noTransfersHint": "No transfer needed.",
     "unavailableTitle": "Balances unavailable",
     "unavailableHint": "Couldn't load the statement. Please try again.",
-    "loadError": "Couldn't load the balances."
+    "loadError": "Couldn't load the balances.",
+    "byCategory": "Spend by category",
+    "byMonth": "Spend by month",
+    "uncategorized": "Uncategorized"
   },
   "Settlements": {
     "recordPayment": "Record payment",

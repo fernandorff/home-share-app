@@ -125,11 +125,22 @@ export interface Payment {
   date: string;
 }
 
+export interface CategorySpend {
+  category: string;
+  total: number;
+}
+export interface MonthSpend {
+  month: string;
+  total: number;
+}
+
 export interface BalancesResponse {
   balances: Balance[];
   settlements: Settlement[];
   totalExpenses: number;
   payments: Payment[];
+  byCategory: CategorySpend[];
+  byMonth: MonthSpend[];
 }
 
 export type AuditEntityType = "EXPENSE" | "SETTLEMENT" | "SHOPPING_ITEM" | "GROUP" | "PLATFORM";

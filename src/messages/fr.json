@@ -98,7 +98,10 @@
     "noTransfersHint": "Aucun virement nécessaire.",
     "unavailableTitle": "Soldes indisponibles",
     "unavailableHint": "Impossible de charger le relevé. Veuillez réessayer.",
-    "loadError": "Impossible de charger les soldes."
+    "loadError": "Impossible de charger les soldes.",
+    "byCategory": "Dépenses par catégorie",
+    "byMonth": "Dépenses par mois",
+    "uncategorized": "Sans catégorie"
   },
   "Settlements": {
     "recordPayment": "Enregistrer un paiement",

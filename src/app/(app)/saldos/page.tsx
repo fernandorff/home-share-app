@@ -24,6 +24,7 @@ export default function SaldosPage() {
   const t = useTranslations("Balances");
   const ts = useTranslations("Settlements");
   const tc = useTranslations("Common");
+  const tcat = useTranslations("Expenses");
   const apiErr = useApiError();
   const { members, activeGroup } = useSession();
   const toast = useToast();
@@ -105,9 +106,19 @@ export default function SaldosPage() {
     );
   }
 
-  const { balances, settlements, totalExpenses, payments } = data;
+  const { balances, settlements, totalExpenses, payments, byCategory, byMonth } = data;
   const hasExpenses = balances.length > 0;
   const allSettled = balances.every((b) => b.balance === 0);
+  const catLabel = (c: string) =>
+    c && tcat.has(`category.${c}`) ? tcat(`category.${c}`) : t("uncategorized");
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split("-").map(Number);
+    const d = new Date(y, (m ?? 1) - 1, 1);
+    const name = new Intl.DateTimeFormat(locale, { month: "short" }).format(d);
+    return `${name.charAt(0).toUpperCase()}${name.slice(1)} ${y}`;
+  };
+  const monthsTop = byMonth.slice(0, 6);
+  const maxMonth = Math.max(1, ...monthsTop.map((m) => m.total));
 
   return (
     <div className="flex flex-col gap-6">
@@ -246,6 +257,59 @@ export default function SaldosPage() {
                 </div>
               </li>
             ))}
+          </ul>
+        </Card>
+      )}
+
+      {/* Insights — spend by category */}
+      {hasExpenses && byCategory.length > 0 && (
+        <Card>
+          <div className="px-5 pt-5">
+            <SectionTitle>{t("byCategory")}</SectionTitle>
+          </div>
+          <ul className="px-5 pt-2 pb-4">
+            {byCategory.map((c, i) => {
+              const pct = totalExpenses > 0 ? (c.total / totalExpenses) * 100 : 0;
+              return (
+                <li key={c.category || "none"} className="reveal py-2" style={revealDelay(i)}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 truncate text-sm text-ink">{catLabel(c.category)}</span>
+                    <span className="flex shrink-0 items-baseline gap-2">
+                      <span className="label-mono text-faint">{pct.toFixed(0)}%</span>
+                      <Money value={c.total} className="tnum font-display text-sm font-bold" />
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-panel">
+                    <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      )}
+
+      {/* Insights — spend by month */}
+      {hasExpenses && monthsTop.length > 0 && (
+        <Card>
+          <div className="px-5 pt-5">
+            <SectionTitle>{t("byMonth")}</SectionTitle>
+          </div>
+          <ul className="px-5 pt-2 pb-4">
+            {monthsTop.map((m, i) => {
+              const pct = (m.total / maxMonth) * 100;
+              return (
+                <li key={m.month} className="reveal py-2" style={revealDelay(i)}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="label-mono">{monthLabel(m.month)}</span>
+                    <Money value={m.total} className="tnum font-display text-sm font-bold" />
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-panel">
+                    <div className="h-full rounded-full bg-stamp" style={{ width: `${pct}%` }} />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </Card>
       )}

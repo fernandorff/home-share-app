@@ -98,7 +98,10 @@
     "noTransfersHint": "Nenhuma transferência necessária.",
     "unavailableTitle": "Saldos indisponíveis",
     "unavailableHint": "Não foi possível carregar o extrato. Tente novamente.",
-    "loadError": "Não foi possível carregar os saldos."
+    "loadError": "Não foi possível carregar os saldos.",
+    "byCategory": "Gastos por categoria",
+    "byMonth": "Gastos por mês",
+    "uncategorized": "Sem categoria"
   },
   "Settlements": {
     "recordPayment": "Registrar pagamento",

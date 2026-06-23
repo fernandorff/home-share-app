@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { calculateBalances, applySettlements, simplifyDebts } from '@/lib/balance'
+import { aggregateSpend } from '@/lib/insights'
 import { settlementService } from '@/services/settlement.service'
 import { handleApiError, requireActiveGroup } from '@/lib/api-helpers'
 import { toCents, fromCents } from '@/lib/currency'
@@ -30,12 +31,15 @@ export async function GET() {
     // Total household SPEND = sum of every expense amount (not the sum of outstanding
     // credit, which is ~0 once everyone is split/settled).
     const totalCents = expenses.reduce((sum, e) => sum + toCents(e.amount), 0)
+    const { byCategory, byMonth } = aggregateSpend(expenses)
 
     return NextResponse.json({
       balances,
       settlements,
       totalExpenses: fromCents(totalCents),
       payments,
+      byCategory,
+      byMonth,
     })
   } catch (error) {
     return handleApiError(error, 'Erro ao calcular saldos')
