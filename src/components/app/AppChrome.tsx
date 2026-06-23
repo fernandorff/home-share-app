@@ -142,7 +142,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   const t = useTranslations("Nav");
 
   return (
-    <div className="min-h-dvh">
+    <div className="paper-grain min-h-dvh">
       <header className="sticky top-0 z-30 border-b border-rule bg-paper/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
           <Link href="/despesas" className="font-display text-base font-bold tracking-tight text-ink">

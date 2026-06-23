@@ -115,6 +115,13 @@ export default function DespesasPage() {
   const [view, setView] = useState<ViewMode>("list");
   const [platforms, setPlatforms] = useState<Platform[]>([]);
 
+  // Filters (client-side; fit the load-all model).
+  const [query, setQuery] = useState("");
+  const [payerFilter, setPayerFilter] = useState<number | "">("");
+  const [platformFilter, setPlatformFilter] = useState<number | "">("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [formOpen, setFormOpen] = useState(false);
@@ -160,18 +167,48 @@ export default function DespesasPage() {
 
   const all = useMemo(() => allData?.expenses ?? [], [allData]);
 
+  // Filters applied BEFORE sort & grouping, so List and By-person see the same set.
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return all.filter((e) => {
+      if (payerFilter !== "" && e.payerId !== payerFilter) return false;
+      if (platformFilter !== "" && (e.platform?.id ?? -1) !== platformFilter) return false;
+      const day = e.date.slice(0, 10);
+      if (fromDate && day < fromDate) return false;
+      if (toDate && day > toDate) return false;
+      if (q) {
+        const hay = `${e.description} ${e.notes ?? ""} ${e.payer.name} ${e.platform?.name ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [all, query, payerFilter, platformFilter, fromDate, toDate]);
+
+  const activeFilterCount = [
+    query.trim() !== "", payerFilter !== "", platformFilter !== "", fromDate !== "", toDate !== "",
+  ].filter(Boolean).length;
+  const filtersActive = activeFilterCount > 0;
+
+  function clearFilters() {
+    setQuery("");
+    setPayerFilter("");
+    setPlatformFilter("");
+    setFromDate("");
+    setToDate("");
+  }
+
   // List view: client-side sorted (all rows, infinite scroll).
   const listItems = useMemo(() => {
     const dir = sortDirection === "asc" ? 1 : -1;
-    return [...all].sort((a, b) => compareExpenses(a, b, sortField, locale) * dir);
-  }, [all, sortField, sortDirection, locale]);
+    return [...filtered].sort((a, b) => compareExpenses(a, b, sortField, locale) * dir);
+  }, [filtered, sortField, sortDirection, locale]);
 
   // By person → grouped by month (newest first).
   const byPerson = useMemo<PersonGroup[]>(() => {
     return members.map((m) => {
       const monthsMap = new Map<string, MonthGroup>();
       let total = 0;
-      for (const e of all) {
+      for (const e of filtered) {
         if (e.payerId !== m.id) continue;
         const amt = money(e.amount);
         total += amt;
@@ -190,7 +227,7 @@ export default function DespesasPage() {
       );
       return { payerId: m.id, name: m.name, colorIndex: m.colorIndex, total, months: monthsArr };
     });
-  }, [all, members, locale]);
+  }, [filtered, members, locale]);
 
   const byPersonEmpty = byPerson.every((p) => p.months.length === 0);
   const selectedCount = selected.size;
@@ -262,6 +299,8 @@ export default function DespesasPage() {
   }
 
   const total = allData?.pagination.total ?? listItems.length;
+  const fieldCls =
+    "rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-1 focus-visible:ring-offset-card";
 
   return (
     <div className="flex flex-col gap-5">
@@ -319,6 +358,69 @@ export default function DespesasPage() {
         ))}
       </div>
 
+      {/* Filter bar */}
+      {!loading && total > 0 && (
+        <Card className="px-3 py-2.5">
+          <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("searchPlaceholder")}
+              aria-label={t("searchPlaceholder")}
+              className={cn(fieldCls, "min-w-0 flex-1 placeholder:text-faint lg:min-w-[200px]")}
+            />
+            <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:items-center">
+              <select
+                value={payerFilter}
+                onChange={(e) => setPayerFilter(e.target.value ? Number(e.target.value) : "")}
+                aria-label={t("colPayer")}
+                className={fieldCls}
+              >
+                <option value="">{t("filterAllPeople")}</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+              <select
+                value={platformFilter}
+                onChange={(e) => setPlatformFilter(e.target.value ? Number(e.target.value) : "")}
+                aria-label={t("colPlatform")}
+                className={fieldCls}
+              >
+                <option value="">{t("filterAllPlatforms")}</option>
+                {platforms.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                aria-label={t("filterFrom")}
+                className={cn(fieldCls, "tnum")}
+              />
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                aria-label={t("filterTo")}
+                className={cn(fieldCls, "tnum")}
+              />
+            </div>
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="label-mono shrink-0 rounded-md px-2 py-1.5 text-stamp transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+              >
+                {t("clearFilters")} ({activeFilterCount})
+              </button>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* Bulk bar (list only) */}
       {view === "list" && selectedCount > 0 && (
         <div className="sticky top-20 z-10 flex items-center justify-between gap-3 rounded-md border border-ink bg-panel px-4 py-2.5">
@@ -348,15 +450,24 @@ export default function DespesasPage() {
           <EmptyState
             title={t("emptyTitle")}
             hint={t("emptyHint")}
-            icon="₪"
+            icon="¤"
             action={<Button onClick={openCreate}>{t("newExpense")}</Button>}
+          />
+        </Card>
+      ) : filtersActive && filtered.length === 0 ? (
+        <Card>
+          <EmptyState
+            title={t("noResultsTitle")}
+            hint={t("noResultsHint")}
+            icon="¤"
+            action={<Button variant="ghost" onClick={clearFilters}>{t("clearFilters")}</Button>}
           />
         </Card>
       ) : view === "byPayer" ? (
         /* ===== BY PERSON ===== */
         byPersonEmpty ? (
           <Card>
-            <EmptyState title={t("emptyTitle")} hint={t("emptyHint")} icon="₪" />
+            <EmptyState title={t("emptyTitle")} hint={t("emptyHint")} icon="¤" />
           </Card>
         ) : (
           <div className="grid items-start gap-5 lg:grid-cols-2">
