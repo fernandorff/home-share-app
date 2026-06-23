@@ -391,9 +391,9 @@ export default function DespesasPage() {
                             <thead>
                               <tr className="border-t border-dotted border-rule">
                                 <th className="label-mono px-4 py-1.5 text-left">{t("colDescription")}</th>
-                                <th className="label-mono hidden w-20 px-2 py-1.5 text-left sm:table-cell">{t("colPlatform")}</th>
+                                <th className="label-mono hidden w-28 px-2 py-1.5 text-left sm:table-cell">{t("colPlatform")}</th>
                                 <th className="label-mono w-[86px] px-2 py-1.5 text-left">{t("colDate")}</th>
-                                <th className="label-mono w-[92px] px-4 py-1.5 text-right">{t("colAmount")}</th>
+                                <th className="label-mono w-[116px] px-2 py-1.5 text-right">{t("colAmount")}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -412,12 +412,11 @@ export default function DespesasPage() {
                                   <td className="whitespace-nowrap px-2 py-2 text-xs text-ink-soft">
                                     {formatDateLocale(e.date, locale)}
                                   </td>
-                                  <td className="px-4 py-2 text-right">
-                                    <span className="inline-flex items-center justify-end gap-1">
-                                      <Money value={e.amount} />
-                                      <span className="opacity-0 transition-opacity group-hover:opacity-100">
-                                        <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
-                                      </span>
+                                  <td className="relative whitespace-nowrap px-2 py-2 text-right">
+                                    <Money value={e.amount} />
+                                    {/* ⋯ menu floats in on hover (gradient masks the value) — no reserved column */}
+                                    <span className="absolute inset-y-0 right-0.5 flex items-center bg-gradient-to-l from-card via-card to-transparent pl-10 opacity-0 transition-opacity group-hover:opacity-100">
+                                      <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
                                     </span>
                                   </td>
                                 </tr>

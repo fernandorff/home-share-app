@@ -136,7 +136,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-30 border-b border-rule bg-paper/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
           <Link href="/despesas" className="font-display text-base font-bold tracking-tight text-ink">
             HOME<span className="text-stamp">SHARE</span>
           </Link>
@@ -149,7 +149,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-5xl gap-6 px-4 py-6">
+      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
         {/* Desktop sidebar */}
         <aside className="hidden w-44 shrink-0 md:block">
           <nav className="sticky top-20 flex flex-col gap-1">
