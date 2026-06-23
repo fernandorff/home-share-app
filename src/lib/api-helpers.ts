@@ -4,6 +4,7 @@ import { toCents, fromCents } from '@/lib/currency'
 import { verifySession, SessionPayload, SESSION_COOKIE, GROUP_COOKIE } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/errors'
+import { LIMITS } from '@/lib/constants'
 import { isExpenseCategory } from '@/lib/categories'
 import { auditService, type AuditEntry } from '@/services/audit.service'
 
@@ -128,12 +129,12 @@ export function validateExpenseInput(
     return { valid: false, response: NextResponse.json({ error: 'Descrição é obrigatória' }, { status: 400 }) }
   }
 
-  if (description.length > 200) {
-    return { valid: false, response: NextResponse.json({ error: 'Descrição muito longa (máx. 200 caracteres)' }, { status: 400 }) }
+  if (description.length > LIMITS.DESCRIPTION) {
+    return { valid: false, response: NextResponse.json({ error: `Descrição muito longa (máx. ${LIMITS.DESCRIPTION} caracteres)` }, { status: 400 }) }
   }
 
-  if (notes && notes.length > 1000) {
-    return { valid: false, response: NextResponse.json({ error: 'Observação muito longa (máx. 1000 caracteres)' }, { status: 400 }) }
+  if (notes && notes.length > LIMITS.NOTES) {
+    return { valid: false, response: NextResponse.json({ error: `Observação muito longa (máx. ${LIMITS.NOTES} caracteres)` }, { status: 400 }) }
   }
 
   if (!amount || amount <= 0) {
@@ -223,7 +224,7 @@ export function validateSettlementInput(
   if (fromUserId === toUserId) return bad('O pagamento precisa ser entre duas pessoas diferentes')
   if (!amount || amount <= 0) return bad('Valor deve ser maior que zero')
   if (toCents(amount) > 9_999_999_999) return bad('Valor muito alto (máx. 99.999.999,99)')
-  if (note && note.length > 500) return bad('Observação muito longa (máx. 500 caracteres)')
+  if (note && note.length > LIMITS.SETTLEMENT_NOTE) return bad(`Observação muito longa (máx. ${LIMITS.SETTLEMENT_NOTE} caracteres)`)
 
   return {
     valid: true,

@@ -1,3 +1,5 @@
+import { LIMITS } from '@/lib/constants'
+
 export interface ExpenseRow {
   descricao: string
   observacao?: string
@@ -70,12 +72,12 @@ export function parseCSVDetailed(csvText: string): ParsedCSV {
       invalidRows.push({ line: i + 1, reason: 'descrição vazia' })
       continue
     }
-    if (descricao.length > 200) {
-      invalidRows.push({ line: i + 1, reason: 'descrição muito longa (máx. 200 caracteres)' })
+    if (descricao.length > LIMITS.DESCRIPTION) {
+      invalidRows.push({ line: i + 1, reason: `descrição muito longa (máx. ${LIMITS.DESCRIPTION} caracteres)` })
       continue
     }
-    if (observacao && observacao.length > 1000) {
-      invalidRows.push({ line: i + 1, reason: 'observação muito longa (máx. 1000 caracteres)' })
+    if (observacao && observacao.length > LIMITS.NOTES) {
+      invalidRows.push({ line: i + 1, reason: `observação muito longa (máx. ${LIMITS.NOTES} caracteres)` })
       continue
     }
     if (!valorStr) {
