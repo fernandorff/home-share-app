@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useFetch } from "@/lib/use-fetch";
 import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Card, SectionTitle } from "@/components/ui/Card";
@@ -108,9 +109,12 @@ export default function DespesasPage() {
   const apiErr = useApiError();
   const locale = useLocale();
 
-  // Everything is loaded once and scrolled (no pagination).
-  const [allData, setAllData] = useState<ExpenseListResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Everything is loaded once and scrolled (no pagination). useFetch keys on the active
+  // house and reloads after mutations; reqId/ref guards avoid the old refetch-loop footgun.
+  const { data: allData, loading, reload } = useFetch<ExpenseListResponse>(
+    "/api/expenses?page=1&pageSize=100000&sortField=date&sortDirection=desc",
+    { onError: (err) => toast(apiErr(err, t("loadError")), "error") }
+  );
   const [sortField, setSortField] = useState<ExpenseSortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [view, setView] = useState<ViewMode>("list");
@@ -133,28 +137,6 @@ export default function DespesasPage() {
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get<ExpenseListResponse>(
-        "/api/expenses?page=1&pageSize=100000&sortField=date&sortDirection=desc"
-      );
-      setAllData(res);
-    } catch (err) {
-      toast(apiErr(err, t("loadError")), "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [toast, t, apiErr]);
-
-  // `load` is recreated every render (it closes over translation/toast hooks
-  // that aren't memoized), so depend only on the active group — otherwise the
-  // effect refires each render and the fetch never settles.
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup?.id]);
 
   useEffect(() => {
     let active = true;
@@ -278,7 +260,7 @@ export default function DespesasPage() {
       await api.del(`/api/expenses/${deleteTarget.publicId}`);
       toast(t("toastDeleted"), "success");
       setDeleteTarget(null);
-      load();
+      reload();
     } catch (err) {
       toast(apiErr(err, t("deleteError")), "error");
     } finally {
@@ -295,7 +277,7 @@ export default function DespesasPage() {
       toast(t("toastBulkDeleted", { count: res.deleted }), "success");
       setBulkConfirm(false);
       setSelected(new Set());
-      load();
+      reload();
     } catch (err) {
       toast(apiErr(err, t("bulkDeleteError")), "error");
     } finally {
@@ -725,11 +707,11 @@ export default function DespesasPage() {
         onOpenChange={setFormOpen}
         expense={editing}
         platforms={platforms}
-        onSaved={load}
+        onSaved={reload}
       />
 
       {/* Import modal */}
-      <ImportCsvModal open={importOpen} onOpenChange={setImportOpen} platforms={platforms} onImported={load} />
+      <ImportCsvModal open={importOpen} onOpenChange={setImportOpen} platforms={platforms} onImported={reload} />
 
       {/* Delete one confirm */}
       <Modal

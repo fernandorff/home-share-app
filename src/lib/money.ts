@@ -1,12 +1,23 @@
 import { toNumber } from "@/lib/currency";
 import type { Money } from "@/lib/types";
 
+// Building an Intl.NumberFormat is one of the most expensive things in a hot path, and
+// <Money> renders hundreds of times per screen. Cache one formatter per locale|currency.
+const formatterCache = new Map<string, Intl.NumberFormat>();
+
+function currencyFormatter(currency: string, locale: string): Intl.NumberFormat {
+  const key = `${locale}|${currency}`;
+  let fmt = formatterCache.get(key);
+  if (!fmt) {
+    fmt = new Intl.NumberFormat(locale, { style: "currency", currency });
+    formatterCache.set(key, fmt);
+  }
+  return fmt;
+}
+
 /** Locale-aware currency formatting. Currency is the house's ISO code (display only). */
 export function formatMoney(value: Money, currency: string, locale: string): string {
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-  }).format(toNumber(value));
+  return currencyFormatter(currency, locale).format(toNumber(value));
 }
 
 /** Signed money for balances: "+$66.67" / "−$66.67" (sign kept explicit, locale-formatted). */

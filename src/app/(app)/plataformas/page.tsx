@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
+import { useFetch } from "@/lib/use-fetch";
 import { useToast } from "@/components/ui/Toast";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
@@ -29,8 +30,11 @@ export default function PlataformasPage() {
   const tc = useTranslations("Common");
   const apiErr = useApiError();
 
-  const [platforms, setPlatforms] = useState<Platform[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, reload } = useFetch<{ platforms: Platform[] }>(
+    "/api/platforms?counts=true",
+    { onError: (err) => toast(apiErr(err, t("loadError")), "error") }
+  );
+  const platforms = data?.platforms ?? [];
 
   // Create / rename modal
   const [edit, setEdit] = useState<EditState>(null);
@@ -41,23 +45,6 @@ export default function PlataformasPage() {
   const [deleting, setDeleting] = useState<Platform | null>(null);
   const [replacementId, setReplacementId] = useState("");
   const [removing, setRemoving] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      const data = await api.get<{ platforms: Platform[] }>(
-        "/api/platforms?counts=true"
-      );
-      setPlatforms(data.platforms);
-    } catch (err) {
-      toast(apiErr(err, t("loadError")), "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   // ---- Create / rename ----
   function openCreate() {
@@ -93,7 +80,7 @@ export default function PlataformasPage() {
         toast(t("renamedToast"), "success");
       }
       setEdit(null);
-      await load();
+      await reload();
     } catch (err) {
       toast(apiErr(err, t("saveError")), "error");
     } finally {
@@ -119,7 +106,7 @@ export default function PlataformasPage() {
       await api.del(`/api/platforms/${deleting.publicId}`, { replacementId });
       toast(t("deletedToast"), "success");
       setDeleting(null);
-      await load();
+      await reload();
     } catch (err) {
       toast(apiErr(err, t("deleteError")), "error");
     } finally {

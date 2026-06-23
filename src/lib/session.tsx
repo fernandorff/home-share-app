@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { api } from "@/lib/api";
@@ -58,9 +59,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [refresh]);
 
-  const activeGroup: MeGroup | null = me
-    ? me.user.groups.find((g) => g.id === me.activeGroupId) ?? me.user.groups[0] ?? null
-    : null;
+  const activeGroup = useMemo<MeGroup | null>(
+    () =>
+      me
+        ? me.user.groups.find((g) => g.id === me.activeGroupId) ?? me.user.groups[0] ?? null
+        : null,
+    [me]
+  );
 
   const activeGroupId = activeGroup?.id ?? null;
   useEffect(() => {
@@ -79,22 +84,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [refresh]
   );
 
-  return (
-    <SessionContext.Provider
-      value={{
-        me,
-        loading,
-        activeGroup,
-        members,
-        membersLoading,
-        refresh,
-        refreshMembers,
-        switchGroup,
-      }}
-    >
-      {children}
-    </SessionContext.Provider>
+  const value = useMemo<SessionValue>(
+    () => ({
+      me,
+      loading,
+      activeGroup,
+      members,
+      membersLoading,
+      refresh,
+      refreshMembers,
+      switchGroup,
+    }),
+    [me, loading, activeGroup, members, membersLoading, refresh, refreshMembers, switchGroup]
   );
+
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
 export function useSession(): SessionValue {
