@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
 import { MemberDot, MemberChip } from "@/components/ui/Member";
 import { Stamp } from "@/components/ui/Stamp";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/Feedback";
 import { Skeleton, SkeletonRows } from "@/components/ui/Skeleton";
 import { revealDelay } from "@/components/ui/motion";
@@ -14,40 +16,65 @@ import { api } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { useSession } from "@/lib/session";
 import { useToast } from "@/components/ui/Toast";
-import type { BalancesResponse } from "@/lib/types";
+import { formatDateLocale } from "@/lib/money";
+import { RecordPaymentModal, type PaymentPrefill } from "@/components/balances/RecordPaymentModal";
+import type { BalancesResponse, Payment } from "@/lib/types";
 
 export default function SaldosPage() {
   const t = useTranslations("Balances");
+  const ts = useTranslations("Settlements");
+  const tc = useTranslations("Common");
   const apiErr = useApiError();
   const { members, activeGroup } = useSession();
   const toast = useToast();
+  const locale = useLocale();
   const [data, setData] = useState<BalancesResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Re-fetch on mount AND whenever the active house changes (otherwise balances go stale
-  // after switching houses). toast/t are read via stable closures, so they're not deps.
-  useEffect(() => {
-    let alive = true;
-    setLoading(true);
-    (async () => {
-      try {
-        const res = await api.get<BalancesResponse>("/api/balances");
-        if (alive) setData(res);
-      } catch (err) {
-        toast(apiErr(err, t("loadError")), "error");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup?.id]);
+  const [payOpen, setPayOpen] = useState(false);
+  const [payPrefill, setPayPrefill] = useState<PaymentPrefill | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  // userId → colorIndex (fallback 0 when the member isn't in the active group list).
+  const load = useCallback(async () => {
+    try {
+      const res = await api.get<BalancesResponse>("/api/balances");
+      setData(res);
+    } catch (err) {
+      toast(apiErr(err, t("loadError")), "error");
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    load();
+  }, [activeGroup?.id, load]);
+
   const colorOf = (userId: number) =>
     members.find((m) => m.id === userId)?.colorIndex ?? 0;
+
+  function openPayment(prefill: PaymentPrefill | null) {
+    setPayPrefill(prefill);
+    setPayOpen(true);
+  }
+
+  async function confirmDeletePayment() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.del(`/api/settlements/${deleteTarget.publicId}`);
+      toast(ts("deleted"), "success");
+      setDeleteTarget(null);
+      load();
+    } catch (err) {
+      toast(apiErr(err, ts("deleteError")), "error");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -73,15 +100,12 @@ export default function SaldosPage() {
   if (!data) {
     return (
       <Card>
-        <EmptyState
-          title={t("unavailableTitle")}
-          hint={t("unavailableHint")}
-        />
+        <EmptyState title={t("unavailableTitle")} hint={t("unavailableHint")} />
       </Card>
     );
   }
 
-  const { balances, settlements, totalExpenses } = data;
+  const { balances, settlements, totalExpenses, payments } = data;
   const hasExpenses = balances.length > 0;
   const allSettled = balances.every((b) => b.balance === 0);
 
@@ -120,6 +144,7 @@ export default function SaldosPage() {
             {balances.map((b, i) => {
               const isCredit = b.balance > 0;
               const isDebt = b.balance < 0;
+              const settled = b.balance === 0;
               return (
                 <li key={b.userId} className="reveal" style={revealDelay(i)}>
                   {i > 0 && <ReceiptDivider />}
@@ -130,6 +155,7 @@ export default function SaldosPage() {
                     </span>
                     {isCredit && <Stamp tone="credit">{t("toReceive")}</Stamp>}
                     {isDebt && <Stamp tone="debt">{t("owes")}</Stamp>}
+                    {settled && <Stamp tone="ink">{ts("settled")}</Stamp>}
                     <Money
                       signed
                       value={b.balance}
@@ -141,18 +167,18 @@ export default function SaldosPage() {
             })}
           </ul>
         ) : (
-          <EmptyState
-            title={t("noExpensesTitle")}
-            hint={t("noExpensesHint")}
-          />
+          <EmptyState title={t("noExpensesTitle")} hint={t("noExpensesHint")} />
         )}
       </Card>
 
       {/* Settlements — who pays whom */}
       {hasExpenses && (
         <Card>
-          <div className="px-5 pt-5">
+          <div className="flex items-center justify-between gap-3 px-5 pt-5">
             <SectionTitle>{t("whoPaysWhom")}</SectionTitle>
+            <Button size="sm" variant="ghost" onClick={() => openPayment(null)}>
+              {ts("recordPayment")}
+            </Button>
           </div>
 
           {settlements.length > 0 ? (
@@ -160,25 +186,24 @@ export default function SaldosPage() {
               {settlements.map((s, i) => (
                 <li
                   key={`${s.from.id}-${s.to.id}-${i}`}
-                  className={cn("reveal flex items-center gap-2 py-3")}
+                  className="reveal flex items-center gap-2 py-3"
                   style={revealDelay(i)}
                 >
                   <span className="flex min-w-0 items-center gap-1.5">
                     <MemberChip colorIndex={colorOf(s.from.id)} name={s.from.name} />
-                    <span className="px-0.5 text-faint" aria-hidden>
-                      →
-                    </span>
+                    <span className="px-0.5 text-faint" aria-hidden>→</span>
                     <MemberChip colorIndex={colorOf(s.to.id)} name={s.to.name} />
                   </span>
-                  {/* dotted leader */}
-                  <span
-                    className="mx-1 flex-1 border-b border-dotted border-rule"
-                    aria-hidden
-                  />
-                  <Money
-                    value={s.amount}
-                    className={cn("font-display text-sm font-bold sm:text-base")}
-                  />
+                  <span className="mx-1 flex-1 border-b border-dotted border-rule" aria-hidden />
+                  <Money value={s.amount} className="font-display text-sm font-bold sm:text-base" />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shrink-0"
+                    onClick={() => openPayment({ fromUserId: s.from.id, toUserId: s.to.id, amount: s.amount })}
+                  >
+                    {ts("markPaid")}
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -190,6 +215,57 @@ export default function SaldosPage() {
           )}
         </Card>
       )}
+
+      {/* Recorded payments history */}
+      {payments.length > 0 && (
+        <Card>
+          <div className="px-5 pt-5">
+            <SectionTitle>{ts("history")}</SectionTitle>
+          </div>
+          <ul className="px-5 pt-2 pb-4">
+            {payments.map((p, i) => (
+              <li key={p.publicId} className="reveal" style={revealDelay(i)}>
+                {i > 0 && <ReceiptDivider />}
+                <div className="flex items-center gap-3 py-3">
+                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                    <MemberChip colorIndex={colorOf(p.fromUser.id)} name={p.fromUser.name} />
+                    <span className="px-0.5 text-faint" aria-hidden>→</span>
+                    <MemberChip colorIndex={colorOf(p.toUser.id)} name={p.toUser.name} />
+                    <span className="ml-1 text-xs text-faint">{formatDateLocale(p.date, locale)}</span>
+                    {p.note && <span className="w-full truncate text-xs text-ink-soft sm:w-auto">· {p.note}</span>}
+                  </span>
+                  <Money value={p.amount} className="font-display text-sm font-bold" />
+                  <button
+                    type="button"
+                    aria-label={ts("deletePayment")}
+                    onClick={() => setDeleteTarget(p)}
+                    className="shrink-0 rounded-md px-2 py-1 text-sm text-ink-soft transition-colors hover:bg-panel hover:text-debt"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      <RecordPaymentModal open={payOpen} onOpenChange={setPayOpen} prefill={payPrefill} onSaved={load} />
+
+      <Modal
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title={ts("deletePayment")}
+        description={ts("deleteUndoNote")}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>{tc("cancel")}</Button>
+            <Button variant="danger" loading={deleting} onClick={confirmDeletePayment}>{tc("delete")}</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink">{ts("deleteConfirm")}</p>
+      </Modal>
     </div>
   );
 }

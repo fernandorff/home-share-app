@@ -114,10 +114,39 @@ export interface Settlement {
   amount: number;
 }
 
+/** A recorded payment between two members (clears/reduces a balance). */
+export interface Payment {
+  publicId: string;
+  fromUser: { id: number; name: string };
+  toUser: { id: number; name: string };
+  amount: string;
+  note: string | null;
+  date: string;
+}
+
 export interface BalancesResponse {
   balances: Balance[];
   settlements: Settlement[];
   totalExpenses: number;
+  payments: Payment[];
+}
+
+export type AuditEntityType = "EXPENSE" | "SETTLEMENT" | "SHOPPING_ITEM" | "GROUP" | "PLATFORM";
+export type AuditAction = "CREATE" | "UPDATE" | "DELETE";
+
+export interface ActivityEntry {
+  id: number;
+  actor: { id: number; name: string } | null;
+  entityType: AuditEntityType;
+  entityId: string | null;
+  action: AuditAction;
+  summary: string;
+  changes: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface ActivityResponse {
+  entries: ActivityEntry[];
 }
 
 export interface ShoppingItem {

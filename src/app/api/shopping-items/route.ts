@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { shoppingItemService } from '@/services/shopping-item.service'
-import { handleApiError, requireActiveGroup } from '@/lib/api-helpers'
+import { handleApiError, requireActiveGroup, recordActivity } from '@/lib/api-helpers'
 
 export async function GET() {
   try {
@@ -27,6 +27,16 @@ export async function POST(request: Request) {
     }
 
     const item = await shoppingItemService.create(check.groupId, name, check.session.userId)
+
+    await recordActivity({
+      groupId: check.groupId,
+      actorId: check.session.userId,
+      entityType: 'SHOPPING_ITEM',
+      entityId: item.publicId,
+      action: 'CREATE',
+      summary: item.name,
+    })
+
     return NextResponse.json({ item }, { status: 201 })
   } catch (error) {
     return handleApiError(error, 'Erro ao criar item')

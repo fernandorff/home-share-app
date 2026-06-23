@@ -4,6 +4,16 @@ import { toCents, fromCents } from '@/lib/currency'
 import { verifySession, SessionPayload, SESSION_COOKIE, GROUP_COOKIE } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/errors'
+import { auditService, type AuditEntry } from '@/services/audit.service'
+
+/** Append an activity-log entry. A logging failure NEVER breaks the user's mutation. */
+export async function recordActivity(entry: AuditEntry): Promise<void> {
+  try {
+    await auditService.log(entry)
+  } catch (e) {
+    console.error('audit log failed', e)
+  }
+}
 
 export function handleApiError(error: unknown, defaultMsg: string): NextResponse {
   // Expected, typed failures (not-found, invalid input) carry their own status/code.
@@ -175,5 +185,45 @@ export function validateExpenseInput(
       splitEqually,
       participants,
     }
+  }
+}
+
+interface SettlementInputRaw {
+  fromUserId?: number
+  toUserId?: number
+  amount?: number
+  note?: string
+  date?: string
+}
+
+export interface ValidatedSettlementInput {
+  fromUserId: number
+  toUserId: number
+  amount: number
+  note?: string | null
+  date?: Date
+}
+
+export function validateSettlementInput(
+  body: SettlementInputRaw
+): { valid: true; data: ValidatedSettlementInput } | { valid: false; response: NextResponse } {
+  const { fromUserId, toUserId, amount, note, date } = body
+  const bad = (error: string) => ({ valid: false as const, response: NextResponse.json({ error }, { status: 400 }) })
+
+  if (!Number.isInteger(fromUserId) || !Number.isInteger(toUserId)) return bad('Pagador e recebedor são obrigatórios')
+  if (fromUserId === toUserId) return bad('O pagamento precisa ser entre duas pessoas diferentes')
+  if (!amount || amount <= 0) return bad('Valor deve ser maior que zero')
+  if (toCents(amount) > 9_999_999_999) return bad('Valor muito alto (máx. 99.999.999,99)')
+  if (note && note.length > 500) return bad('Observação muito longa (máx. 500 caracteres)')
+
+  return {
+    valid: true,
+    data: {
+      fromUserId: fromUserId!,
+      toUserId: toUserId!,
+      amount,
+      note: note ?? null,
+      date: date ? new Date(date + (/^\d{4}-\d{2}-\d{2}$/.test(date) ? 'T12:00:00' : '')) : undefined,
+    },
   }
 }

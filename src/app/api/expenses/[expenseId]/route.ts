@@ -7,6 +7,7 @@ import {
   handleApiError,
   requireActiveGroup,
   allGroupMembers,
+  recordActivity,
 } from '@/lib/api-helpers'
 
 interface RouteParams {
@@ -43,6 +44,25 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const memberIds = members.map(m => m.id)
 
     const expense = await expenseService.update(check.groupId, existingExpense.id, memberIds, validation.data)
+
+    // Field-level diff for the activity history (only what actually changed).
+    const changes: Record<string, { from: string; to: string }> = {}
+    if (existingExpense.description !== validation.data.description) {
+      changes.description = { from: existingExpense.description, to: validation.data.description }
+    }
+    if (Number(existingExpense.amount) !== validation.data.amount) {
+      changes.amount = { from: String(existingExpense.amount), to: String(validation.data.amount) }
+    }
+    await recordActivity({
+      groupId: check.groupId,
+      actorId: check.session.userId,
+      entityType: 'EXPENSE',
+      entityId: expense.publicId,
+      action: 'UPDATE',
+      summary: expense.description,
+      changes: Object.keys(changes).length ? changes : undefined,
+    })
+
     return NextResponse.json({ expense })
   } catch (error) {
     return handleApiError(error, 'Erro ao atualizar despesa')
@@ -66,6 +86,17 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
 
     await expenseService.delete(check.groupId, expense.id)
+
+    await recordActivity({
+      groupId: check.groupId,
+      actorId: check.session.userId,
+      entityType: 'EXPENSE',
+      entityId: expense.publicId,
+      action: 'DELETE',
+      summary: expense.description,
+      changes: { amount: String(expense.amount) },
+    })
+
     return NextResponse.json({ message: 'Despesa excluída com sucesso' })
   } catch (error) {
     return handleApiError(error, 'Erro ao excluir despesa')

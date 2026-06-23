@@ -22,6 +22,10 @@ model User {
   expenseParticipations ExpenseParticipant[]
   shoppingItemsAdded    ShoppingItem[]
   memberships           GroupMember[]
+  settlementsFrom       Settlement[]         @relation("SettlementFrom")
+  settlementsTo         Settlement[]         @relation("SettlementTo")
+  settlementsCreated    Settlement[]         @relation("SettlementCreatedBy")
+  auditEntries          AuditLog[]           @relation("AuditActor")
 
   @@index([publicId])
 }
@@ -39,6 +43,8 @@ model Group {
   expenses      Expense[]
   shoppingItems ShoppingItem[]
   members       GroupMember[]
+  settlements   Settlement[]
+  auditLogs     AuditLog[]
 
   @@index([publicId])
 }
@@ -127,4 +133,48 @@ model ShoppingItem {
   @@index([publicId])
   @@index([groupId, isPurchased])
   @@map("item_compra")
+}
+
+// A recorded payment from one member to another that clears/reduces a balance.
+// Folded into balance computation as a signed transfer (from pays to).
+model Settlement {
+  id          Int      @id @default(autoincrement())
+  publicId    String   @unique @db.Uuid
+  groupId     Int
+  fromUserId  Int      @map("de_usuario")
+  toUserId    Int      @map("para_usuario")
+  amount      Decimal  @db.Decimal(10, 2) @map("valor")
+  note        String?  @map("observacao")
+  date        DateTime @default(now()) @map("data")
+  createdById Int?     @map("criado_por")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromUser  User  @relation("SettlementFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser    User  @relation("SettlementTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("SettlementCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([publicId])
+  @@index([groupId, date])
+  @@map("acerto")
+}
+
+// Append-only activity/change log for the house (expenses, settlements, shopping, house/members).
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  groupId    Int
+  actorId    Int?     @map("autor")
+  entityType String   @map("tipo_entidade")
+  entityId   String?  @map("entidade_id")
+  action     String   @map("acao")
+  summary    String   @map("resumo")
+  changes    Json?    @map("alteracoes")
+  createdAt  DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, createdAt])
+  @@map("registro_auditoria")
 }

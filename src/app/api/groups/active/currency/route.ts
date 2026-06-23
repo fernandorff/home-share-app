@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { groupService } from "@/services/group.service";
-import { handleApiError, requireActiveGroup } from "@/lib/api-helpers";
+import { handleApiError, requireActiveGroup, recordActivity } from "@/lib/api-helpers";
 import { isCurrency } from "@/lib/currencies";
 
 /** Set the active house currency (ADMIN only). Display-only — no FX conversion. */
@@ -25,6 +25,16 @@ export async function POST(request: Request) {
     }
 
     await groupService.updateCurrency(check.groupId, body.currency);
+
+    await recordActivity({
+      groupId: check.groupId,
+      actorId: check.session.userId,
+      entityType: 'GROUP',
+      action: 'UPDATE',
+      summary: body.currency,
+      changes: { currency: { to: body.currency } },
+    });
+
     return NextResponse.json({ currency: body.currency });
   } catch (error) {
     return handleApiError(error, "Erro ao mudar a moeda");

@@ -6,6 +6,7 @@ import {
   handleApiError,
   requireActiveGroup,
   allGroupMembers,
+  recordActivity,
 } from '@/lib/api-helpers'
 
 export async function GET(request: Request) {
@@ -52,6 +53,17 @@ export async function POST(request: Request) {
     const memberIds = members.map(m => m.id)
 
     const expense = await expenseService.create(check.groupId, memberIds, validation.data)
+
+    await recordActivity({
+      groupId: check.groupId,
+      actorId: check.session.userId,
+      entityType: 'EXPENSE',
+      entityId: expense.publicId,
+      action: 'CREATE',
+      summary: expense.description,
+      changes: { amount: String(expense.amount) },
+    })
+
     return NextResponse.json({ expense }, { status: 201 })
   } catch (error) {
     return handleApiError(error, 'Erro ao criar despesa')
