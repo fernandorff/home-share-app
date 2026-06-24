@@ -10,7 +10,8 @@ function createPrismaClient() {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     // Bound per-container connections so warm serverless instances can't exhaust Neon.
-    max: 5,
+    // Overridable via env (tests pin it to 1 for the single-connection pglite socket).
+    max: Number(process.env.DATABASE_POOL_MAX) || 5,
     idleTimeoutMillis: 10_000,
   })
   const adapter = new PrismaPg(pool)
