@@ -477,7 +477,7 @@ export default function DespesasPage() {
             <Card className="p-2"><SkeletonRows rows={6} /></Card>
           </div>
         ) : (
-          <Card className="overflow-hidden"><SkeletonRows rows={8} /></Card>
+          <Card className="overflow-hidden"><SkeletonRows rows={8} inset /></Card>
         )
       ) : total === 0 ? (
         <Card>
