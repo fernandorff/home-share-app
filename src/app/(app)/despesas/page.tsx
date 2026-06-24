@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { SelectHTMLAttributes } from "react";
 import { useFetch } from "@/lib/use-fetch";
 import { useTranslations, useLocale } from "next-intl";
@@ -284,6 +284,27 @@ export default function DespesasPage() {
     members.forEach((mm) => m.set(mm.id, mm.colorIndex));
     return m;
   }, [members]);
+
+  // Provided to the row checkboxes; new identity only when the selection actually changes.
+  const selectionValue = useMemo(() => ({ selected, toggle: toggleRow }), [selected, toggleRow]);
+
+  // Render the row elements once and reuse them — note: NOT keyed on `selected`. So toggling
+  // selection doesn't even re-create/diff 300 elements; React bails out of the row subtree and
+  // only the context-subscribed checkboxes update.
+  const desktopRows = useMemo(
+    () => listItems.map((e) => (
+      <ExpenseRow key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
+        locale={locale} onEdit={openEdit} onDelete={setDeleteTarget} />
+    )),
+    [listItems, colorByPayer, locale, openEdit]
+  );
+  const mobileCards = useMemo(
+    () => listItems.map((e) => (
+      <ExpenseCard key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
+        locale={locale} onEdit={openEdit} onDelete={setDeleteTarget} />
+    )),
+    [listItems, colorByPayer, locale, openEdit]
+  );
 
   async function confirmDeleteOne() {
     if (!deleteTarget) return;
@@ -580,6 +601,7 @@ export default function DespesasPage() {
         )
       ) : (
         /* ===== LIST VIEW (all rows, scroll) ===== */
+        <SelectionContext.Provider value={selectionValue}>
         <Card className="overflow-hidden">
           {/* Desktop ledger table */}
           <table className="hidden w-full md:table">
@@ -625,20 +647,7 @@ export default function DespesasPage() {
                 <th className="w-10 px-4 py-2.5" />
               </tr>
             </thead>
-            <tbody>
-              {listItems.map((e) => (
-                <ExpenseRow
-                  key={e.publicId}
-                  expense={e}
-                  selected={selected.has(e.publicId)}
-                  colorIndex={colorByPayer.get(e.payerId) ?? 0}
-                  locale={locale}
-                  onToggle={toggleRow}
-                  onEdit={openEdit}
-                  onDelete={setDeleteTarget}
-                />
-              ))}
-            </tbody>
+            <tbody>{desktopRows}</tbody>
           </table>
 
           {/* Mobile stacked cards */}
@@ -654,21 +663,11 @@ export default function DespesasPage() {
               <span className="label-mono">{t("selectAll")}</span>
             </label>
             <ul>
-              {listItems.map((e) => (
-                <ExpenseCard
-                  key={e.publicId}
-                  expense={e}
-                  selected={selected.has(e.publicId)}
-                  colorIndex={colorByPayer.get(e.payerId) ?? 0}
-                  locale={locale}
-                  onToggle={toggleRow}
-                  onEdit={openEdit}
-                  onDelete={setDeleteTarget}
-                />
-              ))}
+              {mobileCards}
             </ul>
           </div>
         </Card>
+        </SelectionContext.Provider>
       )}
 
       {/* Create / edit modal */}
@@ -729,34 +728,48 @@ export default function DespesasPage() {
   );
 }
 
+// Selection lives in context so flipping it never re-renders the (memoized) rows — only the tiny
+// leaf checkboxes below subscribe. The row's selected highlight is pure CSS (has-[:checked]).
+// This is what makes "select all" over 300 rows instant.
+const SelectionContext = createContext<{ selected: Set<string>; toggle: (publicId: string) => void }>({
+  selected: new Set(),
+  toggle: () => {},
+});
+
+function RowCheckbox({ publicId, label, className }: { publicId: string; label: string; className: string }) {
+  const { selected, toggle } = useContext(SelectionContext);
+  return (
+    <input
+      type="checkbox"
+      aria-label={label}
+      checked={selected.has(publicId)}
+      onChange={() => toggle(publicId)}
+      className={className}
+    />
+  );
+}
+
 interface ExpenseRowProps {
   expense: Expense;
-  selected: boolean;
   colorIndex: number;
   locale: string;
-  onToggle: (publicId: string) => void;
   onEdit: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
 }
 
 /** Desktop ledger row — memoized so toggling one checkbox re-renders only that row. */
 const ExpenseRow = memo(function ExpenseRow({
-  expense: e, selected, colorIndex, locale, onToggle, onEdit, onDelete,
+  expense: e, colorIndex, locale, onEdit, onDelete,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
+  const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
+  const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
   return (
-    <tr
-      className={cn(
-        "border-b border-dotted border-rule last:border-b-0 transition-colors",
-        selected ? "bg-panel/60" : "hover:bg-panel/30"
-      )}
-    >
+    <tr className="border-b border-dotted border-rule transition-colors last:border-b-0 hover:bg-panel/30 has-[:checked]:bg-panel/60">
       <td className="px-4 py-3">
-        <input
-          type="checkbox"
-          aria-label={t("selectRow", { description: e.description })}
-          checked={selected}
-          onChange={() => onToggle(e.publicId)}
+        <RowCheckbox
+          publicId={e.publicId}
+          label={t("selectRow", { description: e.description })}
           className="h-4 w-4 accent-ink"
         />
       </td>
@@ -782,7 +795,7 @@ const ExpenseRow = memo(function ExpenseRow({
         {formatDateLocale(e.date, locale)}
       </td>
       <td className="px-4 py-3 text-right">
-        <RowMenu onEdit={() => onEdit(e)} onDelete={() => onDelete(e)} />
+        <RowMenu onEdit={handleEdit} onDelete={handleDelete} />
       </td>
     </tr>
   );
@@ -790,21 +803,16 @@ const ExpenseRow = memo(function ExpenseRow({
 
 /** Mobile stacked card — memoized (same rationale as ExpenseRow). */
 const ExpenseCard = memo(function ExpenseCard({
-  expense: e, selected, colorIndex, locale, onToggle, onEdit, onDelete,
+  expense: e, colorIndex, locale, onEdit, onDelete,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
+  const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
+  const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
   return (
-    <li
-      className={cn(
-        "flex gap-3 border-b border-dotted border-rule px-4 py-3 last:border-b-0",
-        selected && "bg-panel/60"
-      )}
-    >
-      <input
-        type="checkbox"
-        aria-label={t("selectRow", { description: e.description })}
-        checked={selected}
-        onChange={() => onToggle(e.publicId)}
+    <li className="flex gap-3 border-b border-dotted border-rule px-4 py-3 last:border-b-0 has-[:checked]:bg-panel/60">
+      <RowCheckbox
+        publicId={e.publicId}
+        label={t("selectRow", { description: e.description })}
         className="mt-1 h-4 w-4 shrink-0 accent-ink"
       />
       <div className="min-w-0 flex-1">
@@ -830,14 +838,15 @@ const ExpenseCard = memo(function ExpenseCard({
         )}
       </div>
       <div className="shrink-0">
-        <RowMenu onEdit={() => onEdit(e)} onDelete={() => onDelete(e)} />
+        <RowMenu onEdit={handleEdit} onDelete={handleDelete} />
       </div>
     </li>
   );
 });
 
-/** Per-row actions menu (⋯). */
-function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+/** Per-row actions menu (⋯). Memoized with stable callbacks so toggling selection (which
+ *  re-renders every row) never re-renders these 300 dropdowns — that was the "select all" freeze. */
+const RowMenu = memo(function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
   return (
@@ -859,4 +868,4 @@ function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
       </MenuItem>
     </Menu>
   );
-}
+});

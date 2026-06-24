@@ -28,12 +28,21 @@ export function formatMoneySigned(value: Money, currency: string, locale: string
 }
 
 /** Locale-aware short date (dates are stored at local noon). */
+// Same rationale as the currency cache: `toLocaleDateString(locale, opts)` rebuilds an
+// Intl.DateTimeFormat on every call — brutal when formatting hundreds of rows. Cache per locale.
+const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function dateFormatter(locale: string): Intl.DateTimeFormat {
+  let fmt = dateFormatterCache.get(locale);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
+    dateFormatterCache.set(locale, fmt);
+  }
+  return fmt;
+}
+
 export function formatDateLocale(iso: string, locale: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(locale, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return dateFormatter(locale).format(d);
 }
