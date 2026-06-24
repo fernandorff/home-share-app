@@ -87,3 +87,59 @@ describe("tenant isolation (integration, real pglite DB)", () => {
     expect(sumCents).toBe(10000);
   });
 });
+
+// In the SAME file as tenant-isolation (not a separate one) on purpose: the integration tests
+// share a single-connection pglite socket, so they must run in one worker (serialized) — two
+// integration files would race on that connection.
+describe("CSV import (integration, real pglite DB)", () => {
+  beforeEach(reset);
+
+  async function seedHouse() {
+    const ana = await prisma.user.create({ data: { publicId: randomUUID(), name: "Ana", username: "ana-imp" } });
+    const bob = await prisma.user.create({ data: { publicId: randomUUID(), name: "Bob", username: "bob-imp" } });
+    const house = await prisma.group.create({ data: { publicId: randomUUID(), name: "House" } });
+    await prisma.groupMember.createMany({
+      data: [
+        { userId: ana.id, groupId: house.id, role: "ADMIN", colorIndex: 0 },
+        { userId: bob.id, groupId: house.id, role: "MEMBER", colorIndex: 1 },
+      ],
+    });
+    return { ana, bob, house };
+  }
+
+  it("bulk-imports every row with participants that sum exactly to each total", async () => {
+    const { ana, bob, house } = await seedHouse();
+    const csv = [
+      "data,descricao,valor,observacao",
+      "2026-01-05,Mercado,100.00,semana",
+      "2026-01-06,Luz,90.00,",
+      "2026-01-07,Pizza,33.33,sexta", // odd cents — proves largest-remainder split persists
+    ].join("\n");
+
+    const result = await expenseService.importFromCSV(house.id, [ana.id, bob.id], csv, ana.id, null, true);
+    expect(result.created.length).toBe(3);
+
+    const expenses = await prisma.expense.findMany({
+      where: { groupId: house.id },
+      include: { participants: true },
+    });
+    expect(expenses.length).toBe(3);
+    for (const e of expenses) {
+      expect(e.participants.length).toBe(2); // split equally between the 2 members
+      const sum = e.participants.reduce((a, p) => a + Math.round(Number(p.amount) * 100), 0);
+      expect(sum).toBe(Math.round(Number(e.amount) * 100)); // no cent lost in the batch write
+    }
+    const pizza = expenses.find((e) => e.description === "Pizza")!;
+    const cents = pizza.participants.map((p) => Math.round(Number(p.amount) * 100)).sort((a, b) => b - a);
+    expect(cents).toEqual([1667, 1666]); // 33.33 / 2 → 16.67 + 16.66
+  });
+
+  it("rolls back the whole import when no row is valid (nothing persisted)", async () => {
+    const { ana, bob, house } = await seedHouse();
+    const csv = "data,descricao,valor\n2026-01-05,,100.00"; // empty description → invalid
+    await expect(
+      expenseService.importFromCSV(house.id, [ana.id, bob.id], csv, ana.id, null, true)
+    ).rejects.toMatchObject({ status: 400 });
+    expect(await prisma.expense.count({ where: { groupId: house.id } })).toBe(0);
+  });
+});

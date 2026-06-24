@@ -56,7 +56,8 @@ export interface ExpenseParticipant {
   expenseId: number;
   userId: number;
   amount: Money;
-  user: PublicUser;
+  // Only present on create/update responses (full include); the list omits it to trim payload.
+  user?: PublicUser;
 }
 
 export interface ExpensePlatformRef {

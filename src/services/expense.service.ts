@@ -62,6 +62,15 @@ const expenseInclude = {
   }
 }
 
+// The list renders payer/platform + the split (userId + amount); the nested participant.user
+// is never read client-side. Omitting it trims one user object per participant off every page
+// load (the list eagerly loads all expenses). The edit modal reads userId/amount, not user.
+const expenseListInclude = {
+  payer: { select: { id: true, publicId: true, name: true, username: true } },
+  platform: { select: { id: true, publicId: true, name: true } },
+  participants: { select: { id: true, expenseId: true, userId: true, amount: true } }
+}
+
 export class ExpenseService {
   async list(groupId: number, params: PaginationParams) {
     const { page, pageSize, sortField, sortDirection } = params
@@ -76,7 +85,7 @@ export class ExpenseService {
     const [expenses, total] = await Promise.all([
       prisma.expense.findMany({
         where: { groupId },
-        include: expenseInclude,
+        include: expenseListInclude,
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize
@@ -210,31 +219,42 @@ export class ExpenseService {
       throw new ApiError(`Nenhuma despesa válida encontrada no CSV.${detail}`, 400)
     }
 
+    // Pre-generate ids so the rows can be written in bulk (createMany can't nest participants).
+    const expenseRows = expenses.map(expense => ({
+      publicId: uuidv7(),
+      groupId,
+      payerId,
+      platformId,
+      description: expense.descricao,
+      notes: expense.observacao || null,
+      amount: expense.valor,
+      // Same convention as validateExpenseInput: noon local avoids UTC off-by-one
+      date: new Date(expense.data + 'T12:00:00'),
+    }))
+
     // All-or-nothing: one failure rolls back the entire import (safe to retry).
+    // Three bulk writes instead of two queries per row — the import scaled O(N) round-trips before.
     await prisma.$transaction(async (tx) => {
-      for (const expense of expenses) {
+      await tx.expense.createMany({ data: expenseRows })
+
+      // createMany doesn't return ids; map our generated publicIds back to the new rows.
+      const created = await tx.expense.findMany({
+        where: { publicId: { in: expenseRows.map(r => r.publicId) } },
+        select: { id: true, publicId: true }
+      })
+      const idByPublicId = new Map(created.map(c => [c.publicId, c.id]))
+
+      const participantRows = expenses.flatMap((expense, i) => {
+        const expenseId = idByPublicId.get(expenseRows[i].publicId)!
         const participantData = splitEqually
           ? equalSplit(expense.valor, memberIds)
           : memberIds.map(userId => ({
               userId,
               amount: userId === payerId ? expense.valor : 0
             }))
-
-        await tx.expense.create({
-          data: {
-            publicId: uuidv7(),
-            groupId,
-            payerId,
-            platformId,
-            description: expense.descricao,
-            notes: expense.observacao || null,
-            amount: expense.valor,
-            // Same convention as validateExpenseInput: noon local avoids UTC off-by-one
-            date: new Date(expense.data + 'T12:00:00'),
-            participants: { create: participantData }
-          }
-        })
-      }
+        return participantData.map(p => ({ ...p, expenseId }))
+      })
+      await tx.expenseParticipant.createMany({ data: participantRows })
     })
 
     return {
