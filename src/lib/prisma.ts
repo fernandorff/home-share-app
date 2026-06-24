@@ -1,10 +1,7 @@
 import { PrismaClient } from '@/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
+import { auditExtension } from '@/lib/prisma-audit'
 
 function createPrismaClient() {
   const pool = new Pool({
@@ -15,7 +12,16 @@ function createPrismaClient() {
     idleTimeoutMillis: 10_000,
   })
   const adapter = new PrismaPg(pool)
-  return new PrismaClient({ adapter })
+  const base = new PrismaClient({ adapter })
+  // Envers-style audit trail: the un-extended `base` is used inside the extension for pre-reads
+  // and revision writes, so they never re-enter the audit. The app uses the extended client.
+  return base.$extends(auditExtension(base))
+}
+
+type ExtendedPrismaClient = ReturnType<typeof createPrismaClient>
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: ExtendedPrismaClient | undefined
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()

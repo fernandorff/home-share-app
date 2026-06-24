@@ -3,14 +3,19 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { expenseService } from "@/services/expense.service";
 import { settlementService } from "@/services/settlement.service";
+import { runWithAuditContext } from "@/lib/audit-context";
+import { flushAudit } from "@/lib/prisma-audit";
 
 // Integration tests against a real (pglite) Postgres booted by test/global-setup.ts.
 // They exercise the actual Prisma queries to prove the groupId scoping really isolates houses —
 // the security boundary a unit test with mocks can't verify.
 
 async function reset() {
+  // Drain any deferred (fire-and-forget) audit writes before wiping, so a late revision from a
+  // previous test can't land after the TRUNCATE and leak into the next one.
+  await flushAudit();
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "User","Group","membro_grupo","plataforma","Expense","ExpenseParticipant","acerto","registro_auditoria" RESTART IDENTITY CASCADE`
+    `TRUNCATE "User","Group","membro_grupo","plataforma","Expense","ExpenseParticipant","acerto","registro_auditoria","revisao_entidade" RESTART IDENTITY CASCADE`
   );
 }
 
@@ -141,5 +146,110 @@ describe("CSV import (integration, real pglite DB)", () => {
       expenseService.importFromCSV(house.id, [ana.id, bob.id], csv, ana.id, null, true)
     ).rejects.toMatchObject({ status: 400 });
     expect(await prisma.expense.count({ where: { groupId: house.id } })).toBe(0);
+  });
+});
+
+// Envers-style audit trail. Exercises the Prisma audit extension via DIRECT single-row ops (no
+// interactive $transaction) so the before-read + revision-write each take the single pglite
+// connection sequentially — the tx-wrapped service paths work in prod (pool>1) but would deadlock
+// on the single-connection test socket, so they are intentionally not exercised here.
+describe("audit trail / EntityRevision (integration, real pglite DB)", () => {
+  beforeEach(reset);
+
+  async function seedUserGroup() {
+    const u = await prisma.user.create({ data: { publicId: randomUUID(), name: "Zoe", username: "zoe-aud" } });
+    const g = await prisma.group.create({ data: { publicId: randomUUID(), name: "Aud House" } });
+    return { u, g };
+  }
+
+  function newExpense(groupId: number, payerId: number, description: string, amount: number) {
+    return prisma.expense.create({
+      data: {
+        publicId: randomUUID(), groupId, payerId, description, amount,
+        participants: { create: [{ userId: payerId, amount }] },
+      },
+      include: { participants: true },
+    });
+  }
+
+  it("CREATE: records actor + groupId + full after-snapshot (incl. nested participants)", async () => {
+    const { u, g } = await seedUserGroup();
+    const exp = await runWithAuditContext({ actorId: u.id, groupId: g.id }, async () =>
+      await newExpense(g.id, u.id, "Café", 10)
+    );
+    await flushAudit();
+    const revs = await prisma.entityRevision.findMany({
+      where: { entityType: "Expense", entityId: String(exp.id) },
+    });
+    expect(revs.length).toBe(1);
+    const r = revs[0];
+    expect(r.action).toBe("CREATE");
+    expect(r.actorId).toBe(u.id);
+    expect(r.groupId).toBe(g.id);
+    const after = r.after as Record<string, unknown>;
+    expect(after.description).toBe("Café");
+    // nested participants are captured inside the parent snapshot
+    expect(Array.isArray(after.participants)).toBe(true);
+    expect((after.participants as unknown[]).length).toBe(1);
+  });
+
+  it("UPDATE: records the new after-snapshot; the prior CREATE holds the old value (history chain)", async () => {
+    const { u, g } = await seedUserGroup();
+    const exp = await newExpense(g.id, u.id, "Café", 10);
+    await runWithAuditContext({ actorId: u.id, groupId: g.id }, async () =>
+      await prisma.expense.update({ where: { id: exp.id }, data: { description: "Chá" } })
+    );
+    await flushAudit();
+    const upd = await prisma.entityRevision.findFirst({
+      where: { entityType: "Expense", entityId: String(exp.id), action: "UPDATE" },
+    });
+    expect(upd).not.toBeNull();
+    expect((upd!.after as Record<string, unknown>).description).toBe("Chá");
+    expect(upd!.actorId).toBe(u.id);
+    // the "before" of the update = the previous revision's "after"
+    const create = await prisma.entityRevision.findFirst({
+      where: { entityType: "Expense", entityId: String(exp.id), action: "CREATE" },
+    });
+    expect((create!.after as Record<string, unknown>).description).toBe("Café");
+  });
+
+  it("DELETE: records the removed row's final state", async () => {
+    const { u, g } = await seedUserGroup();
+    const exp = await newExpense(g.id, u.id, "Café", 10);
+    await runWithAuditContext({ actorId: u.id, groupId: g.id }, async () =>
+      await prisma.expense.delete({ where: { id: exp.id } })
+    );
+    await flushAudit();
+    const r = await prisma.entityRevision.findFirst({
+      where: { entityType: "Expense", entityId: String(exp.id), action: "DELETE" },
+    });
+    expect(r).not.toBeNull();
+    expect((r!.before as Record<string, unknown>).description).toBe("Café");
+    expect(r!.after).toBeNull();
+  });
+
+  it("never copies a sensitive field (User.password) into the snapshot", async () => {
+    const u = await prisma.user.create({
+      data: { publicId: randomUUID(), name: "Secret", username: "secret-aud", password: "hashed-secret" },
+    });
+    await flushAudit();
+    const r = await prisma.entityRevision.findFirst({
+      where: { entityType: "User", entityId: String(u.id), action: "CREATE" },
+    });
+    expect(r).not.toBeNull();
+    expect((r!.after as Record<string, unknown>).password).toBeUndefined();
+    expect((r!.after as Record<string, unknown>).username).toBe("secret-aud");
+  });
+
+  it("actor is null when there is no audit context, but groupId is still derived from the row", async () => {
+    const { u, g } = await seedUserGroup();
+    const exp = await newExpense(g.id, u.id, "Sem contexto", 5); // no runWithAuditContext
+    await flushAudit();
+    const r = await prisma.entityRevision.findFirst({
+      where: { entityType: "Expense", entityId: String(exp.id) },
+    });
+    expect(r).not.toBeNull();
+    expect(r!.actorId).toBeNull();
+    expect(r!.groupId).toBe(g.id);
   });
 });

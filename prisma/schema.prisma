@@ -179,3 +179,22 @@ model AuditLog {
   @@index([groupId, createdAt])
   @@map("registro_auditoria")
 }
+
+// Envers-style automatic revision trail: one row per create/update/delete of any audited entity,
+// with a full before/after JSON snapshot + who + which house. Standalone (NO foreign keys) so the
+// audit history survives even after the entity, its group, or the actor is deleted.
+model EntityRevision {
+  id         Int      @id @default(autoincrement())
+  entityType String   @map("tipo_entidade") // Prisma model name (Expense, Settlement, …)
+  entityId   String   @map("entidade_id")   // stringified primary key of the affected row
+  groupId    Int?     @map("grupo_id")       // tenant, when the entity carries one (for scoping)
+  action     String   @map("acao")           // CREATE | UPDATE | DELETE
+  actorId    Int?     @map("autor")           // session user that triggered the write
+  before     Json?    @map("antes")           // full row before (null for CREATE)
+  after      Json?    @map("depois")          // full row after (null for DELETE)
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([groupId, createdAt])
+  @@map("revisao_entidade")
+}

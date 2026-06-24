@@ -7,6 +7,7 @@ import { ApiError } from '@/lib/errors'
 import { LIMITS } from '@/lib/constants'
 import { isExpenseCategory } from '@/lib/categories'
 import { auditService, type AuditEntry } from '@/services/audit.service'
+import { setAuditContext } from '@/lib/audit-context'
 
 /** Append an activity-log entry. A logging failure NEVER breaks the user's mutation. */
 export async function recordActivity(entry: AuditEntry): Promise<void> {
@@ -45,6 +46,8 @@ export async function requireSession(): Promise<SessionCheck> {
       response: NextResponse.json({ error: 'Não autenticado', code: 'NOT_AUTHENTICATED' }, { status: 401 }),
     }
   }
+  // Best-effort: stamp the audit actor for writes in this request.
+  setAuditContext({ actorId: session.userId })
   return { ok: true, session }
 }
 
@@ -82,6 +85,7 @@ export async function requireActiveGroup(): Promise<GroupCheck> {
   const active =
     memberships.find(m => m.groupId === preferredGroupId) ?? memberships[0]
 
+  setAuditContext({ groupId: active.groupId })
   return { ok: true, session: check.session, groupId: active.groupId, role: active.role }
 }
 
