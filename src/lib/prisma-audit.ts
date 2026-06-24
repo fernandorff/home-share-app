@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { getAuditContext } from "@/lib/audit-context";
 import { verifySession, SESSION_COOKIE } from "@/lib/auth";
@@ -74,12 +75,21 @@ function pickGroupId(...rows: Array<{ groupId?: unknown } | null | undefined>): 
 export function auditExtension(base: PrismaClient) {
   function enqueue(rows: Prisma.EntityRevisionUncheckedCreateInput[]): void {
     if (rows.length === 0) return;
-    const p = base.entityRevision
-      .createMany({ data: rows })
-      .then(() => undefined)
-      .catch((e) => console.error("audit revision failed", e))
-      .finally(() => pending.delete(p));
-    pending.add(p);
+    const write = () =>
+      base.entityRevision
+        .createMany({ data: rows })
+        .then(() => undefined)
+        .catch((e) => console.error("audit revision failed", e));
+    // In a real request, hand the write to Next's after(): the response is sent immediately, but the
+    // platform keeps the serverless function alive until the write finishes — so a deferred audit is
+    // never dropped on freeze (plain fire-and-forget would risk that). Outside a request (tests,
+    // scripts) after() throws → track the promise so flushAudit() can await it.
+    try {
+      after(write);
+    } catch {
+      const p = write().finally(() => pending.delete(p));
+      pending.add(p);
+    }
   }
 
   return Prisma.defineExtension({
