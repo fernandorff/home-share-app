@@ -125,60 +125,55 @@ export function validateExpenseInput(
   const { description, notes, category, amount, date, payerId, platformId, splitEqually = true, participants = [] } = body
   const { payerRequired = true } = options
 
+  // Each failure carries a stable `code` so the client can show a translated, specific
+  // message (via the ApiErrors i18n namespace) instead of a generic fallback.
+  const fail = (error: string, code: string) =>
+    ({ valid: false as const, response: NextResponse.json({ error, code }, { status: 400 }) })
+
   if (!description || description.trim() === '') {
-    return { valid: false, response: NextResponse.json({ error: 'Descrição é obrigatória' }, { status: 400 }) }
+    return fail('Descrição é obrigatória', 'DESCRIPTION_REQUIRED')
   }
-
   if (description.length > LIMITS.DESCRIPTION) {
-    return { valid: false, response: NextResponse.json({ error: `Descrição muito longa (máx. ${LIMITS.DESCRIPTION} caracteres)` }, { status: 400 }) }
+    return fail(`Descrição muito longa (máx. ${LIMITS.DESCRIPTION} caracteres)`, 'DESCRIPTION_TOO_LONG')
   }
-
   if (notes && notes.length > LIMITS.NOTES) {
-    return { valid: false, response: NextResponse.json({ error: `Observação muito longa (máx. ${LIMITS.NOTES} caracteres)` }, { status: 400 }) }
+    return fail(`Observação muito longa (máx. ${LIMITS.NOTES} caracteres)`, 'NOTES_TOO_LONG')
   }
-
   if (!amount || amount <= 0) {
-    return { valid: false, response: NextResponse.json({ error: 'Valor deve ser maior que zero' }, { status: 400 }) }
+    return fail('Valor deve ser maior que zero', 'AMOUNT_INVALID')
   }
-
-  // amount is stored as Decimal(10,2) — reject values that would overflow the column (max 99.999.999,99)
+  // amount is stored as Decimal(10,2) — reject values that would overflow the column.
   if (toCents(amount) > 9_999_999_999) {
-    return { valid: false, response: NextResponse.json({ error: 'Valor muito alto (máx. 99.999.999,99)' }, { status: 400 }) }
+    return fail('Valor muito alto (máx. 99.999.999,99)', 'AMOUNT_TOO_HIGH')
   }
-
-  // Category is optional, but if present it must be one of the known keys.
   if (category != null && category !== '' && !isExpenseCategory(category)) {
-    return { valid: false, response: NextResponse.json({ error: 'Categoria inválida' }, { status: 400 }) }
+    return fail('Categoria inválida', 'INVALID_CATEGORY')
   }
-
-  // Membership of payer/participants in the active group is validated by the route
-  // via allGroupMembers() — here we only check presence.
+  // Membership of payer/participants is validated by the route via allGroupMembers().
   if (payerRequired && !payerId) {
-    return { valid: false, response: NextResponse.json({ error: 'Pagador é obrigatório' }, { status: 400 }) }
+    return fail('Pagador é obrigatório', 'PAYER_REQUIRED')
   }
 
   // Custom split: every share must be a real, non-negative number, with no duplicate
   // participants, and the parts must sum exactly to the total (integer-cents comparison).
   if (!splitEqually) {
     if (participants.length === 0) {
-      return { valid: false, response: NextResponse.json({ error: 'Divisão personalizada precisa de ao menos um participante' }, { status: 400 }) }
+      return fail('Divisão personalizada precisa de ao menos um participante', 'SPLIT_EMPTY')
     }
     const ids = participants.map(p => p.userId)
     if (new Set(ids).size !== ids.length) {
-      return { valid: false, response: NextResponse.json({ error: 'Há um participante repetido na divisão' }, { status: 400 }) }
+      return fail('Há um participante repetido na divisão', 'PARTICIPANT_DUPLICATE')
     }
     if (participants.some(p => !Number.isFinite(p.amount) || p.amount < 0)) {
-      return { valid: false, response: NextResponse.json({ error: 'Valor de um participante não pode ser negativo' }, { status: 400 }) }
+      return fail('Valor de um participante não pode ser negativo', 'PARTICIPANT_NEGATIVE')
     }
     const totalCents = participants.reduce((sum, p) => sum + toCents(p.amount), 0)
     const totalParticipants = fromCents(totalCents)
     if (totalCents !== toCents(amount)) {
-      return {
-        valid: false,
-        response: NextResponse.json({
-          error: `Soma dos valores dos participantes (${totalParticipants.toFixed(2)}) difere do valor total (${amount.toFixed(2)})`
-        }, { status: 400 })
-      }
+      return fail(
+        `Soma dos valores dos participantes (${totalParticipants.toFixed(2)}) difere do valor total (${amount.toFixed(2)})`,
+        'PARTICIPANTS_SUM_MISMATCH'
+      )
     }
   }
 
@@ -218,13 +213,13 @@ export function validateSettlementInput(
   body: SettlementInputRaw
 ): { valid: true; data: ValidatedSettlementInput } | { valid: false; response: NextResponse } {
   const { fromUserId, toUserId, amount, note, date } = body
-  const bad = (error: string) => ({ valid: false as const, response: NextResponse.json({ error }, { status: 400 }) })
+  const bad = (error: string, code: string) => ({ valid: false as const, response: NextResponse.json({ error, code }, { status: 400 }) })
 
-  if (!Number.isInteger(fromUserId) || !Number.isInteger(toUserId)) return bad('Pagador e recebedor são obrigatórios')
-  if (fromUserId === toUserId) return bad('O pagamento precisa ser entre duas pessoas diferentes')
-  if (!amount || amount <= 0) return bad('Valor deve ser maior que zero')
-  if (toCents(amount) > 9_999_999_999) return bad('Valor muito alto (máx. 99.999.999,99)')
-  if (note && note.length > LIMITS.SETTLEMENT_NOTE) return bad(`Observação muito longa (máx. ${LIMITS.SETTLEMENT_NOTE} caracteres)`)
+  if (!Number.isInteger(fromUserId) || !Number.isInteger(toUserId)) return bad('Pagador e recebedor são obrigatórios', 'SETTLEMENT_USERS_REQUIRED')
+  if (fromUserId === toUserId) return bad('O pagamento precisa ser entre duas pessoas diferentes', 'SETTLEMENT_SAME_USER')
+  if (!amount || amount <= 0) return bad('Valor deve ser maior que zero', 'AMOUNT_INVALID')
+  if (toCents(amount) > 9_999_999_999) return bad('Valor muito alto (máx. 99.999.999,99)', 'AMOUNT_TOO_HIGH')
+  if (note && note.length > LIMITS.SETTLEMENT_NOTE) return bad(`Observação muito longa (máx. ${LIMITS.SETTLEMENT_NOTE} caracteres)`, 'NOTE_TOO_LONG')
 
   return {
     valid: true,

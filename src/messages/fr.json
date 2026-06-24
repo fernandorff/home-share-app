@@ -359,7 +359,21 @@
     "NOT_AUTHENTICATED": "Non authentifié.",
     "NOT_ADMIN": "Seul l'admin du foyer peut faire cela.",
     "INVALID_CURRENCY": "Devise invalide.",
-    "NO_GROUP": "Vous n'êtes encore dans aucun foyer."
+    "NO_GROUP": "Vous n'êtes encore dans aucun foyer.",
+    "DESCRIPTION_REQUIRED": "La description est obligatoire.",
+    "DESCRIPTION_TOO_LONG": "Description trop longue (max. 200 caractères).",
+    "NOTES_TOO_LONG": "Note trop longue (max. 1000 caractères).",
+    "AMOUNT_INVALID": "Le montant doit être supérieur à zéro.",
+    "AMOUNT_TOO_HIGH": "Montant trop élevé.",
+    "INVALID_CATEGORY": "Catégorie invalide.",
+    "PAYER_REQUIRED": "Le payeur est obligatoire.",
+    "SPLIT_EMPTY": "Une répartition personnalisée nécessite au moins un participant.",
+    "PARTICIPANT_DUPLICATE": "Un participant est répété dans la répartition.",
+    "PARTICIPANT_NEGATIVE": "Le montant d'un participant ne peut pas être négatif.",
+    "PARTICIPANTS_SUM_MISMATCH": "La répartition ne correspond pas au total.",
+    "SETTLEMENT_USERS_REQUIRED": "Le payeur et le bénéficiaire sont obligatoires.",
+    "SETTLEMENT_SAME_USER": "Le payeur et le bénéficiaire doivent être différents.",
+    "NOTE_TOO_LONG": "Note trop longue (max. 500 caractères)."
   },
   "Currency": {
     "title": "Devise",

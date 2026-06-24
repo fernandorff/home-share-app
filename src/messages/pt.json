@@ -359,7 +359,21 @@
     "NOT_AUTHENTICATED": "Não autenticado.",
     "NOT_ADMIN": "Apenas o admin da casa pode fazer isso.",
     "INVALID_CURRENCY": "Moeda inválida.",
-    "NO_GROUP": "Você ainda não está em nenhuma casa."
+    "NO_GROUP": "Você ainda não está em nenhuma casa.",
+    "DESCRIPTION_REQUIRED": "Descrição é obrigatória.",
+    "DESCRIPTION_TOO_LONG": "Descrição muito longa (máx. 200 caracteres).",
+    "NOTES_TOO_LONG": "Observação muito longa (máx. 1000 caracteres).",
+    "AMOUNT_INVALID": "O valor deve ser maior que zero.",
+    "AMOUNT_TOO_HIGH": "Valor muito alto.",
+    "INVALID_CATEGORY": "Categoria inválida.",
+    "PAYER_REQUIRED": "Pagador é obrigatório.",
+    "SPLIT_EMPTY": "A divisão personalizada precisa de ao menos um participante.",
+    "PARTICIPANT_DUPLICATE": "Há um participante repetido na divisão.",
+    "PARTICIPANT_NEGATIVE": "O valor de um participante não pode ser negativo.",
+    "PARTICIPANTS_SUM_MISMATCH": "A soma da divisão não bate com o total.",
+    "SETTLEMENT_USERS_REQUIRED": "Pagador e recebedor são obrigatórios.",
+    "SETTLEMENT_SAME_USER": "Pagador e recebedor devem ser diferentes.",
+    "NOTE_TOO_LONG": "Observação muito longa (máx. 500 caracteres)."
   },
   "Currency": {
     "title": "Moeda",

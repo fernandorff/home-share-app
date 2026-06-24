@@ -359,7 +359,21 @@
     "NOT_AUTHENTICATED": "Not signed in.",
     "NOT_ADMIN": "Only the house admin can do this.",
     "INVALID_CURRENCY": "Invalid currency.",
-    "NO_GROUP": "You're not in any house yet."
+    "NO_GROUP": "You're not in any house yet.",
+    "DESCRIPTION_REQUIRED": "Description is required.",
+    "DESCRIPTION_TOO_LONG": "Description is too long (max. 200 characters).",
+    "NOTES_TOO_LONG": "Note is too long (max. 1000 characters).",
+    "AMOUNT_INVALID": "Amount must be greater than zero.",
+    "AMOUNT_TOO_HIGH": "Amount is too high.",
+    "INVALID_CATEGORY": "Invalid category.",
+    "PAYER_REQUIRED": "Payer is required.",
+    "SPLIT_EMPTY": "A custom split needs at least one participant.",
+    "PARTICIPANT_DUPLICATE": "A participant is repeated in the split.",
+    "PARTICIPANT_NEGATIVE": "A participant's amount can't be negative.",
+    "PARTICIPANTS_SUM_MISMATCH": "The split doesn't add up to the total.",
+    "SETTLEMENT_USERS_REQUIRED": "Payer and receiver are required.",
+    "SETTLEMENT_SAME_USER": "Payer and receiver must be different.",
+    "NOTE_TOO_LONG": "Note is too long (max. 500 characters)."
   },
   "Currency": {
     "title": "Currency",
