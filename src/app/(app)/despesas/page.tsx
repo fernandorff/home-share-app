@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useFetch } from "@/lib/use-fetch";
 import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/Button";
@@ -228,14 +228,16 @@ export default function DespesasPage() {
     }
   }
 
-  function toggleRow(publicId: string) {
+  // useCallback so memo'd <ExpenseRow>/<ExpenseCard> get stable handler identities and a
+  // checkbox toggle re-renders only the affected row (not all ~300).
+  const toggleRow = useCallback((publicId: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(publicId)) next.delete(publicId);
       else next.add(publicId);
       return next;
     });
-  }
+  }, []);
 
   function toggleSelectAll() {
     setSelected(allSelected ? new Set() : new Set(listItems.map((e) => e.publicId)));
@@ -245,13 +247,17 @@ export default function DespesasPage() {
     setEditing(null);
     setFormOpen(true);
   }
-  function openEdit(expense: Expense) {
+  const openEdit = useCallback((expense: Expense) => {
     setEditing(expense);
     setFormOpen(true);
-  }
-  function memberColorFor(payerId: number): number {
-    return members.find((m) => m.id === payerId)?.colorIndex ?? 0;
-  }
+  }, []);
+
+  // O(1) payerId → colorIndex (was a per-row members.find).
+  const colorByPayer = useMemo(() => {
+    const m = new Map<number, number>();
+    members.forEach((mm) => m.set(mm.id, mm.colorIndex));
+    return m;
+  }, [members]);
 
   async function confirmDeleteOne() {
     if (!deleteTarget) return;
@@ -600,47 +606,16 @@ export default function DespesasPage() {
             </thead>
             <tbody>
               {listItems.map((e) => (
-                <tr
+                <ExpenseRow
                   key={e.publicId}
-                  className={cn(
-                    "border-b border-dotted border-rule last:border-b-0 transition-colors",
-                    selected.has(e.publicId) ? "bg-panel/60" : "hover:bg-panel/30"
-                  )}
-                >
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      aria-label={t("selectRow", { description: e.description })}
-                      checked={selected.has(e.publicId)}
-                      onChange={() => toggleRow(e.publicId)}
-                      className="h-4 w-4 accent-ink"
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-sm text-ink">
-                    {e.description}
-                    {e.category && t.has(`category.${e.category}`) && (
-                      <span className="mt-0.5 block text-xs text-faint">▘ {t(`category.${e.category}`)}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <MemberDot colorIndex={memberColorFor(e.payerId)} name={e.payer.name} size={22} />
-                      <span className="truncate text-sm text-ink">{e.payer.name}</span>
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Money value={e.amount} />
-                  </td>
-                  <td className="px-4 py-3">
-                    {e.platform ? <Tag>{e.platform.name}</Tag> : <span className="text-faint">—</span>}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-soft">
-                    {formatDateLocale(e.date, locale)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
-                  </td>
-                </tr>
+                  expense={e}
+                  selected={selected.has(e.publicId)}
+                  colorIndex={colorByPayer.get(e.payerId) ?? 0}
+                  locale={locale}
+                  onToggle={toggleRow}
+                  onEdit={openEdit}
+                  onDelete={setDeleteTarget}
+                />
               ))}
             </tbody>
           </table>
@@ -659,42 +634,16 @@ export default function DespesasPage() {
             </label>
             <ul>
               {listItems.map((e) => (
-                <li
+                <ExpenseCard
                   key={e.publicId}
-                  className={cn(
-                    "flex gap-3 border-b border-dotted border-rule px-4 py-3 last:border-b-0",
-                    selected.has(e.publicId) && "bg-panel/60"
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    aria-label={t("selectRow", { description: e.description })}
-                    checked={selected.has(e.publicId)}
-                    onChange={() => toggleRow(e.publicId)}
-                    className="mt-1 h-4 w-4 shrink-0 accent-ink"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="truncate text-sm font-medium text-ink">{e.description}</span>
-                      <Money value={e.amount} className="shrink-0" />
-                    </div>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-faint">
-                      <span className="flex items-center gap-1.5">
-                        <MemberDot colorIndex={memberColorFor(e.payerId)} name={e.payer.name} size={18} />
-                        {e.payer.name}
-                      </span>
-                      <span aria-hidden>·</span>
-                      <span>{formatDateLocale(e.date, locale)}</span>
-                      {e.platform && <Tag>{e.platform.name}</Tag>}
-                      {e.category && t.has(`category.${e.category}`) && (
-                        <span className="text-faint">▘ {t(`category.${e.category}`)}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="shrink-0">
-                    <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
-                  </div>
-                </li>
+                  expense={e}
+                  selected={selected.has(e.publicId)}
+                  colorIndex={colorByPayer.get(e.payerId) ?? 0}
+                  locale={locale}
+                  onToggle={toggleRow}
+                  onEdit={openEdit}
+                  onDelete={setDeleteTarget}
+                />
               ))}
             </ul>
           </div>
@@ -758,6 +707,109 @@ export default function DespesasPage() {
     </div>
   );
 }
+
+interface ExpenseRowProps {
+  expense: Expense;
+  selected: boolean;
+  colorIndex: number;
+  locale: string;
+  onToggle: (publicId: string) => void;
+  onEdit: (expense: Expense) => void;
+  onDelete: (expense: Expense) => void;
+}
+
+/** Desktop ledger row — memoized so toggling one checkbox re-renders only that row. */
+const ExpenseRow = memo(function ExpenseRow({
+  expense: e, selected, colorIndex, locale, onToggle, onEdit, onDelete,
+}: ExpenseRowProps) {
+  const t = useTranslations("Expenses");
+  return (
+    <tr
+      className={cn(
+        "border-b border-dotted border-rule last:border-b-0 transition-colors",
+        selected ? "bg-panel/60" : "hover:bg-panel/30"
+      )}
+    >
+      <td className="px-4 py-3">
+        <input
+          type="checkbox"
+          aria-label={t("selectRow", { description: e.description })}
+          checked={selected}
+          onChange={() => onToggle(e.publicId)}
+          className="h-4 w-4 accent-ink"
+        />
+      </td>
+      <td className="px-4 py-3 text-sm text-ink">
+        {e.description}
+        {e.category && t.has(`category.${e.category}`) && (
+          <span className="mt-0.5 block text-xs text-faint">▘ {t(`category.${e.category}`)}</span>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        <span className="flex min-w-0 items-center gap-2">
+          <MemberDot colorIndex={colorIndex} name={e.payer.name} size={22} />
+          <span className="truncate text-sm text-ink">{e.payer.name}</span>
+        </span>
+      </td>
+      <td className="px-4 py-3 text-right">
+        <Money value={e.amount} />
+      </td>
+      <td className="px-4 py-3">
+        {e.platform ? <Tag>{e.platform.name}</Tag> : <span className="text-faint">—</span>}
+      </td>
+      <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-soft">
+        {formatDateLocale(e.date, locale)}
+      </td>
+      <td className="px-4 py-3 text-right">
+        <RowMenu onEdit={() => onEdit(e)} onDelete={() => onDelete(e)} />
+      </td>
+    </tr>
+  );
+});
+
+/** Mobile stacked card — memoized (same rationale as ExpenseRow). */
+const ExpenseCard = memo(function ExpenseCard({
+  expense: e, selected, colorIndex, locale, onToggle, onEdit, onDelete,
+}: ExpenseRowProps) {
+  const t = useTranslations("Expenses");
+  return (
+    <li
+      className={cn(
+        "flex gap-3 border-b border-dotted border-rule px-4 py-3 last:border-b-0",
+        selected && "bg-panel/60"
+      )}
+    >
+      <input
+        type="checkbox"
+        aria-label={t("selectRow", { description: e.description })}
+        checked={selected}
+        onChange={() => onToggle(e.publicId)}
+        className="mt-1 h-4 w-4 shrink-0 accent-ink"
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <span className="truncate text-sm font-medium text-ink">{e.description}</span>
+          <Money value={e.amount} className="shrink-0" />
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-faint">
+          <span className="flex items-center gap-1.5">
+            <MemberDot colorIndex={colorIndex} name={e.payer.name} size={18} />
+            {e.payer.name}
+          </span>
+          <span aria-hidden>·</span>
+          <span>{formatDateLocale(e.date, locale)}</span>
+          {e.platform && <Tag>{e.platform.name}</Tag>}
+          {e.category && t.has(`category.${e.category}`) && (
+            <span className="text-faint">▘ {t(`category.${e.category}`)}</span>
+          )}
+        </div>
+      </div>
+      <div className="shrink-0">
+        <RowMenu onEdit={() => onEdit(e)} onDelete={() => onDelete(e)} />
+      </div>
+    </li>
+  );
+});
 
 /** Per-row actions menu (⋯). */
 function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
