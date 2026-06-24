@@ -122,7 +122,11 @@ export function ImportCsvModal({
           />
         </Field>
 
-        <Field label={t("platform")} htmlFor="imp-platform" hint={t("required")}>
+        <Field
+          label={t("platform")}
+          htmlFor="imp-platform"
+          hint={<span className="text-stamp">{t("required")}</span>}
+        >
           <Select
             id="imp-platform"
             value={platformId}

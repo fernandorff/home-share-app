@@ -37,9 +37,9 @@ export function Field({
       {label && <Label htmlFor={htmlFor}>{label}</Label>}
       {children}
       {error ? (
-        <p className="mt-1.5 text-xs text-debt">{error}</p>
+        <p className="mt-1.5 text-pretty text-xs text-debt">{error}</p>
       ) : hint ? (
-        <p className="mt-1.5 text-xs text-faint">{hint}</p>
+        <p className="mt-1.5 text-pretty text-xs text-faint">{hint}</p>
       ) : null}
     </div>
   );

@@ -293,7 +293,9 @@ export default function CasaPage() {
                     <MemberDot colorIndex={g.colorIndex} name={g.name} size={32} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-ink">{g.name}</p>
-                      <p className="label-mono mt-0.5">{roleLabel(g.role)}</p>
+                      <span className="mt-1 inline-block">
+                        <Tag>{roleLabel(g.role)}</Tag>
+                      </span>
                     </div>
                     {switchingId === g.id ? (
                       <Spinner />

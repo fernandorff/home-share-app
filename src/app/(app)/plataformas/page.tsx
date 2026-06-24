@@ -151,7 +151,7 @@ export default function PlataformasPage() {
                   <span className="min-w-0 flex-1 truncate font-display text-sm font-bold text-ink">
                     {p.name}
                   </span>
-                  <Tag className="tnum shrink-0">
+                  <Tag className="tnum shrink-0 min-w-[6.5rem] justify-center">
                     {t("expenseCount", { count: p._count?.expenses ?? 0 })}
                   </Tag>
                   <Menu

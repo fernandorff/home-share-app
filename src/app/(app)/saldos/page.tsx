@@ -298,14 +298,18 @@ export default function SaldosPage() {
           <ul className="px-5 pt-2 pb-4">
             {monthsTop.map((m, i) => {
               const pct = (m.total / maxMonth) * 100;
+              const pctOfTotal = totalExpenses > 0 ? (m.total / totalExpenses) * 100 : 0;
               return (
                 <li key={m.month} className="reveal py-2" style={revealDelay(i)}>
                   <div className="flex items-baseline justify-between gap-3">
-                    <span className="label-mono">{monthLabel(m.month)}</span>
-                    <Money value={m.total} className="tnum font-display text-sm font-bold" />
+                    <span className="label-mono min-w-0 truncate">{monthLabel(m.month)}</span>
+                    <span className="flex shrink-0 items-baseline gap-2">
+                      <span className="label-mono text-faint">{pctOfTotal.toFixed(0)}%</span>
+                      <Money value={m.total} className="tnum font-display text-sm font-bold" />
+                    </span>
                   </div>
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-panel">
-                    <div className="h-full rounded-full bg-stamp" style={{ width: `${pct}%` }} />
+                    <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
                   </div>
                 </li>
               );

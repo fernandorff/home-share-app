@@ -46,7 +46,9 @@ export function MemberChip({
   return (
     <span className={cn("inline-flex items-center gap-2 min-w-0", className)}>
       <MemberDot colorIndex={colorIndex} name={name} size={22} />
-      <span className="truncate text-sm text-ink">{name}</span>
+      {/* On mobile the who→who row is too narrow for two names; the dot carries the name
+          via title/aria-label, so show the text label only from sm up. */}
+      <span className="hidden truncate text-sm text-ink sm:inline">{name}</span>
     </span>
   );
 }

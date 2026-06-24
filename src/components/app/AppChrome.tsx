@@ -191,12 +191,12 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             key={href}
             href={href}
             className={cn(
-              "flex flex-col items-center gap-1 py-2 text-[0.6rem] uppercase tracking-wide transition-colors",
+              "flex min-w-0 flex-col items-center gap-1 px-0.5 py-2 text-[0.55rem] uppercase tracking-tight transition-colors",
               isActive(href) ? "text-stamp" : "text-ink-soft"
             )}
           >
             <Icon />
-            <span>{t(key)}</span>
+            <span className="block w-full truncate text-center">{t(key)}</span>
           </Link>
         ))}
       </nav>

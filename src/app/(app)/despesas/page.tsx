@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import type { SelectHTMLAttributes } from "react";
 import { useFetch } from "@/lib/use-fetch";
 import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/Button";
@@ -28,6 +29,31 @@ import { ImportCsvModal } from "@/components/expenses/ImportCsvModal";
 
 type SortDirection = "asc" | "desc";
 type ViewMode = "list" | "byPayer";
+
+// Compact ledger field used across the filter bar (smaller than the form Field).
+const fieldCls =
+  "rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-1 focus-visible:ring-offset-card";
+
+// Filter select: appearance-none + custom chevron + truncate so a long selected label
+// (e.g. "Todas as plataformas" in pt) ellipsizes instead of being cut behind the native arrow.
+function FilterSelect({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <div className="relative min-w-0">
+      <select
+        className={cn(fieldCls, "w-full cursor-pointer appearance-none truncate pr-8", className)}
+        {...props}
+      >
+        {children}
+      </select>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-faint"
+      >
+        ▼
+      </span>
+    </div>
+  );
+}
 
 interface SortableCol {
   field: ExpenseSortField;
@@ -292,8 +318,6 @@ export default function DespesasPage() {
   }
 
   const total = allData?.pagination.total ?? listItems.length;
-  const fieldCls =
-    "rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-1 focus-visible:ring-offset-card";
 
   return (
     <div className="flex flex-col gap-5">
@@ -364,39 +388,36 @@ export default function DespesasPage() {
               className={cn(fieldCls, "min-w-0 flex-1 placeholder:text-faint lg:min-w-[200px]")}
             />
             <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:items-center">
-              <select
+              <FilterSelect
                 value={payerFilter}
                 onChange={(e) => setPayerFilter(e.target.value ? Number(e.target.value) : "")}
                 aria-label={t("colPayer")}
-                className={fieldCls}
               >
                 <option value="">{t("filterAllPeople")}</option>
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
-              </select>
-              <select
+              </FilterSelect>
+              <FilterSelect
                 value={platformFilter}
                 onChange={(e) => setPlatformFilter(e.target.value ? Number(e.target.value) : "")}
                 aria-label={t("colPlatform")}
-                className={fieldCls}
               >
                 <option value="">{t("filterAllPlatforms")}</option>
                 {platforms.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
-              </select>
-              <select
+              </FilterSelect>
+              <FilterSelect
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 aria-label={t("categoryLabel")}
-                className={fieldCls}
               >
                 <option value="">{t("filterAllCategories")}</option>
                 {EXPENSE_CATEGORIES.map((c) => (
                   <option key={c} value={c}>{t(`category.${c}`)}</option>
                 ))}
-              </select>
+              </FilterSelect>
               <input
                 type="date"
                 value={fromDate}
@@ -791,18 +812,22 @@ const ExpenseCard = memo(function ExpenseCard({
           <span className="truncate text-sm font-medium text-ink">{e.description}</span>
           <Money value={e.amount} className="shrink-0" />
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-faint">
-          <span className="flex items-center gap-1.5">
+        <div className="mt-1.5 flex items-center gap-2 text-xs text-faint">
+          <span className="flex min-w-0 items-center gap-1.5">
             <MemberDot colorIndex={colorIndex} name={e.payer.name} size={18} />
-            {e.payer.name}
+            <span className="truncate">{e.payer.name}</span>
           </span>
           <span aria-hidden>·</span>
-          <span>{formatDateLocale(e.date, locale)}</span>
-          {e.platform && <Tag>{e.platform.name}</Tag>}
-          {e.category && t.has(`category.${e.category}`) && (
-            <span className="text-faint">▘ {t(`category.${e.category}`)}</span>
-          )}
+          <span className="shrink-0 tnum">{formatDateLocale(e.date, locale)}</span>
         </div>
+        {(e.platform || (e.category && t.has(`category.${e.category}`))) && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-faint">
+            {e.platform && <Tag>{e.platform.name}</Tag>}
+            {e.category && t.has(`category.${e.category}`) && (
+              <span className="text-faint">▘ {t(`category.${e.category}`)}</span>
+            )}
+          </div>
+        )}
       </div>
       <div className="shrink-0">
         <RowMenu onEdit={() => onEdit(e)} onDelete={() => onDelete(e)} />

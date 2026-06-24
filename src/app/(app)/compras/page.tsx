@@ -390,14 +390,16 @@ function ItemRow({
         >
           {item.name}
         </p>
-        {item.addedBy && (
-          <span className="mt-1 inline-block">
-            <Tag>{t("addedBy", { name: item.addedBy.name })}</Tag>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          {item.addedBy && <Tag>{t("addedBy", { name: item.addedBy.name })}</Tag>}
+          {/* Desktop shows the date in its own right-aligned column; surface it here on mobile. */}
+          <span className="text-xs text-faint tnum sm:hidden">
+            {formatDateLocale(item.createdAt, locale)}
           </span>
-        )}
+        </div>
       </div>
 
-      <span className="hidden shrink-0 text-xs text-faint sm:inline">
+      <span className="hidden shrink-0 text-xs text-faint tnum sm:inline">
         {formatDateLocale(item.createdAt, locale)}
       </span>
 

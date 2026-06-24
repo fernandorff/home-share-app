@@ -220,7 +220,7 @@ export function ExpenseFormModal({
       type="button"
       onClick={() => setCustomMode(mode)}
       className={cn(
-        "rounded-sm border px-2.5 py-1 text-[0.68rem] font-display font-bold uppercase tracking-wide transition-colors",
+        "w-full rounded-md border px-3 py-1.5 text-center text-[0.68rem] font-display font-bold uppercase tracking-wide transition-colors",
         customMode === mode
           ? "border-ink bg-ink text-paper"
           : "border-rule bg-card text-ink-soft hover:bg-panel"
@@ -389,9 +389,9 @@ export function ExpenseFormModal({
         {/* Custom split */}
         {!splitEqually && (
           <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <p className="label-mono">{t("splitBy")}</p>
-              <div className="flex gap-1.5">
+              <div className="grid w-[9rem] shrink-0 grid-cols-2 gap-1.5">
                 {subToggle("valor", t("byValue"))}
                 {subToggle("percent", t("byPercent"))}
               </div>

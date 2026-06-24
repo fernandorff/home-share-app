@@ -108,8 +108,11 @@ export default function AtividadePage() {
                         })}
                       </ul>
                     )}
+                    {/* Mobile: timestamp as a meta line so the action text uses the full width
+                        instead of being squeezed by a top-right column. */}
+                    <span className="mt-1 block text-xs text-faint tnum sm:hidden">{when(e.createdAt)}</span>
                   </div>
-                  <span className="tnum shrink-0 text-xs text-faint">{when(e.createdAt)}</span>
+                  <span className="hidden shrink-0 text-xs text-faint tnum sm:block">{when(e.createdAt)}</span>
                 </div>
               </li>
             ))}
