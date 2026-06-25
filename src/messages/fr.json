@@ -194,6 +194,7 @@
     "colAmount": "Montant",
     "colPlatform": "Plateforme",
     "colDate": "Date",
+    "select": "Sélectionner",
     "selectAll": "Tout sélectionner",
     "selectRow": "Sélectionner {description}",
     "rowActions": "Actions",

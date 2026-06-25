@@ -155,6 +155,8 @@ export default function DespesasPage() {
   const [toDate, setToDate] = useState("");
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Checkboxes are hidden until the user enters selection mode (the "Selecionar" button).
+  const [selectionMode, setSelectionMode] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
@@ -294,16 +296,16 @@ export default function DespesasPage() {
   const desktopRows = useMemo(
     () => listItems.map((e) => (
       <ExpenseRow key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
-        locale={locale} onEdit={openEdit} onDelete={setDeleteTarget} />
+        locale={locale} selectionMode={selectionMode} onEdit={openEdit} onDelete={setDeleteTarget} />
     )),
-    [listItems, colorByPayer, locale, openEdit]
+    [listItems, colorByPayer, locale, selectionMode, openEdit]
   );
   const mobileCards = useMemo(
     () => listItems.map((e) => (
       <ExpenseCard key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
-        locale={locale} onEdit={openEdit} onDelete={setDeleteTarget} />
+        locale={locale} selectionMode={selectionMode} onEdit={openEdit} onDelete={setDeleteTarget} />
     )),
-    [listItems, colorByPayer, locale, openEdit]
+    [listItems, colorByPayer, locale, selectionMode, openEdit]
   );
 
   async function confirmDeleteOne() {
@@ -372,28 +374,52 @@ export default function DespesasPage() {
         {!loading && <span className="font-normal text-faint">({total})</span>}
       </SectionTitle>
 
-      {/* View toggle */}
-      <div className="flex items-center gap-1">
-        {(
-          [
-            { id: "list", label: t("viewList") },
-            { id: "byPayer", label: t("viewByPayer") },
-          ] as const
-        ).map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            onClick={() => setView(v.id)}
-            className={cn(
-              "rounded-md border px-3 py-1.5 text-[0.7rem] font-display font-bold uppercase tracking-wider transition-colors",
-              view === v.id
-                ? "border-ink bg-ink text-paper"
-                : "border-rule bg-card text-ink-soft hover:bg-panel"
-            )}
+      {/* View toggle + selection toggle */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          {(
+            [
+              { id: "list", label: t("viewList") },
+              { id: "byPayer", label: t("viewByPayer") },
+            ] as const
+          ).map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => {
+                setView(v.id);
+                if (v.id !== "list") {
+                  setSelectionMode(false);
+                  setSelected(new Set());
+                }
+              }}
+              className={cn(
+                "rounded-md border px-3 py-1.5 text-[0.7rem] font-display font-bold uppercase tracking-wider transition-colors",
+                view === v.id
+                  ? "border-ink bg-ink text-paper"
+                  : "border-rule bg-card text-ink-soft hover:bg-panel"
+              )}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        {view === "list" && total > 0 && (
+          <Button
+            variant={selectionMode ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => {
+              if (selectionMode) {
+                setSelectionMode(false);
+                setSelected(new Set());
+              } else {
+                setSelectionMode(true);
+              }
+            }}
           >
-            {v.label}
-          </button>
-        ))}
+            {selectionMode ? tc("cancel") : t("select")}
+          </Button>
+        )}
       </div>
 
       {/* Filter bar */}
@@ -476,15 +502,25 @@ export default function DespesasPage() {
         </Card>
       )}
 
-      {/* Bulk bar (list only) */}
-      {view === "list" && selectedCount > 0 && (
+      {/* Bulk action bar — visible whenever selection mode is on (list only). */}
+      {view === "list" && selectionMode && (
         <div className="sticky top-20 z-10 flex items-center justify-between gap-3 rounded-md border border-ink bg-panel px-4 py-2.5">
           <span className="label-mono">{t("selectedCount", { count: selectedCount })}</span>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={selectedCount === 0}
+              onClick={() => setSelected(new Set())}
+            >
               {t("clear")}
             </Button>
-            <Button variant="danger" size="sm" onClick={() => setBulkConfirm(true)}>
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={selectedCount === 0}
+              onClick={() => setBulkConfirm(true)}
+            >
               {t("deleteSelected")}
             </Button>
           </div>
@@ -607,15 +643,17 @@ export default function DespesasPage() {
           <table className="hidden w-full md:table">
             <thead className="bg-card">
               <tr className="border-b border-dashed border-rule text-left">
-                <th className="w-10 px-4 py-2.5">
-                  <input
-                    type="checkbox"
-                    aria-label={t("selectAll")}
-                    checked={allSelected}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4 accent-ink"
-                  />
-                </th>
+                {selectionMode && (
+                  <th className="w-10 px-4 py-2.5">
+                    <input
+                      type="checkbox"
+                      aria-label={t("selectAll")}
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 accent-ink"
+                    />
+                  </th>
+                )}
                 {COLUMNS.map((col) => (
                   <th key={col.field} className={cn("px-4 py-2.5", col.className)}>
                     <button
@@ -652,16 +690,18 @@ export default function DespesasPage() {
 
           {/* Mobile stacked cards */}
           <div className="flex flex-col md:hidden">
-            <label className="flex items-center gap-2 border-b border-dashed border-rule px-4 py-2.5 text-xs text-ink-soft">
-              <input
-                type="checkbox"
-                aria-label={t("selectAll")}
-                checked={allSelected}
-                onChange={toggleSelectAll}
-                className="h-4 w-4 accent-ink"
-              />
-              <span className="label-mono">{t("selectAll")}</span>
-            </label>
+            {selectionMode && (
+              <label className="flex items-center gap-2 border-b border-dashed border-rule px-4 py-2.5 text-xs text-ink-soft">
+                <input
+                  type="checkbox"
+                  aria-label={t("selectAll")}
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 accent-ink"
+                />
+                <span className="label-mono">{t("selectAll")}</span>
+              </label>
+            )}
             <ul>
               {mobileCards}
             </ul>
@@ -753,26 +793,29 @@ interface ExpenseRowProps {
   expense: Expense;
   colorIndex: number;
   locale: string;
+  selectionMode: boolean;
   onEdit: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
 }
 
 /** Desktop ledger row — memoized so toggling one checkbox re-renders only that row. */
 const ExpenseRow = memo(function ExpenseRow({
-  expense: e, colorIndex, locale, onEdit, onDelete,
+  expense: e, colorIndex, locale, selectionMode, onEdit, onDelete,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
   return (
     <tr className="border-b border-dotted border-rule transition-colors last:border-b-0 hover:bg-panel/30 has-[:checked]:bg-panel/60">
-      <td className="px-4 py-3">
-        <RowCheckbox
-          publicId={e.publicId}
-          label={t("selectRow", { description: e.description })}
-          className="h-4 w-4 accent-ink"
-        />
-      </td>
+      {selectionMode && (
+        <td className="px-4 py-3">
+          <RowCheckbox
+            publicId={e.publicId}
+            label={t("selectRow", { description: e.description })}
+            className="h-4 w-4 accent-ink"
+          />
+        </td>
+      )}
       <td className="px-4 py-3 text-sm text-ink">
         {e.description}
         {e.category && t.has(`category.${e.category}`) && (
@@ -803,18 +846,20 @@ const ExpenseRow = memo(function ExpenseRow({
 
 /** Mobile stacked card — memoized (same rationale as ExpenseRow). */
 const ExpenseCard = memo(function ExpenseCard({
-  expense: e, colorIndex, locale, onEdit, onDelete,
+  expense: e, colorIndex, locale, selectionMode, onEdit, onDelete,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
   return (
     <li className="flex gap-3 border-b border-dotted border-rule px-4 py-3 last:border-b-0 has-[:checked]:bg-panel/60">
-      <RowCheckbox
-        publicId={e.publicId}
-        label={t("selectRow", { description: e.description })}
-        className="mt-1 h-4 w-4 shrink-0 accent-ink"
-      />
+      {selectionMode && (
+        <RowCheckbox
+          publicId={e.publicId}
+          label={t("selectRow", { description: e.description })}
+          className="mt-1 h-4 w-4 shrink-0 accent-ink"
+        />
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <span className="truncate text-sm font-medium text-ink">{e.description}</span>

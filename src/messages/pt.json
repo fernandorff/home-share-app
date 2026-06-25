@@ -194,6 +194,7 @@
     "colAmount": "Valor",
     "colPlatform": "Plataforma",
     "colDate": "Data",
+    "select": "Selecionar",
     "selectAll": "Selecionar todas",
     "selectRow": "Selecionar {description}",
     "rowActions": "Ações",

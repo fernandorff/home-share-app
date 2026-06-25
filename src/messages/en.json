@@ -194,6 +194,7 @@
     "colAmount": "Amount",
     "colPlatform": "Platform",
     "colDate": "Date",
+    "select": "Select",
     "selectAll": "Select all",
     "selectRow": "Select {description}",
     "rowActions": "Actions",

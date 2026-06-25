@@ -194,6 +194,7 @@
     "colAmount": "Importe",
     "colPlatform": "Plataforma",
     "colDate": "Fecha",
+    "select": "Seleccionar",
     "selectAll": "Seleccionar todas",
     "selectRow": "Seleccionar {description}",
     "rowActions": "Acciones",
