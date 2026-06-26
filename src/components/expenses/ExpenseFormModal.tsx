@@ -28,14 +28,15 @@ import {
   distributeByPercent,
 } from "@/lib/split";
 import { LIMITS } from "@/lib/constants";
-import { EXPENSE_CATEGORIES } from "@/lib/categories";
-import type { Expense, Platform, Member } from "@/lib/types";
+import { EXPENSE_CATEGORIES, isExpenseCategory } from "@/lib/categories";
+import type { Expense, Platform, Member, Category } from "@/lib/types";
 
 interface ExpenseFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   expense?: Expense | null;
   platforms: Platform[];
+  categories: Category[];
   onSaved: () => void;
 }
 
@@ -46,6 +47,7 @@ export function ExpenseFormModal({
   onOpenChange,
   expense,
   platforms,
+  categories,
   onSaved,
 }: ExpenseFormModalProps) {
   const { me, members, activeGroup } = useSession();
@@ -278,11 +280,26 @@ export function ExpenseFormModal({
         <Field label={t("categoryLabel")} htmlFor="exp-category">
           <Select id="exp-category" value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="">{t("noCategory")}</option>
-            {EXPENSE_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {t(`category.${c}`)}
-              </option>
-            ))}
+            <optgroup label={t("systemCategories")}>
+              {EXPENSE_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {t(`category.${c}`)}
+                </option>
+              ))}
+            </optgroup>
+            {categories.length > 0 && (
+              <optgroup label={t("houseCategories")}>
+                {categories.map((c) => (
+                  <option key={c.publicId} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {/* Keep showing the current value even if it's a custom category since removed. */}
+            {category && !isExpenseCategory(category) && !categories.some((c) => c.name === category) && (
+              <option value={category}>{category}</option>
+            )}
           </Select>
         </Field>
 

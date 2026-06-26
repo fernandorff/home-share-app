@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { expenseService } from "@/services/expense.service";
 import { settlementService } from "@/services/settlement.service";
+import { categoryService } from "@/services/category.service";
 import { runWithAuditContext } from "@/lib/audit-context";
 import { flushAudit } from "@/lib/prisma-audit";
 
@@ -15,7 +16,7 @@ async function reset() {
   // previous test can't land after the TRUNCATE and leak into the next one.
   await flushAudit();
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "User","Group","membro_grupo","plataforma","Expense","ExpenseParticipant","acerto","registro_auditoria","revisao_entidade" RESTART IDENTITY CASCADE`
+    `TRUNCATE "User","Group","membro_grupo","plataforma","categoria_casa","Expense","ExpenseParticipant","acerto","registro_auditoria","revisao_entidade" RESTART IDENTITY CASCADE`
   );
 }
 
@@ -251,5 +252,62 @@ describe("audit trail / EntityRevision (integration, real pglite DB)", () => {
     expect(r).not.toBeNull();
     expect(r!.actorId).toBeNull();
     expect(r!.groupId).toBe(g.id);
+  });
+});
+
+describe("custom categories (integration, real pglite DB)", () => {
+  beforeEach(reset);
+
+  async function seedHouse() {
+    const ana = await prisma.user.create({ data: { publicId: randomUUID(), name: "Ana", username: "ana-cat" } });
+    const house = await prisma.group.create({ data: { publicId: randomUUID(), name: "Cat House" } });
+    await prisma.groupMember.create({ data: { userId: ana.id, groupId: house.id, role: "ADMIN", colorIndex: 0 } });
+    return { ana, house };
+  }
+
+  it("create trims the name, is group-scoped, and rejects duplicates", async () => {
+    const { house } = await seedHouse();
+    const c = await categoryService.create(house.id, "  Streaming  ");
+    expect(c.name).toBe("Streaming");
+    expect(c.groupId).toBe(house.id);
+    await expect(categoryService.create(house.id, "Streaming")).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("listWithCounts counts the expenses using each category by name", async () => {
+    const { ana, house } = await seedHouse();
+    await categoryService.create(house.id, "Streaming");
+    await categoryService.create(house.id, "Unused");
+    await expenseService.create(house.id, [ana.id], { payerId: ana.id, description: "Netflix", amount: 40, category: "Streaming", splitEqually: true });
+    await expenseService.create(house.id, [ana.id], { payerId: ana.id, description: "Spotify", amount: 20, category: "Streaming", splitEqually: true });
+    const list = await categoryService.listWithCounts(house.id);
+    const byName = new Map(list.map((c) => [c.name, c._count.expenses]));
+    expect(byName.get("Streaming")).toBe(2);
+    expect(byName.get("Unused")).toBe(0);
+  });
+
+  it("delete removes the category and uncategorizes its expenses", async () => {
+    const { ana, house } = await seedHouse();
+    const c = await categoryService.create(house.id, "Streaming");
+    const exp = await expenseService.create(house.id, [ana.id], { payerId: ana.id, description: "Netflix", amount: 40, category: "Streaming", splitEqually: true });
+    await categoryService.delete(house.id, c.publicId);
+    expect(await categoryService.findByPublicId(house.id, c.publicId)).toBeNull();
+    const after = await prisma.expense.findUnique({ where: { id: exp.id } });
+    expect(after!.category).toBeNull();
+  });
+
+  it("a house cannot delete another house's category", async () => {
+    const { house: houseA } = await seedHouse();
+    const houseB = await prisma.group.create({ data: { publicId: randomUUID(), name: "Other" } });
+    const c = await categoryService.create(houseA.id, "Streaming");
+    await expect(categoryService.delete(houseB.id, c.publicId)).rejects.toMatchObject({ status: 404 });
+    expect(await categoryService.findByPublicId(houseA.id, c.publicId)).not.toBeNull();
+  });
+
+  it("existsInGroup is scoped to the house", async () => {
+    const { house: houseA } = await seedHouse();
+    const houseB = await prisma.group.create({ data: { publicId: randomUUID(), name: "Other" } });
+    await categoryService.create(houseA.id, "Streaming");
+    expect(await categoryService.existsInGroup(houseA.id, "Streaming")).toBe(true);
+    expect(await categoryService.existsInGroup(houseB.id, "Streaming")).toBe(false);
   });
 });

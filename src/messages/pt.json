@@ -25,7 +25,8 @@
     "yourHouses": "Suas casas",
     "manageHouse": "Gerenciar / nova casa",
     "houseAndMembers": "Casa & membros",
-    "logout": "Sair"
+    "logout": "Sair",
+    "categories": "Categorias"
   },
   "Auth": {
     "brandTagline": "contas da casa · extrato",
@@ -260,7 +261,9 @@
     "imported": "Importadas",
     "totalValue": "Valor total",
     "invalidRows": "Linhas inválidas ({count})",
-    "rowLabel": "Linha {line}:"
+    "rowLabel": "Linha {line}:",
+    "systemCategories": "Padrão do sistema",
+    "houseCategories": "Da casa"
   },
   "Household": {
     "title": "Casa",
@@ -386,5 +389,28 @@
     "USD": "Dólar ($)",
     "EUR": "Euro (€)",
     "GBP": "Libra (£)"
+  },
+  "Categories": {
+    "title": "Categorias",
+    "new": "Nova categoria",
+    "systemTitle": "Padrão do sistema",
+    "customTitle": "Categorias da casa",
+    "createTitle": "Nova categoria",
+    "createButton": "Criar",
+    "modalDescription": "Categorias próprias para organizar as despesas desta casa.",
+    "nameLabel": "Nome",
+    "namePlaceholder": "Ex: Streaming",
+    "delete": "Excluir",
+    "actionsFor": "Ações para {name}",
+    "expenseCount": "{count, plural, one {# despesa} other {# despesas}}",
+    "emptyTitle": "Nenhuma categoria própria",
+    "emptyHint": "Crie categorias específicas desta casa, além das padrão.",
+    "deleteTitle": "Excluir categoria",
+    "deleteExplanation": "A categoria <name></name>{count, plural, =0 {} other { de <num>#</num> despesas}} será removida e essas despesas ficarão sem categoria.",
+    "loadError": "Erro ao carregar categorias",
+    "saveError": "Erro ao salvar categoria",
+    "deleteError": "Erro ao excluir categoria",
+    "createdToast": "Categoria criada!",
+    "deletedToast": "Categoria excluída!"
   }
 }

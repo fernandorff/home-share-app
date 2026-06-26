@@ -25,7 +25,8 @@
     "yourHouses": "Vos foyers",
     "manageHouse": "Gérer / nouveau foyer",
     "houseAndMembers": "Foyer et membres",
-    "logout": "Se déconnecter"
+    "logout": "Se déconnecter",
+    "categories": "Catégories"
   },
   "Auth": {
     "brandTagline": "comptes du foyer · grand livre",
@@ -260,7 +261,9 @@
     "imported": "Importées",
     "totalValue": "Valeur totale",
     "invalidRows": "Lignes invalides ({count})",
-    "rowLabel": "Ligne {line} :"
+    "rowLabel": "Ligne {line} :",
+    "systemCategories": "Par défaut",
+    "houseCategories": "Maison"
   },
   "Household": {
     "title": "Maison",
@@ -386,5 +389,28 @@
     "USD": "Dollar ($)",
     "EUR": "Euro (€)",
     "GBP": "Livre (£)"
+  },
+  "Categories": {
+    "title": "Catégories",
+    "new": "Nouvelle catégorie",
+    "systemTitle": "Par défaut du système",
+    "customTitle": "Catégories de la maison",
+    "createTitle": "Nouvelle catégorie",
+    "createButton": "Créer",
+    "modalDescription": "Vos propres catégories pour organiser les dépenses de cette maison.",
+    "nameLabel": "Nom",
+    "namePlaceholder": "Ex : Streaming",
+    "delete": "Supprimer",
+    "actionsFor": "Actions pour {name}",
+    "expenseCount": "{count, plural, one {# dépense} other {# dépenses}}",
+    "emptyTitle": "Aucune catégorie personnalisée",
+    "emptyHint": "Créez des catégories propres à cette maison, en plus des catégories par défaut.",
+    "deleteTitle": "Supprimer la catégorie",
+    "deleteExplanation": "La catégorie <name></name>{count, plural, =0 {} other { de <num>#</num> dépenses}} sera supprimée et ces dépenses n'auront plus de catégorie.",
+    "loadError": "Erreur lors du chargement des catégories",
+    "saveError": "Erreur lors de l'enregistrement de la catégorie",
+    "deleteError": "Erreur lors de la suppression de la catégorie",
+    "createdToast": "Catégorie créée !",
+    "deletedToast": "Catégorie supprimée !"
   }
 }

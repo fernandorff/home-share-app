@@ -7,4 +7,5 @@ export const LIMITS = {
   PLATFORM_NAME: 80,
   HOUSEHOLD_NAME: 80,
   SHOPPING_NAME: 200,
+  CATEGORY_NAME: 30,
 } as const

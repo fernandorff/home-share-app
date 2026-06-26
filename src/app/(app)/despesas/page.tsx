@@ -23,7 +23,7 @@ import { formatDateLocale } from "@/lib/money";
 import { money } from "@/lib/format";
 import { memberStyle } from "@/lib/members";
 import { EXPENSE_CATEGORIES } from "@/lib/categories";
-import type { Expense, ExpenseListResponse, ExpenseSortField, Platform } from "@/lib/types";
+import type { Expense, ExpenseListResponse, ExpenseSortField, Platform, Category } from "@/lib/types";
 import { ExpenseFormModal } from "@/components/expenses/ExpenseFormModal";
 import { ImportCsvModal } from "@/components/expenses/ImportCsvModal";
 
@@ -145,6 +145,7 @@ export default function DespesasPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [view, setView] = useState<ViewMode>("list");
   const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   // Filters (client-side; fit the load-all model).
   const [query, setQuery] = useState("");
@@ -172,6 +173,10 @@ export default function DespesasPage() {
       .get<{ platforms: Platform[] }>("/api/platforms")
       .then((res) => active && setPlatforms(res.platforms))
       .catch(() => active && setPlatforms([]));
+    api
+      .get<{ categories: Category[] }>("/api/categories")
+      .then((res) => active && setCategories(res.categories))
+      .catch(() => active && setCategories([]));
     return () => {
       active = false;
     };
@@ -464,6 +469,9 @@ export default function DespesasPage() {
                 {EXPENSE_CATEGORIES.map((c) => (
                   <option key={c} value={c}>{t(`category.${c}`)}</option>
                 ))}
+                {categories.map((c) => (
+                  <option key={c.publicId} value={c.name}>{c.name}</option>
+                ))}
               </FilterSelect>
               <input
                 type="date"
@@ -600,13 +608,16 @@ export default function DespesasPage() {
                             </thead>
                             <tbody>
                               {mg.items.map((e) => (
-                                <tr key={e.publicId} className="group border-t border-dotted border-rule transition-colors hover:bg-panel/30">
-                                  <td className="truncate px-4 py-2 text-sm text-ink" title={e.description}>
-                                    {e.description}
+                                <tr key={e.publicId} className="group border-t border-dotted border-rule align-top transition-colors hover:bg-panel/30">
+                                  <td className="px-4 py-2 text-sm text-ink">
+                                    <span className="break-words">{e.description}</span>
+                                    {e.category && (
+                                      <span className="mt-0.5 block text-xs text-faint">▘ {t.has(`category.${e.category}`) ? t(`category.${e.category}`) : e.category}</span>
+                                    )}
                                   </td>
                                   <td className="hidden px-2 py-2 sm:table-cell">
                                     {e.platform ? (
-                                      <span className="block truncate text-xs text-faint">{e.platform.name}</span>
+                                      <span className="block break-words text-xs text-faint">{e.platform.name}</span>
                                     ) : (
                                       <span className="text-faint">—</span>
                                     )}
@@ -716,6 +727,7 @@ export default function DespesasPage() {
         onOpenChange={setFormOpen}
         expense={editing}
         platforms={platforms}
+        categories={categories}
         onSaved={reload}
       />
 
@@ -818,8 +830,8 @@ const ExpenseRow = memo(function ExpenseRow({
       )}
       <td className="px-4 py-3 text-sm text-ink">
         {e.description}
-        {e.category && t.has(`category.${e.category}`) && (
-          <span className="mt-0.5 block text-xs text-faint">▘ {t(`category.${e.category}`)}</span>
+        {e.category && (
+          <span className="mt-0.5 block text-xs text-faint">▘ {t.has(`category.${e.category}`) ? t(`category.${e.category}`) : e.category}</span>
         )}
       </td>
       <td className="px-4 py-3">
@@ -873,11 +885,11 @@ const ExpenseCard = memo(function ExpenseCard({
           <span aria-hidden>·</span>
           <span className="shrink-0 tnum">{formatDateLocale(e.date, locale)}</span>
         </div>
-        {(e.platform || (e.category && t.has(`category.${e.category}`))) && (
+        {(e.platform || e.category) && (
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-faint">
             {e.platform && <Tag>{e.platform.name}</Tag>}
-            {e.category && t.has(`category.${e.category}`) && (
-              <span className="text-faint">▘ {t(`category.${e.category}`)}</span>
+            {e.category && (
+              <span className="text-faint">▘ {t.has(`category.${e.category}`) ? t(`category.${e.category}`) : e.category}</span>
             )}
           </div>
         )}

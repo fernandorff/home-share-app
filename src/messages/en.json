@@ -25,7 +25,8 @@
     "yourHouses": "Your houses",
     "manageHouse": "Manage / new house",
     "houseAndMembers": "House & members",
-    "logout": "Log out"
+    "logout": "Log out",
+    "categories": "Categories"
   },
   "Auth": {
     "brandTagline": "household accounts · ledger",
@@ -260,7 +261,9 @@
     "imported": "Imported",
     "totalValue": "Total value",
     "invalidRows": "Invalid rows ({count})",
-    "rowLabel": "Row {line}:"
+    "rowLabel": "Row {line}:",
+    "systemCategories": "System default",
+    "houseCategories": "House"
   },
   "Household": {
     "title": "House",
@@ -386,5 +389,28 @@
     "USD": "US Dollar ($)",
     "EUR": "Euro (€)",
     "GBP": "Pound (£)"
+  },
+  "Categories": {
+    "title": "Categories",
+    "new": "New category",
+    "systemTitle": "System default",
+    "customTitle": "House categories",
+    "createTitle": "New category",
+    "createButton": "Create",
+    "modalDescription": "Your own categories to organize this house's expenses.",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. Streaming",
+    "delete": "Delete",
+    "actionsFor": "Actions for {name}",
+    "expenseCount": "{count, plural, one {# expense} other {# expenses}}",
+    "emptyTitle": "No custom categories",
+    "emptyHint": "Create categories specific to this house, on top of the defaults.",
+    "deleteTitle": "Delete category",
+    "deleteExplanation": "The category <name></name>{count, plural, =0 {} other { on <num>#</num> expenses}} will be removed and those expenses will become uncategorized.",
+    "loadError": "Failed to load categories",
+    "saveError": "Failed to save category",
+    "deleteError": "Failed to delete category",
+    "createdToast": "Category created!",
+    "deletedToast": "Category deleted!"
   }
 }

@@ -45,6 +45,7 @@ model Group {
   members       GroupMember[]
   settlements   Settlement[]
   auditLogs     AuditLog[]
+  categories    Category[]
 
   @@index([publicId])
 }
@@ -68,6 +69,22 @@ model GroupMember {
   @@unique([userId, groupId])
   @@index([groupId])
   @@map("membro_grupo")
+}
+
+// Custom expense categories a house can create. The 10 system defaults (lib/categories) are NOT
+// stored here — they're i18n keys. Expense.category holds either a system key or a custom name.
+model Category {
+  id        Int      @id @default(autoincrement())
+  publicId  String   @unique @db.Uuid
+  groupId   Int      @map("grupo_id")
+  name      String   @map("nome")
+  createdAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, name])
+  @@index([groupId])
+  @@map("categoria_casa")
 }
 
 model Platform {

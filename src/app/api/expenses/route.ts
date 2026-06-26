@@ -3,6 +3,7 @@ import { expenseService, VALID_SORT_FIELDS } from '@/services/expense.service'
 import { groupService } from '@/services/group.service'
 import {
   validateExpenseInput,
+  validateCategory,
   handleApiError,
   requireActiveGroup,
   allGroupMembers,
@@ -48,6 +49,9 @@ export async function POST(request: Request) {
     if (!(await allGroupMembers(check.groupId, involvedIds))) {
       return NextResponse.json({ error: 'Pagador ou participante não é membro desta casa' }, { status: 400 })
     }
+
+    const categoryError = await validateCategory(check.groupId, validation.data.category)
+    if (categoryError) return categoryError
 
     const members = await groupService.listMembers(check.groupId)
     const memberIds = members.map(m => m.id)

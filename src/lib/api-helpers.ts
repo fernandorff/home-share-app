@@ -5,9 +5,10 @@ import { verifySession, SessionPayload, SESSION_COOKIE, GROUP_COOKIE } from '@/l
 import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/errors'
 import { LIMITS } from '@/lib/constants'
-import { isExpenseCategory } from '@/lib/categories'
 import { auditService, type AuditEntry } from '@/services/audit.service'
 import { setAuditContext } from '@/lib/audit-context'
+import { isExpenseCategory } from '@/lib/categories'
+import { categoryService } from '@/services/category.service'
 
 /** Append an activity-log entry. A logging failure NEVER breaks the user's mutation. */
 export async function recordActivity(entry: AuditEntry): Promise<void> {
@@ -89,6 +90,20 @@ export async function requireActiveGroup(): Promise<GroupCheck> {
   return { ok: true, session: check.session, groupId: active.groupId, role: active.role }
 }
 
+/**
+ * An expense category must be a system default (lib/categories) or one of the group's custom
+ * categories. Returns an error response if invalid, or null if OK (including no category).
+ */
+export async function validateCategory(
+  groupId: number,
+  category: string | null | undefined
+): Promise<NextResponse | null> {
+  if (!category) return null
+  if (isExpenseCategory(category)) return null
+  if (await categoryService.existsInGroup(groupId, category)) return null
+  return NextResponse.json({ error: 'Categoria inválida', code: 'INVALID_CATEGORY' }, { status: 400 })
+}
+
 /** Validates that the given users are all members of the group (payer/participants). */
 export async function allGroupMembers(groupId: number, userIds: number[]): Promise<boolean> {
   if (userIds.length === 0) return true
@@ -150,7 +165,9 @@ export function validateExpenseInput(
   if (toCents(amount) > 9_999_999_999) {
     return fail('Valor muito alto (máx. 99.999.999,99)', 'AMOUNT_TOO_HIGH')
   }
-  if (category != null && category !== '' && !isExpenseCategory(category)) {
+  // Category may be a system key or a house's custom name; the route confirms it's valid for the
+  // group. Here we only bound its length.
+  if (typeof category === 'string' && category.trim().length > LIMITS.CATEGORY_NAME) {
     return fail('Categoria inválida', 'INVALID_CATEGORY')
   }
   // Membership of payer/participants is validated by the route via allGroupMembers().
@@ -186,7 +203,7 @@ export function validateExpenseInput(
     data: {
       description,
       notes,
-      category: category && isExpenseCategory(category) ? category : null,
+      category: typeof category === 'string' && category.trim() ? category.trim() : null,
       amount,
       date: date ? new Date(date + (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? 'T12:00:00' : '')) : undefined,
       payerId: payerId!,

@@ -51,6 +51,16 @@ export interface Platform {
   _count?: { expenses: number };
 }
 
+/** A house's custom expense category (system defaults from lib/categories are not stored). */
+export interface Category {
+  id: number;
+  publicId: string;
+  name: string;
+  groupId: number;
+  createdAt: string;
+  _count?: { expenses: number };
+}
+
 export interface ExpenseParticipant {
   id: number;
   expenseId: number;
