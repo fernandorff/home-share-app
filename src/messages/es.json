@@ -263,7 +263,8 @@
     "invalidRows": "Filas inválidas ({count})",
     "rowLabel": "Fila {line}:",
     "systemCategories": "Predeterminadas",
-    "houseCategories": "De la casa"
+    "houseCategories": "De la casa",
+    "detailTitle": "Gasto"
   },
   "Household": {
     "title": "Casa",

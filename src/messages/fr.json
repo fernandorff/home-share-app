@@ -263,7 +263,8 @@
     "invalidRows": "Lignes invalides ({count})",
     "rowLabel": "Ligne {line} :",
     "systemCategories": "Par défaut",
-    "houseCategories": "Maison"
+    "houseCategories": "Maison",
+    "detailTitle": "Dépense"
   },
   "Household": {
     "title": "Maison",

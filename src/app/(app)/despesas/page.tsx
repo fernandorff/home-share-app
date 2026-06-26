@@ -25,6 +25,7 @@ import { memberStyle } from "@/lib/members";
 import { EXPENSE_CATEGORIES } from "@/lib/categories";
 import type { Expense, ExpenseListResponse, ExpenseSortField, Platform, Category } from "@/lib/types";
 import { ExpenseFormModal } from "@/components/expenses/ExpenseFormModal";
+import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
 import { ImportCsvModal } from "@/components/expenses/ImportCsvModal";
 
 type SortDirection = "asc" | "desc";
@@ -161,6 +162,7 @@ export default function DespesasPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
+  const [viewing, setViewing] = useState<Expense | null>(null);
   const [importOpen, setImportOpen] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
@@ -284,6 +286,7 @@ export default function DespesasPage() {
     setEditing(expense);
     setFormOpen(true);
   }, []);
+  const openView = useCallback((expense: Expense) => setViewing(expense), []);
 
   // O(1) payerId → colorIndex (was a per-row members.find).
   const colorByPayer = useMemo(() => {
@@ -301,16 +304,16 @@ export default function DespesasPage() {
   const desktopRows = useMemo(
     () => listItems.map((e) => (
       <ExpenseRow key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
-        locale={locale} selectionMode={selectionMode} onEdit={openEdit} onDelete={setDeleteTarget} />
+        locale={locale} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
     )),
-    [listItems, colorByPayer, locale, selectionMode, openEdit]
+    [listItems, colorByPayer, locale, selectionMode, openView, openEdit]
   );
   const mobileCards = useMemo(
     () => listItems.map((e) => (
       <ExpenseCard key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
-        locale={locale} selectionMode={selectionMode} onEdit={openEdit} onDelete={setDeleteTarget} />
+        locale={locale} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
     )),
-    [listItems, colorByPayer, locale, selectionMode, openEdit]
+    [listItems, colorByPayer, locale, selectionMode, openView, openEdit]
   );
 
   async function confirmDeleteOne() {
@@ -608,7 +611,7 @@ export default function DespesasPage() {
                             </thead>
                             <tbody>
                               {mg.items.map((e) => (
-                                <tr key={e.publicId} className="group border-t border-dotted border-rule align-top transition-colors hover:bg-panel/30">
+                                <tr key={e.publicId} onClick={() => openView(e)} className="group cursor-pointer border-t border-dotted border-rule align-top transition-colors hover:bg-panel/30">
                                   <td className="px-4 py-2 text-sm text-ink">
                                     <span className="break-words">{e.description}</span>
                                     {e.category && (
@@ -629,7 +632,7 @@ export default function DespesasPage() {
                                     <Money value={e.amount} />
                                     {/* Desktop: ⋯ floats in on hover (gradient masks the value), no reserved column.
                                         Touch / narrow: no hover exists, so the trigger stays visible in the reserved right padding. */}
-                                    <span className="absolute inset-y-0 right-0.5 flex items-center bg-gradient-to-l from-card via-card to-transparent pl-6 opacity-0 transition-opacity group-hover:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">
+                                    <span onClick={(ev) => ev.stopPropagation()} className="absolute inset-y-0 right-0.5 flex items-center bg-gradient-to-l from-card via-card to-transparent pl-6 opacity-0 transition-opacity group-hover:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">
                                       <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
                                     </span>
                                   </td>
@@ -731,6 +734,22 @@ export default function DespesasPage() {
         onSaved={reload}
       />
 
+      {/* Read-only detail view (click a row) with Edit / Delete actions. */}
+      <ExpenseDetailModal
+        expense={viewing}
+        onOpenChange={(o) => !o && setViewing(null)}
+        onEdit={() => {
+          const e = viewing;
+          setViewing(null);
+          if (e) openEdit(e);
+        }}
+        onDelete={() => {
+          const e = viewing;
+          setViewing(null);
+          if (e) setDeleteTarget(e);
+        }}
+      />
+
       {/* Import modal */}
       <ImportCsvModal open={importOpen} onOpenChange={setImportOpen} platforms={platforms} onImported={reload} />
 
@@ -806,19 +825,27 @@ interface ExpenseRowProps {
   colorIndex: number;
   locale: string;
   selectionMode: boolean;
+  onView: (expense: Expense) => void;
   onEdit: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
 }
 
 /** Desktop ledger row — memoized so toggling one checkbox re-renders only that row. */
 const ExpenseRow = memo(function ExpenseRow({
-  expense: e, colorIndex, locale, selectionMode, onEdit, onDelete,
+  expense: e, colorIndex, locale, selectionMode, onView, onEdit, onDelete,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
+  const handleView = useCallback(() => onView(e), [onView, e]);
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
   return (
-    <tr className="border-b border-dotted border-rule transition-colors last:border-b-0 hover:bg-panel/30 has-[:checked]:bg-panel/60">
+    <tr
+      onClick={selectionMode ? undefined : handleView}
+      className={cn(
+        "border-b border-dotted border-rule transition-colors last:border-b-0 hover:bg-panel/30 has-[:checked]:bg-panel/60",
+        !selectionMode && "cursor-pointer"
+      )}
+    >
       {selectionMode && (
         <td className="px-4 py-3">
           <RowCheckbox
@@ -849,7 +876,7 @@ const ExpenseRow = memo(function ExpenseRow({
       <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-soft">
         {formatDateLocale(e.date, locale)}
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className="px-4 py-3 text-right" onClick={(ev) => ev.stopPropagation()}>
         <RowMenu onEdit={handleEdit} onDelete={handleDelete} />
       </td>
     </tr>
@@ -858,9 +885,10 @@ const ExpenseRow = memo(function ExpenseRow({
 
 /** Mobile stacked card — memoized (same rationale as ExpenseRow). */
 const ExpenseCard = memo(function ExpenseCard({
-  expense: e, colorIndex, locale, selectionMode, onEdit, onDelete,
+  expense: e, colorIndex, locale, selectionMode, onView, onEdit, onDelete,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
+  const handleView = useCallback(() => onView(e), [onView, e]);
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
   return (
@@ -872,7 +900,10 @@ const ExpenseCard = memo(function ExpenseCard({
           className="mt-1 h-4 w-4 shrink-0 accent-ink"
         />
       )}
-      <div className="min-w-0 flex-1">
+      <div
+        onClick={selectionMode ? undefined : handleView}
+        className={cn("min-w-0 flex-1", !selectionMode && "cursor-pointer")}
+      >
         <div className="flex items-start justify-between gap-2">
           <span className="truncate text-sm font-medium text-ink">{e.description}</span>
           <Money value={e.amount} className="shrink-0" />

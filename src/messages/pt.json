@@ -263,7 +263,8 @@
     "invalidRows": "Linhas inválidas ({count})",
     "rowLabel": "Linha {line}:",
     "systemCategories": "Padrão do sistema",
-    "houseCategories": "Da casa"
+    "houseCategories": "Da casa",
+    "detailTitle": "Despesa"
   },
   "Household": {
     "title": "Casa",

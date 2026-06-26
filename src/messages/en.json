@@ -263,7 +263,8 @@
     "invalidRows": "Invalid rows ({count})",
     "rowLabel": "Row {line}:",
     "systemCategories": "System default",
-    "houseCategories": "House"
+    "houseCategories": "House",
+    "detailTitle": "Expense"
   },
   "Household": {
     "title": "House",
