@@ -7,18 +7,13 @@ export class CategoryService {
     return prisma.category.findMany({ where: { groupId }, orderBy: { name: 'asc' } })
   }
 
-  /** Categories with how many of the house's expenses currently use each one. */
+  /** Categories with how many of the house's expenses currently use each one (categories[] contains the name). */
   async listWithCounts(groupId: number) {
     const categories = await prisma.category.findMany({ where: { groupId }, orderBy: { name: 'asc' } })
-    if (categories.length === 0) return []
-    // Expense.category is a string (system key or custom name) — count by matching the name.
-    const grouped = await prisma.expense.groupBy({
-      by: ['category'],
-      where: { groupId, category: { in: categories.map((c) => c.name) } },
-      _count: { _all: true },
-    })
-    const countByName = new Map(grouped.map((g) => [g.category, g._count._all]))
-    return categories.map((c) => ({ ...c, _count: { expenses: countByName.get(c.name) ?? 0 } }))
+    const counts = await Promise.all(
+      categories.map((c) => prisma.expense.count({ where: { groupId, categories: { has: c.name } } }))
+    )
+    return categories.map((c, i) => ({ ...c, _count: { expenses: counts[i] } }))
   }
 
   /** Group-scoped — never resolves another house's category. */
@@ -44,8 +39,8 @@ export class CategoryService {
     const category = await this.findByPublicId(groupId, publicId)
     if (!category) throw new ApiError('Categoria não encontrada', 404)
     return prisma.$transaction(async (tx) => {
-      // No replacement needed: the expenses that used it simply become uncategorized.
-      await tx.expense.updateMany({ where: { groupId, category: category.name }, data: { category: null } })
+      // No replacement needed: pull the tag off every expense that used it.
+      await tx.$executeRaw`UPDATE "Expense" SET categorias = array_remove(categorias, ${category.name}) WHERE "groupId" = ${groupId}`
       return tx.category.delete({ where: { id: category.id } })
     })
   }

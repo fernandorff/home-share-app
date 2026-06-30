@@ -26,7 +26,8 @@
     "manageHouse": "Manage / new house",
     "houseAndMembers": "House & members",
     "logout": "Log out",
-    "categories": "Categories"
+    "categories": "Categories",
+    "catalogs": "Catalogs"
   },
   "Auth": {
     "brandTagline": "household accounts · ledger",
@@ -221,7 +222,12 @@
     "bulkDeleteError": "Error deleting expenses",
     "saveError": "Error saving expense",
     "payer": "Payer",
-    "platform": "Platform",
+    "platform": {
+      "amazon": "Amazon",
+      "mercadolivre": "Mercado Livre",
+      "shopee": "Shopee",
+      "loja_fisica": "Physical store"
+    },
     "noPlatform": "No platform",
     "selectPlaceholder": "Select…",
     "description": "Description",
@@ -264,7 +270,18 @@
     "rowLabel": "Row {line}:",
     "systemCategories": "System default",
     "houseCategories": "House",
-    "detailTitle": "Expense"
+    "detailTitle": "Expense",
+    "paymentLabel": "Payment method",
+    "filterAllPayments": "All methods",
+    "noPayment": "No method",
+    "platformLabel": "Platform",
+    "payment": {
+      "credit": "Credit",
+      "debit": "Debit",
+      "pix": "Pix",
+      "cash": "Cash"
+    },
+    "customSplit": "Custom split"
   },
   "Household": {
     "title": "House",
@@ -413,5 +430,30 @@
     "deleteError": "Failed to delete category",
     "createdToast": "Category created!",
     "deletedToast": "Category deleted!"
+  },
+  "Catalogs": {
+    "title": "Catalogs",
+    "subtitle": "This house's categories, platforms and payment methods.",
+    "sectionCategories": "Categories",
+    "sectionPlatforms": "Platforms",
+    "sectionPayments": "Payment methods",
+    "systemTitle": "System default",
+    "customTitle": "House",
+    "new": "Add",
+    "createTitle": "Add {kind}",
+    "createButton": "Create",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. Streaming",
+    "delete": "Delete",
+    "actionsFor": "Actions for {name}",
+    "expenseCount": "{count, plural, one {# expense} other {# expenses}}",
+    "emptyHint": "Nothing here yet — add the first one.",
+    "deleteTitle": "Delete",
+    "deleteExplanation": "Will remove \"{name}\" from {count, plural, one {# expense} other {# expenses}}.",
+    "loadError": "Failed to load",
+    "saveError": "Failed to save",
+    "deleteError": "Failed to delete",
+    "createdToast": "Added!",
+    "deletedToast": "Deleted!"
   }
 }

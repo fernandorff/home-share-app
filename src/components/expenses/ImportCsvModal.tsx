@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useSession } from "@/lib/session";
 import { api } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
+import { DEFAULT_PLATFORMS } from "@/lib/platforms";
 import type { Platform, ImportResult } from "@/lib/types";
 
 interface ImportCsvModalProps {
@@ -38,7 +39,7 @@ export function ImportCsvModal({
   const apiErr = useApiError();
 
   const [file, setFile] = useState<File | null>(null);
-  const [platformId, setPlatformId] = useState<string>("");
+  const [platform, setPlatform] = useState<string>("");
   const [payerId, setPayerId] = useState<string>("");
   const [splitEqually, setSplitEqually] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -49,14 +50,14 @@ export function ImportCsvModal({
   useEffect(() => {
     if (!open) return;
     setFile(null);
-    setPlatformId("");
+    setPlatform("");
     setPayerId(me ? String(me.user.id) : "");
     setSplitEqually(true);
     setResult(null);
     setFormError(null);
   }, [open, me]);
 
-  const canSubmit = file !== null && platformId !== "" && !submitting;
+  const canSubmit = file !== null && !submitting;
 
   async function handleSubmit() {
     if (!canSubmit || !file) return;
@@ -66,7 +67,7 @@ export function ImportCsvModal({
 
     const form = new FormData();
     form.append("file", file);
-    form.append("platformId", platformId);
+    if (platform !== "") form.append("platform", platform);
     if (payerId !== "") form.append("payerId", payerId);
     form.append("splitEqually", splitEqually ? "true" : "false");
 
@@ -122,21 +123,20 @@ export function ImportCsvModal({
           />
         </Field>
 
-        <Field
-          label={t("platform")}
-          htmlFor="imp-platform"
-          hint={<span className="text-stamp">{t("required")}</span>}
-        >
+        <Field label={t("platformLabel")} htmlFor="imp-platform">
           <Select
             id="imp-platform"
-            value={platformId}
-            onChange={(e) => setPlatformId(e.target.value)}
+            value={platform}
+            onChange={(e) => setPlatform(e.target.value)}
           >
-            <option value="" disabled>
-              {t("selectPlaceholder")}
-            </option>
+            <option value="">{t("noPlatform")}</option>
+            {DEFAULT_PLATFORMS.map((k) => (
+              <option key={k} value={k}>
+                {t(`platform.${k}`)}
+              </option>
+            ))}
             {platforms.map((p) => (
-              <option key={p.id} value={String(p.id)}>
+              <option key={p.publicId} value={p.name}>
                 {p.name}
               </option>
             ))}

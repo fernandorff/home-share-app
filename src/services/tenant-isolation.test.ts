@@ -16,7 +16,7 @@ async function reset() {
   // previous test can't land after the TRUNCATE and leak into the next one.
   await flushAudit();
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "User","Group","membro_grupo","plataforma","categoria_casa","Expense","ExpenseParticipant","acerto","registro_auditoria","revisao_entidade" RESTART IDENTITY CASCADE`
+    `TRUNCATE "User","Group","membro_grupo","plataforma","categoria_casa","forma_pagamento_casa","Expense","ExpenseParticipant","acerto","registro_auditoria","revisao_entidade" RESTART IDENTITY CASCADE`
   );
 }
 
@@ -277,8 +277,8 @@ describe("custom categories (integration, real pglite DB)", () => {
     const { ana, house } = await seedHouse();
     await categoryService.create(house.id, "Streaming");
     await categoryService.create(house.id, "Unused");
-    await expenseService.create(house.id, [ana.id], { payerId: ana.id, description: "Netflix", amount: 40, category: "Streaming", splitEqually: true });
-    await expenseService.create(house.id, [ana.id], { payerId: ana.id, description: "Spotify", amount: 20, category: "Streaming", splitEqually: true });
+    await expenseService.create(house.id, [ana.id], { payerId: ana.id, description: "Netflix", amount: 40, categories: ["Streaming"], splitEqually: true });
+    await expenseService.create(house.id, [ana.id], { payerId: ana.id, description: "Spotify", amount: 20, categories: ["Streaming"], splitEqually: true });
     const list = await categoryService.listWithCounts(house.id);
     const byName = new Map(list.map((c) => [c.name, c._count.expenses]));
     expect(byName.get("Streaming")).toBe(2);
@@ -288,7 +288,7 @@ describe("custom categories (integration, real pglite DB)", () => {
   it("delete removes the category and uncategorizes its expenses", async () => {
     const { ana, house } = await seedHouse();
     const c = await categoryService.create(house.id, "Streaming");
-    const exp = await expenseService.create(house.id, [ana.id], { payerId: ana.id, description: "Netflix", amount: 40, category: "Streaming", splitEqually: true });
+    const exp = await expenseService.create(house.id, [ana.id], { payerId: ana.id, description: "Netflix", amount: 40, categories: ["Streaming"], splitEqually: true });
     await categoryService.delete(house.id, c.publicId);
     expect(await categoryService.findByPublicId(house.id, c.publicId)).toBeNull();
     const after = await prisma.expense.findUnique({ where: { id: exp.id } });

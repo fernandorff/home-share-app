@@ -22,8 +22,12 @@ import { useApiError } from "@/lib/api-errors";
 import { formatDateLocale } from "@/lib/money";
 import { money } from "@/lib/format";
 import { memberStyle } from "@/lib/members";
+import { toCents } from "@/lib/currency";
+import { detectSplitEqually } from "@/lib/split";
 import { EXPENSE_CATEGORIES } from "@/lib/categories";
-import type { Expense, ExpenseListResponse, ExpenseSortField, Platform, Category } from "@/lib/types";
+import { DEFAULT_PLATFORMS } from "@/lib/platforms";
+import { DEFAULT_PAYMENT_METHODS } from "@/lib/payment-methods";
+import type { Expense, ExpenseListResponse, ExpenseSortField, Platform, Category, PaymentMethod, Member } from "@/lib/types";
 import { ExpenseFormModal } from "@/components/expenses/ExpenseFormModal";
 import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
 import { ImportCsvModal } from "@/components/expenses/ImportCsvModal";
@@ -105,9 +109,6 @@ function compareExpenses(
     case "payer":
       cmp = a.payer.name.localeCompare(b.payer.name, locale);
       break;
-    case "platformId":
-      cmp = (a.platform?.name ?? "").localeCompare(b.platform?.name ?? "", locale);
-      break;
     case "createdAt":
       cmp = a.createdAt.localeCompare(b.createdAt);
       break;
@@ -147,12 +148,14 @@ export default function DespesasPage() {
   const [view, setView] = useState<ViewMode>("list");
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
 
-  // Filters (client-side; fit the load-all model).
+  // Filters (client-side; fit the load-all model). Tag filters hold one default-key-or-custom-name.
   const [query, setQuery] = useState("");
   const [payerFilter, setPayerFilter] = useState<number | "">("");
-  const [platformFilter, setPlatformFilter] = useState<number | "">("");
+  const [platformFilter, setPlatformFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [paymentFilter, setPaymentFilter] = useState<string>("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -179,6 +182,10 @@ export default function DespesasPage() {
       .get<{ categories: Category[] }>("/api/categories")
       .then((res) => active && setCategories(res.categories))
       .catch(() => active && setCategories([]));
+    api
+      .get<{ paymentMethods: PaymentMethod[] }>("/api/payment-methods")
+      .then((res) => active && setPaymentMethods(res.paymentMethods))
+      .catch(() => active && setPaymentMethods([]));
     return () => {
       active = false;
     };
@@ -191,21 +198,22 @@ export default function DespesasPage() {
     const q = query.trim().toLowerCase();
     return all.filter((e) => {
       if (payerFilter !== "" && e.payerId !== payerFilter) return false;
-      if (platformFilter !== "" && (e.platform?.id ?? -1) !== platformFilter) return false;
-      if (categoryFilter !== "" && (e.category ?? "") !== categoryFilter) return false;
+      if (platformFilter !== "" && !e.platforms.includes(platformFilter)) return false;
+      if (categoryFilter !== "" && !e.categories.includes(categoryFilter)) return false;
+      if (paymentFilter !== "" && !e.paymentMethods.includes(paymentFilter)) return false;
       const day = e.date.slice(0, 10);
       if (fromDate && day < fromDate) return false;
       if (toDate && day > toDate) return false;
       if (q) {
-        const hay = `${e.description} ${e.notes ?? ""} ${e.payer.name} ${e.platform?.name ?? ""}`.toLowerCase();
+        const hay = `${e.description} ${e.notes ?? ""} ${e.payer.name} ${e.platforms.join(" ")} ${e.paymentMethods.join(" ")} ${e.categories.join(" ")}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [all, query, payerFilter, platformFilter, categoryFilter, fromDate, toDate]);
+  }, [all, query, payerFilter, platformFilter, categoryFilter, paymentFilter, fromDate, toDate]);
 
   const activeFilterCount = [
-    query.trim() !== "", payerFilter !== "", platformFilter !== "", categoryFilter !== "", fromDate !== "", toDate !== "",
+    query.trim() !== "", payerFilter !== "", platformFilter !== "", categoryFilter !== "", paymentFilter !== "", fromDate !== "", toDate !== "",
   ].filter(Boolean).length;
   const filtersActive = activeFilterCount > 0;
   const filteredTotal = useMemo(() => filtered.reduce((s, e) => s + money(e.amount), 0), [filtered]);
@@ -215,6 +223,7 @@ export default function DespesasPage() {
     setPayerFilter("");
     setPlatformFilter("");
     setCategoryFilter("");
+    setPaymentFilter("");
     setFromDate("");
     setToDate("");
   }
@@ -304,16 +313,16 @@ export default function DespesasPage() {
   const desktopRows = useMemo(
     () => listItems.map((e) => (
       <ExpenseRow key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
-        locale={locale} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
+        locale={locale} members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
     )),
-    [listItems, colorByPayer, locale, selectionMode, openView, openEdit]
+    [listItems, colorByPayer, locale, members, selectionMode, openView, openEdit]
   );
   const mobileCards = useMemo(
     () => listItems.map((e) => (
       <ExpenseCard key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
-        locale={locale} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
+        locale={locale} members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
     )),
-    [listItems, colorByPayer, locale, selectionMode, openView, openEdit]
+    [listItems, colorByPayer, locale, members, selectionMode, openView, openEdit]
   );
 
   async function confirmDeleteOne() {
@@ -455,12 +464,15 @@ export default function DespesasPage() {
               </FilterSelect>
               <FilterSelect
                 value={platformFilter}
-                onChange={(e) => setPlatformFilter(e.target.value ? Number(e.target.value) : "")}
-                aria-label={t("colPlatform")}
+                onChange={(e) => setPlatformFilter(e.target.value)}
+                aria-label={t("platformLabel")}
               >
                 <option value="">{t("filterAllPlatforms")}</option>
+                {DEFAULT_PLATFORMS.map((k) => (
+                  <option key={k} value={k}>{t(`platform.${k}`)}</option>
+                ))}
                 {platforms.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.publicId} value={p.name}>{p.name}</option>
                 ))}
               </FilterSelect>
               <FilterSelect
@@ -474,6 +486,19 @@ export default function DespesasPage() {
                 ))}
                 {categories.map((c) => (
                   <option key={c.publicId} value={c.name}>{c.name}</option>
+                ))}
+              </FilterSelect>
+              <FilterSelect
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value)}
+                aria-label={t("paymentLabel")}
+              >
+                <option value="">{t("filterAllPayments")}</option>
+                {DEFAULT_PAYMENT_METHODS.map((k) => (
+                  <option key={k} value={k}>{t(`payment.${k}`)}</option>
+                ))}
+                {paymentMethods.map((p) => (
+                  <option key={p.publicId} value={p.name}>{p.name}</option>
                 ))}
               </FilterSelect>
               <input
@@ -604,40 +629,33 @@ export default function DespesasPage() {
                             <thead>
                               <tr className="border-t border-dotted border-rule">
                                 <th className="label-mono px-4 py-1.5 text-left">{t("colDescription")}</th>
-                                <th className="label-mono hidden w-28 px-2 py-1.5 text-left sm:table-cell">{t("colPlatform")}</th>
                                 <th className="label-mono w-[86px] px-2 py-1.5 text-left">{t("colDate")}</th>
                                 <th className="label-mono w-[116px] px-2 py-1.5 text-right max-md:w-36">{t("colAmount")}</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {mg.items.map((e) => (
+                              {mg.items.map((e) => {
+                                const ratio = splitRatio(e, members);
+                                return (
                                 <tr key={e.publicId} onClick={() => openView(e)} className="group cursor-pointer border-t border-dotted border-rule align-top transition-colors hover:bg-panel/30">
                                   <td className="px-4 py-2 text-sm text-ink">
                                     <span className="break-words">{e.description}</span>
-                                    {e.category && (
-                                      <span className="mt-0.5 block text-xs text-faint">▘ {t.has(`category.${e.category}`) ? t(`category.${e.category}`) : e.category}</span>
-                                    )}
-                                  </td>
-                                  <td className="hidden px-2 py-2 sm:table-cell">
-                                    {e.platform ? (
-                                      <span className="block break-words text-xs text-faint">{e.platform.name}</span>
-                                    ) : (
-                                      <span className="text-faint">—</span>
-                                    )}
+                                    <ExpenseTags expense={e} className="mt-1" />
                                   </td>
                                   <td className="whitespace-nowrap px-2 py-2 text-xs text-ink-soft">
                                     {formatDateLocale(e.date, locale)}
                                   </td>
                                   <td className="relative whitespace-nowrap px-2 py-2 text-right max-md:pr-12 pointer-coarse:pr-12">
                                     <Money value={e.amount} />
-                                    {/* Desktop: ⋯ floats in on hover (gradient masks the value), no reserved column.
-                                        Touch / narrow: no hover exists, so the trigger stays visible in the reserved right padding. */}
+                                    {ratio && <span className="block text-[0.7rem] text-faint tnum" title={t("customSplit")}>⊟ {ratio}</span>}
+                                    {/* Desktop: ⋯ floats in on hover; touch/narrow: stays in the reserved right padding. */}
                                     <span onClick={(ev) => ev.stopPropagation()} className="absolute inset-y-0 right-0.5 flex items-center bg-gradient-to-l from-card via-card to-transparent pl-6 opacity-0 transition-opacity group-hover:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">
                                       <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
                                     </span>
                                   </td>
                                 </tr>
-                              ))}
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -684,9 +702,6 @@ export default function DespesasPage() {
                   </th>
                 ))}
                 <th className="px-4 py-2.5">
-                  <span className="label-mono">{t("colPlatform")}</span>
-                </th>
-                <th className="px-4 py-2.5">
                   <button
                     type="button"
                     onClick={() => toggleSort("date")}
@@ -731,6 +746,7 @@ export default function DespesasPage() {
         expense={editing}
         platforms={platforms}
         categories={categories}
+        paymentMethods={paymentMethods}
         onSaved={reload}
       />
 
@@ -820,10 +836,35 @@ function RowCheckbox({ publicId, label, className }: { publicId: string; label: 
   );
 }
 
+/** Chips for an expense's three tag dimensions (categories + platforms + payment methods). */
+function ExpenseTags({ expense: e, className }: { expense: Expense; className?: string }) {
+  const t = useTranslations("Expenses");
+  const lbl = (ns: string, v: string) => (t.has(`${ns}.${v}`) ? t(`${ns}.${v}`) : v);
+  if (e.categories.length === 0 && e.platforms.length === 0 && e.paymentMethods.length === 0) return null;
+  return (
+    <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
+      {e.categories.map((c) => <Tag key={`c-${c}`} tone="category">{lbl("category", c)}</Tag>)}
+      {e.platforms.map((p) => <Tag key={`p-${p}`} tone="platform">{lbl("platform", p)}</Tag>)}
+      {e.paymentMethods.map((m) => (
+        <Tag key={`m-${m}`} tone="payment">{lbl("payment", m)}</Tag>
+      ))}
+    </div>
+  );
+}
+
+/** "60/40"-style ratio when the split isn't equal; null when it is (or no amount). */
+function splitRatio(e: Expense, members: Member[]): string | null {
+  if (detectSplitEqually(e, members)) return null;
+  const total = toCents(e.amount);
+  if (total <= 0 || e.participants.length === 0) return null;
+  return e.participants.map((p) => Math.round((toCents(p.amount) / total) * 100)).join("/");
+}
+
 interface ExpenseRowProps {
   expense: Expense;
   colorIndex: number;
   locale: string;
+  members: Member[];
   selectionMode: boolean;
   onView: (expense: Expense) => void;
   onEdit: (expense: Expense) => void;
@@ -832,17 +873,18 @@ interface ExpenseRowProps {
 
 /** Desktop ledger row — memoized so toggling one checkbox re-renders only that row. */
 const ExpenseRow = memo(function ExpenseRow({
-  expense: e, colorIndex, locale, selectionMode, onView, onEdit, onDelete,
+  expense: e, colorIndex, locale, members, selectionMode, onView, onEdit, onDelete,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
   const handleView = useCallback(() => onView(e), [onView, e]);
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
+  const ratio = splitRatio(e, members);
   return (
     <tr
       onClick={selectionMode ? undefined : handleView}
       className={cn(
-        "border-b border-dotted border-rule transition-colors last:border-b-0 hover:bg-panel/30 has-[:checked]:bg-panel/60",
+        "border-b border-dotted border-rule align-top transition-colors last:border-b-0 hover:bg-panel/30 has-[:checked]:bg-panel/60",
         !selectionMode && "cursor-pointer"
       )}
     >
@@ -857,9 +899,7 @@ const ExpenseRow = memo(function ExpenseRow({
       )}
       <td className="px-4 py-3 text-sm text-ink">
         {e.description}
-        {e.category && (
-          <span className="mt-0.5 block text-xs text-faint">▘ {t.has(`category.${e.category}`) ? t(`category.${e.category}`) : e.category}</span>
-        )}
+        <ExpenseTags expense={e} className="mt-1" />
       </td>
       <td className="px-4 py-3">
         <span className="flex min-w-0 items-center gap-2">
@@ -867,11 +907,9 @@ const ExpenseRow = memo(function ExpenseRow({
           <span className="truncate text-sm text-ink">{e.payer.name}</span>
         </span>
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className="whitespace-nowrap px-4 py-3 text-right">
         <Money value={e.amount} />
-      </td>
-      <td className="px-4 py-3">
-        {e.platform ? <Tag>{e.platform.name}</Tag> : <span className="text-faint">—</span>}
+        {ratio && <span className="mt-0.5 block text-xs text-faint tnum" title={t("customSplit")}>⊟ {ratio}</span>}
       </td>
       <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-soft">
         {formatDateLocale(e.date, locale)}
@@ -885,12 +923,13 @@ const ExpenseRow = memo(function ExpenseRow({
 
 /** Mobile stacked card — memoized (same rationale as ExpenseRow). */
 const ExpenseCard = memo(function ExpenseCard({
-  expense: e, colorIndex, locale, selectionMode, onView, onEdit, onDelete,
+  expense: e, colorIndex, locale, members, selectionMode, onView, onEdit, onDelete,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
   const handleView = useCallback(() => onView(e), [onView, e]);
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
+  const ratio = splitRatio(e, members);
   return (
     <li className="flex gap-3 border-b border-dotted border-rule px-4 py-3 last:border-b-0 has-[:checked]:bg-panel/60">
       {selectionMode && (
@@ -906,7 +945,10 @@ const ExpenseCard = memo(function ExpenseCard({
       >
         <div className="flex items-start justify-between gap-2">
           <span className="truncate text-sm font-medium text-ink">{e.description}</span>
-          <Money value={e.amount} className="shrink-0" />
+          <div className="shrink-0 text-right">
+            <Money value={e.amount} />
+            {ratio && <span className="block text-[0.7rem] text-faint tnum" title={t("customSplit")}>⊟ {ratio}</span>}
+          </div>
         </div>
         <div className="mt-1.5 flex items-center gap-2 text-xs text-faint">
           <span className="flex min-w-0 items-center gap-1.5">
@@ -916,14 +958,7 @@ const ExpenseCard = memo(function ExpenseCard({
           <span aria-hidden>·</span>
           <span className="shrink-0 tnum">{formatDateLocale(e.date, locale)}</span>
         </div>
-        {(e.platform || e.category) && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-faint">
-            {e.platform && <Tag>{e.platform.name}</Tag>}
-            {e.category && (
-              <span className="text-faint">▘ {t.has(`category.${e.category}`) ? t(`category.${e.category}`) : e.category}</span>
-            )}
-          </div>
-        )}
+        <ExpenseTags expense={e} className="mt-1.5" />
       </div>
       <div className="shrink-0">
         <RowMenu onEdit={handleEdit} onDelete={handleDelete} />

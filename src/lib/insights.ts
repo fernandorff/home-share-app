@@ -11,7 +11,7 @@ export interface MonthSpend {
 
 interface SpendInput {
   amount: number | string | { toString(): string }
-  category?: string | null
+  categories?: string[]
   date: string | Date
 }
 
@@ -33,8 +33,12 @@ export function aggregateSpend(expenses: SpendInput[]): {
 
   for (const e of expenses) {
     const cents = toCents(e.amount)
-    const c = e.category ?? ''
-    cat.set(c, (cat.get(c) ?? 0) + cents)
+    // Multi-category: the amount counts toward EACH tagged category (so the breakdown can exceed the
+    // total — expected for tags). Uncategorized ("") gets it once.
+    const cats = e.categories && e.categories.length > 0 ? e.categories : ['']
+    for (const c of cats) {
+      cat.set(c, (cat.get(c) ?? 0) + cents)
+    }
     const m = monthKey(e.date)
     mon.set(m, (mon.get(m) ?? 0) + cents)
   }

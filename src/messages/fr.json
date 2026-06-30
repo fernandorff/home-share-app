@@ -26,7 +26,8 @@
     "manageHouse": "Gérer / nouveau foyer",
     "houseAndMembers": "Foyer et membres",
     "logout": "Se déconnecter",
-    "categories": "Catégories"
+    "categories": "Catégories",
+    "catalogs": "Catalogues"
   },
   "Auth": {
     "brandTagline": "comptes du foyer · grand livre",
@@ -221,7 +222,12 @@
     "bulkDeleteError": "Erreur lors de la suppression des dépenses",
     "saveError": "Erreur lors de l'enregistrement de la dépense",
     "payer": "Payeur",
-    "platform": "Plateforme",
+    "platform": {
+      "amazon": "Amazon",
+      "mercadolivre": "Mercado Livre",
+      "shopee": "Shopee",
+      "loja_fisica": "Magasin physique"
+    },
     "noPlatform": "Sans plateforme",
     "selectPlaceholder": "Sélectionner…",
     "description": "Description",
@@ -264,7 +270,18 @@
     "rowLabel": "Ligne {line} :",
     "systemCategories": "Par défaut",
     "houseCategories": "Maison",
-    "detailTitle": "Dépense"
+    "detailTitle": "Dépense",
+    "paymentLabel": "Moyen de paiement",
+    "filterAllPayments": "Tous les moyens",
+    "noPayment": "Aucun moyen",
+    "platformLabel": "Plateforme",
+    "payment": {
+      "credit": "Crédit",
+      "debit": "Débit",
+      "pix": "Pix",
+      "cash": "Espèces"
+    },
+    "customSplit": "Partage personnalisé"
   },
   "Household": {
     "title": "Maison",
@@ -413,5 +430,30 @@
     "deleteError": "Erreur lors de la suppression de la catégorie",
     "createdToast": "Catégorie créée !",
     "deletedToast": "Catégorie supprimée !"
+  },
+  "Catalogs": {
+    "title": "Catalogues",
+    "subtitle": "Catégories, plateformes et moyens de paiement de la maison.",
+    "sectionCategories": "Catégories",
+    "sectionPlatforms": "Plateformes",
+    "sectionPayments": "Moyens de paiement",
+    "systemTitle": "Par défaut",
+    "customTitle": "Maison",
+    "new": "Ajouter",
+    "createTitle": "Ajouter {kind}",
+    "createButton": "Créer",
+    "nameLabel": "Nom",
+    "namePlaceholder": "Ex : Streaming",
+    "delete": "Supprimer",
+    "actionsFor": "Actions pour {name}",
+    "expenseCount": "{count, plural, one {# dépense} other {# dépenses}}",
+    "emptyHint": "Rien ici — ajoutez le premier.",
+    "deleteTitle": "Supprimer",
+    "deleteExplanation": "Retirera « {name} » de {count, plural, one {# dépense} other {# dépenses}}.",
+    "loadError": "Erreur de chargement",
+    "saveError": "Erreur d’enregistrement",
+    "deleteError": "Erreur de suppression",
+    "createdToast": "Ajouté !",
+    "deletedToast": "Supprimé !"
   }
 }

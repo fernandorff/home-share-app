@@ -36,13 +36,6 @@ function CartIcon({ className }: IconProps) {
     </svg>
   );
 }
-function TagIcon({ className }: IconProps) {
-  return (
-    <svg className={cn(ic, className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 12V4h8l10 10-8 8L3 12Z" /><circle cx="7.5" cy="7.5" r="1.3" />
-    </svg>
-  );
-}
 function GridIcon({ className }: IconProps) {
   return (
     <svg className={cn(ic, className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -70,8 +63,7 @@ const NAV = [
   { href: "/despesas", key: "expenses", Icon: ReceiptIcon },
   { href: "/saldos", key: "balances", Icon: ScaleIcon },
   { href: "/compras", key: "shopping", Icon: CartIcon },
-  { href: "/plataformas", key: "platforms", Icon: TagIcon },
-  { href: "/categorias", key: "categories", Icon: GridIcon },
+  { href: "/catalogos", key: "catalogs", Icon: GridIcon },
   { href: "/atividade", key: "activity", Icon: ClockIcon },
   { href: "/casa", key: "household", Icon: HomeIcon },
 ] as const;
@@ -194,7 +186,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-rule bg-paper/95 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-rule bg-paper/95 backdrop-blur md:hidden">
         {NAV.map(({ href, key, Icon }) => (
           <Link
             key={href}

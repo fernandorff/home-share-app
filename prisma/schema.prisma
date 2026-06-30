@@ -43,9 +43,10 @@ model Group {
   expenses      Expense[]
   shoppingItems ShoppingItem[]
   members       GroupMember[]
-  settlements   Settlement[]
-  auditLogs     AuditLog[]
-  categories    Category[]
+  settlements    Settlement[]
+  auditLogs      AuditLog[]
+  categories     Category[]
+  paymentMethods PaymentMethod[]
 
   @@index([publicId])
 }
@@ -87,6 +88,8 @@ model Category {
   @@map("categoria_casa")
 }
 
+// A house's custom platforms (system defaults from lib/platforms are i18n keys, not stored).
+// Like Category: Expense.platforms[] holds a system key or a custom name (no FK).
 model Platform {
   id        Int      @id @default(autoincrement())
   publicId  String   @unique @db.Uuid
@@ -94,11 +97,24 @@ model Platform {
   groupId   Int?     @map("grupo_id")
   createdAt DateTime @default(now())
 
-  expenses Expense[]
-
   @@index([publicId])
   @@index([groupId])
   @@map("plataforma")
+}
+
+// A house's custom payment methods (system defaults from lib/payment-methods are i18n keys).
+model PaymentMethod {
+  id        Int      @id @default(autoincrement())
+  publicId  String   @unique @db.Uuid
+  groupId   Int      @map("grupo_id")
+  name      String   @map("nome")
+  createdAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, name])
+  @@index([groupId])
+  @@map("forma_pagamento_casa")
 }
 
 model Expense {
@@ -106,10 +122,15 @@ model Expense {
   publicId    String   @unique @db.Uuid
   groupId     Int
   payerId     Int
-  platformId  Int?     @map("plataforma_id")
+  platformId  Int?     @map("plataforma_id") // legacy single (vestigial; replaced by platforms[])
+  platformIds Int[]    @default([]) @map("plataforma_ids") // vestigial intermediate (replaced by platforms[])
   description String   @map("descricao")
   notes       String?  @map("observacao")
-  category    String?  @map("categoria")
+  category    String?  @map("categoria") // legacy single (vestigial; replaced by categories[])
+  // The three tag dimensions: each entry is a system-default key OR a house's custom name.
+  categories     String[] @default([]) @map("categorias")
+  platforms      String[] @default([]) @map("plataformas")
+  paymentMethods String[] @default([]) @map("formas_pagamento")
   amount      Decimal  @db.Decimal(10, 2) @map("valor")
   date        DateTime @default(now()) @map("data")
   createdAt   DateTime @default(now())
@@ -117,7 +138,6 @@ model Expense {
 
   group        Group                @relation(fields: [groupId], references: [id], onDelete: Cascade)
   payer        User                 @relation("ExpensePayer", fields: [payerId], references: [id], onDelete: Cascade)
-  platform     Platform?            @relation(fields: [platformId], references: [id])
   participants ExpenseParticipant[]
 
   @@index([publicId])

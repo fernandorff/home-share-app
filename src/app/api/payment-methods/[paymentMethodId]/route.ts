@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { isValidUUID } from '@/lib/uuid'
-import { platformService } from '@/services/platform.service'
+import { paymentMethodService } from '@/services/payment-method.service'
 import { handleApiError, requireActiveGroup } from '@/lib/api-helpers'
 
 interface RouteParams {
-  params: Promise<{ platformId: string }>
+  params: Promise<{ paymentMethodId: string }>
 }
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
@@ -12,14 +12,14 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
     const check = await requireActiveGroup()
     if (!check.ok) return check.response
 
-    const { platformId } = await params
-    if (!isValidUUID(platformId)) {
+    const { paymentMethodId } = await params
+    if (!isValidUUID(paymentMethodId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
 
-    await platformService.delete(check.groupId, platformId)
-    return NextResponse.json({ message: 'Plataforma excluída com sucesso' })
+    await paymentMethodService.delete(check.groupId, paymentMethodId)
+    return NextResponse.json({ message: 'Forma de pagamento excluída com sucesso' })
   } catch (error) {
-    return handleApiError(error, 'Erro ao excluir plataforma')
+    return handleApiError(error, 'Erro ao excluir forma de pagamento')
   }
 }

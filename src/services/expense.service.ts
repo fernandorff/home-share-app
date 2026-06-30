@@ -4,12 +4,14 @@ import { parseCSVDetailed, ExpenseRow, InvalidRow } from '@/lib/csv-parser'
 import { toCents, fromCents, splitCents } from '@/lib/currency'
 import { ApiError } from '@/lib/errors'
 
+// Each of the three tag dimensions is an array of strings: a system-default key OR a custom name.
 export interface CreateExpenseInput {
   payerId: number
-  platformId?: number | null
+  platforms?: string[]
+  paymentMethods?: string[]
   description: string
   notes?: string | null
-  category?: string | null
+  categories?: string[]
   amount: number
   date?: Date
   participants?: { userId: number; amount: number }[]
@@ -18,10 +20,11 @@ export interface CreateExpenseInput {
 
 export interface UpdateExpenseInput {
   payerId?: number
-  platformId?: number | null
+  platforms?: string[]
+  paymentMethods?: string[]
   description?: string
   notes?: string | null
-  category?: string | null
+  categories?: string[]
   amount?: number
   date?: Date
   participants?: { userId: number; amount: number }[]
@@ -34,7 +37,7 @@ export interface ImportExpenseResult {
   totalValue: number
 }
 
-export const VALID_SORT_FIELDS = ['date', 'amount', 'description', 'payer', 'platformId', 'createdAt'] as const
+export const VALID_SORT_FIELDS = ['date', 'amount', 'description', 'payer', 'createdAt'] as const
 
 export interface PaginationParams {
   page: number
@@ -54,7 +57,6 @@ function equalSplit(amount: number, memberIds: readonly number[]) {
 
 const expenseInclude = {
   payer: { select: { id: true, publicId: true, name: true, username: true } },
-  platform: { select: { id: true, publicId: true, name: true } },
   participants: {
     include: {
       user: { select: { id: true, publicId: true, name: true, username: true } }
@@ -62,12 +64,10 @@ const expenseInclude = {
   }
 }
 
-// The list renders payer/platform + the split (userId + amount); the nested participant.user
-// is never read client-side. Omitting it trims one user object per participant off every page
-// load (the list eagerly loads all expenses). The edit modal reads userId/amount, not user.
+// The list renders payer + the split (userId + amount); the nested participant.user is never read
+// client-side. Omitting it trims one user object per participant off every page load.
 const expenseListInclude = {
   payer: { select: { id: true, publicId: true, name: true, username: true } },
-  platform: { select: { id: true, publicId: true, name: true } },
   participants: { select: { id: true, expenseId: true, userId: true, amount: true } }
 }
 
@@ -113,10 +113,9 @@ export class ExpenseService {
   }
 
   async create(groupId: number, memberIds: number[], input: CreateExpenseInput) {
-    const { payerId, platformId, description, notes, category, amount, date, participants, splitEqually } = input
+    const { payerId, platforms, paymentMethods, description, notes, categories, amount, date, participants, splitEqually } = input
 
     let participantData: { userId: number; amount: number }[]
-
     if (splitEqually || !participants || participants.length === 0) {
       participantData = equalSplit(amount, memberIds)
     } else {
@@ -128,10 +127,11 @@ export class ExpenseService {
         publicId: uuidv7(),
         groupId,
         payerId,
-        platformId,
+        platforms: platforms ?? [],
+        paymentMethods: paymentMethods ?? [],
         description: description.trim(),
         notes: notes?.trim() || null,
-        category: category ?? null,
+        categories: categories ?? [],
         amount,
         date: date ?? new Date(),
         participants: { create: participantData }
@@ -141,10 +141,9 @@ export class ExpenseService {
   }
 
   async update(groupId: number, expenseId: number, memberIds: number[], input: UpdateExpenseInput) {
-    const { payerId, platformId, description, notes, category, amount, date, participants, splitEqually } = input
+    const { payerId, platforms, paymentMethods, description, notes, categories, amount, date, participants, splitEqually } = input
 
     let participantData: { userId: number; amount: number }[] | undefined
-
     if (amount !== undefined) {
       if (splitEqually || !participants || participants.length === 0) {
         participantData = equalSplit(amount, memberIds)
@@ -163,24 +162,21 @@ export class ExpenseService {
       }
 
       if (participantData) {
-        await tx.expenseParticipant.deleteMany({
-          where: { expenseId }
-        })
+        await tx.expenseParticipant.deleteMany({ where: { expenseId } })
       }
 
       return tx.expense.update({
         where: { id: expenseId },
         data: {
           ...(payerId !== undefined && { payerId }),
-          ...(platformId !== undefined && { platformId }),
+          ...(platforms !== undefined && { platforms }),
+          ...(paymentMethods !== undefined && { paymentMethods }),
           ...(description && { description: description.trim() }),
           ...(notes !== undefined && { notes: notes?.trim() || null }),
-          ...(category !== undefined && { category }),
+          ...(categories !== undefined && { categories }),
           ...(amount !== undefined && { amount }),
           ...(date && { date }),
-          ...(participantData && {
-            participants: { create: participantData }
-          })
+          ...(participantData && { participants: { create: participantData } })
         },
         include: expenseInclude
       })
@@ -188,16 +184,12 @@ export class ExpenseService {
   }
 
   async delete(groupId: number, expenseId: number) {
-    const result = await prisma.expense.deleteMany({
-      where: { id: expenseId, groupId }
-    })
+    const result = await prisma.expense.deleteMany({ where: { id: expenseId, groupId } })
     return result.count
   }
 
   async bulkDelete(groupId: number, expenseIds: number[]) {
-    const result = await prisma.expense.deleteMany({
-      where: { id: { in: expenseIds }, groupId }
-    })
+    const result = await prisma.expense.deleteMany({ where: { id: { in: expenseIds }, groupId } })
     return result.count
   }
 
@@ -206,7 +198,7 @@ export class ExpenseService {
     memberIds: number[],
     csvText: string,
     payerId: number,
-    platformId: number | null,
+    platform: string | null,
     splitEqually: boolean
   ): Promise<ImportExpenseResult> {
     // Invalid lines are reported (with line numbers) BEFORE anything is written.
@@ -219,12 +211,12 @@ export class ExpenseService {
       throw new ApiError(`Nenhuma despesa válida encontrada no CSV.${detail}`, 400)
     }
 
-    // Pre-generate ids so the rows can be written in bulk (createMany can't nest participants).
+    const platforms = platform ? [platform] : []
     const expenseRows = expenses.map(expense => ({
       publicId: uuidv7(),
       groupId,
       payerId,
-      platformId,
+      platforms,
       description: expense.descricao,
       notes: expense.observacao || null,
       amount: expense.valor,
@@ -232,12 +224,10 @@ export class ExpenseService {
       date: new Date(expense.data + 'T12:00:00'),
     }))
 
-    // All-or-nothing: one failure rolls back the entire import (safe to retry).
-    // Three bulk writes instead of two queries per row — the import scaled O(N) round-trips before.
+    // All-or-nothing: one failure rolls back the entire import (safe to retry). Three bulk writes.
     await prisma.$transaction(async (tx) => {
       await tx.expense.createMany({ data: expenseRows })
 
-      // createMany doesn't return ids; map our generated publicIds back to the new rows.
       const created = await tx.expense.findMany({
         where: { publicId: { in: expenseRows.map(r => r.publicId) } },
         select: { id: true, publicId: true }
@@ -248,10 +238,7 @@ export class ExpenseService {
         const expenseId = idByPublicId.get(expenseRows[i].publicId)!
         const participantData = splitEqually
           ? equalSplit(expense.valor, memberIds)
-          : memberIds.map(userId => ({
-              userId,
-              amount: userId === payerId ? expense.valor : 0
-            }))
+          : memberIds.map(userId => ({ userId, amount: userId === payerId ? expense.valor : 0 }))
         return participantData.map(p => ({ ...p, expenseId }))
       })
       await tx.expenseParticipant.createMany({ data: participantRows })
@@ -269,10 +256,7 @@ export class ExpenseService {
       where: { groupId },
       include: {
         payer: { select: { name: true } },
-        platform: { select: { name: true } },
-        participants: {
-          include: { user: { select: { name: true } } }
-        }
+        participants: { include: { user: { select: { name: true } } } }
       },
       orderBy: { date: 'desc' }
     })
@@ -286,10 +270,9 @@ export class ExpenseService {
     }
 
     const BOM = String.fromCharCode(0xfeff)
-    const header = 'Date,Description,Notes,Amount,Paid by,Platform,Participants'
+    const header = 'Date,Description,Notes,Amount,Paid by,Platforms,Payment,Categories,Participants'
 
     const rows = expenses.map(e => {
-      // Dates are stored at UTC midnight; format in UTC to avoid off-by-one in UTC-3
       const dateStr = new Date(e.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
       const amountStr = Number(e.amount).toFixed(2).replace('.', ',')
       const participantNames = e.participants.map(p => p.user.name).join('; ')
@@ -300,7 +283,9 @@ export class ExpenseService {
         escapeCSV(e.notes),
         amountStr,
         escapeCSV(e.payer.name),
-        escapeCSV(e.platform?.name),
+        escapeCSV(e.platforms.join('; ')),
+        escapeCSV(e.paymentMethods.join('; ')),
+        escapeCSV(e.categories.join('; ')),
         escapeCSV(participantNames)
       ].join(',')
     })

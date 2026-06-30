@@ -26,7 +26,8 @@
     "manageHouse": "Gerenciar / nova casa",
     "houseAndMembers": "Casa & membros",
     "logout": "Sair",
-    "categories": "Categorias"
+    "categories": "Categorias",
+    "catalogs": "Catálogos"
   },
   "Auth": {
     "brandTagline": "contas da casa · extrato",
@@ -221,7 +222,12 @@
     "bulkDeleteError": "Erro ao excluir despesas",
     "saveError": "Erro ao salvar despesa",
     "payer": "Pagador",
-    "platform": "Plataforma",
+    "platform": {
+      "amazon": "Amazon",
+      "mercadolivre": "Mercado Livre",
+      "shopee": "Shopee",
+      "loja_fisica": "Loja física"
+    },
     "noPlatform": "Sem plataforma",
     "selectPlaceholder": "Selecione…",
     "description": "Descrição",
@@ -264,7 +270,18 @@
     "rowLabel": "Linha {line}:",
     "systemCategories": "Padrão do sistema",
     "houseCategories": "Da casa",
-    "detailTitle": "Despesa"
+    "detailTitle": "Despesa",
+    "paymentLabel": "Forma de pagamento",
+    "filterAllPayments": "Todas as formas",
+    "noPayment": "Sem forma",
+    "platformLabel": "Plataforma",
+    "payment": {
+      "credit": "Crédito",
+      "debit": "Débito",
+      "pix": "Pix",
+      "cash": "Dinheiro"
+    },
+    "customSplit": "Divisão personalizada"
   },
   "Household": {
     "title": "Casa",
@@ -413,5 +430,30 @@
     "deleteError": "Erro ao excluir categoria",
     "createdToast": "Categoria criada!",
     "deletedToast": "Categoria excluída!"
+  },
+  "Catalogs": {
+    "title": "Catálogos",
+    "subtitle": "Categorias, plataformas e formas de pagamento da casa.",
+    "sectionCategories": "Categorias",
+    "sectionPlatforms": "Plataformas",
+    "sectionPayments": "Formas de pagamento",
+    "systemTitle": "Padrão do sistema",
+    "customTitle": "Da casa",
+    "new": "Adicionar",
+    "createTitle": "Adicionar {kind}",
+    "createButton": "Criar",
+    "nameLabel": "Nome",
+    "namePlaceholder": "Ex: Streaming",
+    "delete": "Excluir",
+    "actionsFor": "Ações para {name}",
+    "expenseCount": "{count, plural, one {# despesa} other {# despesas}}",
+    "emptyHint": "Nada por aqui ainda — adicione o primeiro.",
+    "deleteTitle": "Excluir",
+    "deleteExplanation": "Vai remover \"{name}\" de {count, plural, one {# despesa} other {# despesas}}.",
+    "loadError": "Erro ao carregar",
+    "saveError": "Erro ao salvar",
+    "deleteError": "Erro ao excluir",
+    "createdToast": "Adicionado!",
+    "deletedToast": "Excluído!"
   }
 }

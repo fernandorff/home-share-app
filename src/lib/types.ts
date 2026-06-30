@@ -42,17 +42,8 @@ export interface Member {
   colorIndex: number;
 }
 
-export interface Platform {
-  id: number;
-  publicId: string;
-  name: string;
-  groupId: number | null;
-  createdAt: string;
-  _count?: { expenses: number };
-}
-
-/** A house's custom expense category (system defaults from lib/categories are not stored). */
-export interface Category {
+/** A house's custom tag entry (category / platform / payment method). System defaults are not stored. */
+export interface NamedTag {
   id: number;
   publicId: string;
   name: string;
@@ -60,6 +51,9 @@ export interface Category {
   createdAt: string;
   _count?: { expenses: number };
 }
+export type Category = NamedTag;
+export type Platform = NamedTag;
+export type PaymentMethod = NamedTag;
 
 export interface ExpenseParticipant {
   id: number;
@@ -70,27 +64,22 @@ export interface ExpenseParticipant {
   user?: PublicUser;
 }
 
-export interface ExpensePlatformRef {
-  id: number;
-  publicId: string;
-  name: string;
-}
-
 export interface Expense {
   id: number;
   publicId: string;
   groupId: number;
   payerId: number;
-  platformId: number | null;
   description: string;
   notes: string | null;
-  category: string | null;
+  // Three tag dimensions; each entry is a system-default key OR a custom name.
+  categories: string[];
+  platforms: string[];
+  paymentMethods: string[];
   amount: Money;
   date: string;
   createdAt: string;
   updatedAt: string;
   payer: PublicUser;
-  platform: ExpensePlatformRef | null;
   participants: ExpenseParticipant[];
 }
 
@@ -111,7 +100,6 @@ export type ExpenseSortField =
   | "amount"
   | "description"
   | "payer"
-  | "platformId"
   | "createdAt";
 
 export interface Balance {

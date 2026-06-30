@@ -25,6 +25,14 @@
   --color-credit: #2f6b4f; /* a receber */
   --color-debt: #c0392b;   /* deve */
 
+  /* Tag dimension colors — muted, well-separated, never reading as stamp/debt red or credit green */
+  --color-cat: #6b4a7a;       /* categoria — ameixa/violeta */
+  --color-cat-soft: #ece4ef;
+  --color-plat: #4a6173;      /* plataforma — azul-ardósia */
+  --color-plat-soft: #e4e9ee;
+  --color-pay: #8a6d3b;       /* forma de pagamento — ocre/mostarda */
+  --color-pay-soft: #efe7d6;
+
   /* Receipts are crisp — keep radii tiny */
   --radius-sm: 2px;
   --radius-md: 3px;

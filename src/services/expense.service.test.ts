@@ -72,18 +72,18 @@ describe("ExpenseService.create — split math + persisted shape", () => {
     ]);
   });
 
-  it("scopes to the group and persists category + trims description", async () => {
+  it("scopes to the group and persists categories + trims description", async () => {
     mockPrisma.expense.create.mockResolvedValue({ id: 4 });
     await expenseService.create(7, [1, 2], {
       payerId: 1,
       description: "  Groceries  ",
       amount: 10,
-      category: "groceries",
+      categories: ["groceries"],
       splitEqually: true,
     });
     const data = dataOfLastCreate();
     expect(data.groupId).toBe(7);
-    expect(data.category).toBe("groceries");
+    expect(data.categories).toEqual(["groceries"]);
     expect(data.description).toBe("Groceries");
   });
 });

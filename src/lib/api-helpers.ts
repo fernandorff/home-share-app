@@ -8,7 +8,11 @@ import { LIMITS } from '@/lib/constants'
 import { auditService, type AuditEntry } from '@/services/audit.service'
 import { setAuditContext } from '@/lib/audit-context'
 import { isExpenseCategory } from '@/lib/categories'
+import { isDefaultPlatform } from '@/lib/platforms'
+import { isDefaultPaymentMethod } from '@/lib/payment-methods'
 import { categoryService } from '@/services/category.service'
+import { platformService } from '@/services/platform.service'
+import { paymentMethodService } from '@/services/payment-method.service'
 
 /** Append an activity-log entry. A logging failure NEVER breaks the user's mutation. */
 export async function recordActivity(entry: AuditEntry): Promise<void> {
@@ -90,18 +94,32 @@ export async function requireActiveGroup(): Promise<GroupCheck> {
   return { ok: true, session: check.session, groupId: active.groupId, role: active.role }
 }
 
-/**
- * An expense category must be a system default (lib/categories) or one of the group's custom
- * categories. Returns an error response if invalid, or null if OK (including no category).
- */
-export async function validateCategory(
-  groupId: number,
-  category: string | null | undefined
+/** Each tag in a dimension must be a system default OR one of the group's custom entries. */
+async function validateTagList(
+  values: string[],
+  isDefault: (v: string) => boolean,
+  existsInGroup: (name: string) => Promise<boolean>,
+  errorMsg: string,
+  code: string
 ): Promise<NextResponse | null> {
-  if (!category) return null
-  if (isExpenseCategory(category)) return null
-  if (await categoryService.existsInGroup(groupId, category)) return null
-  return NextResponse.json({ error: 'Categoria inválida', code: 'INVALID_CATEGORY' }, { status: 400 })
+  for (const v of values) {
+    if (isDefault(v)) continue
+    if (await existsInGroup(v)) continue
+    return NextResponse.json({ error: errorMsg, code }, { status: 400 })
+  }
+  return null
+}
+
+/** Validates an expense's categories / platforms / payment methods against defaults + group customs. */
+export async function validateExpenseTags(
+  groupId: number,
+  input: { categories: string[]; platforms: string[]; paymentMethods: string[] }
+): Promise<NextResponse | null> {
+  return (
+    (await validateTagList(input.categories, isExpenseCategory, (n) => categoryService.existsInGroup(groupId, n), 'Categoria inválida', 'INVALID_CATEGORY')) ??
+    (await validateTagList(input.platforms, isDefaultPlatform, (n) => platformService.existsInGroup(groupId, n), 'Plataforma inválida', 'INVALID_PLATFORM')) ??
+    (await validateTagList(input.paymentMethods, isDefaultPaymentMethod, (n) => paymentMethodService.existsInGroup(groupId, n), 'Forma de pagamento inválida', 'INVALID_PAYMENT'))
+  )
 }
 
 /** Validates that the given users are all members of the group (payer/participants). */
@@ -116,11 +134,12 @@ export async function allGroupMembers(groupId: number, userIds: number[]): Promi
 interface ExpenseInputRaw {
   description?: string
   notes?: string
-  category?: string
+  categories?: unknown
+  platforms?: unknown
+  paymentMethods?: unknown
   amount?: number
   date?: string
   payerId?: number
-  platformId?: number
   splitEqually?: boolean
   participants?: { userId: number; amount: number }[]
 }
@@ -128,21 +147,39 @@ interface ExpenseInputRaw {
 export interface ValidatedExpenseInput {
   description: string
   notes?: string
-  category?: string | null
+  categories: string[]
+  platforms: string[]
+  paymentMethods: string[]
   amount: number
   date?: Date
   payerId: number
-  platformId?: number | null
   splitEqually: boolean
   participants: { userId: number; amount: number }[]
+}
+
+/** Normalize a tag array from the request: strings only, trimmed, non-empty, deduped, bounded. */
+function cleanTags(values: unknown, maxLen: number): string[] {
+  if (!Array.isArray(values)) return []
+  const out: string[] = []
+  for (const v of values) {
+    if (typeof v !== 'string') continue
+    const t = v.trim()
+    if (!t || t.length > maxLen) continue
+    if (!out.includes(t)) out.push(t)
+    if (out.length >= 20) break
+  }
+  return out
 }
 
 export function validateExpenseInput(
   body: ExpenseInputRaw,
   options: { payerRequired?: boolean } = {}
 ): { valid: true; data: ValidatedExpenseInput } | { valid: false; response: NextResponse } {
-  const { description, notes, category, amount, date, payerId, platformId, splitEqually = true, participants = [] } = body
+  const { description, notes, amount, date, payerId, splitEqually = true, participants = [] } = body
   const { payerRequired = true } = options
+  const categories = cleanTags(body.categories, LIMITS.CATEGORY_NAME)
+  const platforms = cleanTags(body.platforms, LIMITS.PLATFORM_NAME)
+  const paymentMethods = cleanTags(body.paymentMethods, LIMITS.PAYMENT_NAME)
 
   // Each failure carries a stable `code` so the client can show a translated, specific
   // message (via the ApiErrors i18n namespace) instead of a generic fallback.
@@ -165,11 +202,8 @@ export function validateExpenseInput(
   if (toCents(amount) > 9_999_999_999) {
     return fail('Valor muito alto (máx. 99.999.999,99)', 'AMOUNT_TOO_HIGH')
   }
-  // Category may be a system key or a house's custom name; the route confirms it's valid for the
-  // group. Here we only bound its length.
-  if (typeof category === 'string' && category.trim().length > LIMITS.CATEGORY_NAME) {
-    return fail('Categoria inválida', 'INVALID_CATEGORY')
-  }
+  // Tags (categories/platforms/paymentMethods) are cleaned above; the route confirms each value is
+  // a system default or a group custom via validateExpenseTags.
   // Membership of payer/participants is validated by the route via allGroupMembers().
   if (payerRequired && !payerId) {
     return fail('Pagador é obrigatório', 'PAYER_REQUIRED')
@@ -203,11 +237,12 @@ export function validateExpenseInput(
     data: {
       description,
       notes,
-      category: typeof category === 'string' && category.trim() ? category.trim() : null,
+      categories,
+      platforms,
+      paymentMethods,
       amount,
       date: date ? new Date(date + (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? 'T12:00:00' : '')) : undefined,
       payerId: payerId!,
-      platformId: platformId ?? null,
       splitEqually,
       participants,
     }

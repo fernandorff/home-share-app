@@ -8,4 +8,5 @@ export const LIMITS = {
   HOUSEHOLD_NAME: 80,
   SHOPPING_NAME: 200,
   CATEGORY_NAME: 30,
+  PAYMENT_NAME: 30,
 } as const

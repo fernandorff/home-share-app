@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { aggregateSpend } from '@/lib/insights'
 
-const exp = (amount: number, category: string | null, date: string | Date) => ({ amount, category, date })
+const exp = (amount: number, category: string | null, date: string | Date) => ({ amount, categories: category ? [category] : [], date })
 
 describe('aggregateSpend', () => {
   it('sums per category, newest-biggest first, uncategorized as ""', () => {

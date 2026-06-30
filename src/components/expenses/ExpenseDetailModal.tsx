@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
 import { MemberDot } from "@/components/ui/Member";
-import { Tag } from "@/components/ui/Stamp";
+import { Tag, type TagTone } from "@/components/ui/Stamp";
 import { useSession } from "@/lib/session";
 import { formatDateLocale } from "@/lib/money";
 import type { Expense } from "@/lib/types";
@@ -29,11 +29,7 @@ export function ExpenseDetailModal({
   const { members } = useSession();
   const memberById = new Map(members.map((m) => [m.id, m]));
 
-  const categoryLabel = expense?.category
-    ? t.has(`category.${expense.category}`)
-      ? t(`category.${expense.category}`)
-      : expense.category
-    : null;
+  const lbl = (ns: string, v: string) => (t.has(`${ns}.${v}`) ? t(`${ns}.${v}`) : v);
   const payerColor = expense ? memberById.get(expense.payerId)?.colorIndex ?? 0 : 0;
 
   return (
@@ -70,13 +66,11 @@ export function ExpenseDetailModal({
             <Detail label={t("date")}>
               <span className="tnum">{formatDateLocale(expense.date, locale)}</span>
             </Detail>
-            <Detail label={t("platform")}>
-              {expense.platform ? <Tag>{expense.platform.name}</Tag> : <span className="text-faint">{t("noPlatform")}</span>}
-            </Detail>
-            <Detail label={t("categoryLabel")}>
-              {categoryLabel ? <Tag>{categoryLabel}</Tag> : <span className="text-faint">{t("noCategory")}</span>}
-            </Detail>
           </dl>
+
+          <TagRow tone="category" label={t("categoryLabel")} values={expense.categories} render={(v) => lbl("category", v)} empty={t("noCategory")} />
+          <TagRow tone="platform" label={t("platformLabel")} values={expense.platforms} render={(v) => lbl("platform", v)} empty={t("noPlatform")} />
+          <TagRow tone="payment" label={t("paymentLabel")} values={expense.paymentMethods} render={(v) => lbl("payment", v)} empty={t("noPayment")} />
 
           {expense.notes && (
             <div className="flex flex-col gap-1">
@@ -106,6 +100,23 @@ export function ExpenseDetailModal({
         </div>
       )}
     </Modal>
+  );
+}
+
+function TagRow({ label, values, render, empty, tone }: { label: string; values: string[]; render: (v: string) => string; empty: string; tone: TagTone }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="label-mono">{label}</span>
+      {values.length === 0 ? (
+        <span className="text-sm text-faint">{empty}</span>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {values.map((v) => (
+            <Tag key={v} tone={tone}>{render(v)}</Tag>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

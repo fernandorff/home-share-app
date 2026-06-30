@@ -32,16 +32,10 @@ describe("SettlementService — group scoping + persisted shape", () => {
   });
 });
 
-describe("PlatformService.delete — merge guards", () => {
-  it("rejects replacing a platform with itself (400) before any DB write", async () => {
-    await expect(platformService.delete(1, "abc", "abc")).rejects.toMatchObject({ status: 400 });
-    expect(mockPrisma.platform.findFirst).not.toHaveBeenCalled();
-    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
-  });
-
+describe("PlatformService.delete — guards", () => {
   it("throws 404 when the platform to delete is not in the group", async () => {
     mockPrisma.platform.findFirst.mockResolvedValue(null); // findByPublicId → not found
-    await expect(platformService.delete(1, "gone", "other")).rejects.toMatchObject({ status: 404 });
+    await expect(platformService.delete(1, "gone")).rejects.toMatchObject({ status: 404 });
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 });

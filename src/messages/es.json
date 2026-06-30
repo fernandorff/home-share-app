@@ -26,7 +26,8 @@
     "manageHouse": "Gestionar / nueva casa",
     "houseAndMembers": "Casa y miembros",
     "logout": "Salir",
-    "categories": "Categorías"
+    "categories": "Categorías",
+    "catalogs": "Catálogos"
   },
   "Auth": {
     "brandTagline": "cuentas de la casa · extracto",
@@ -221,7 +222,12 @@
     "bulkDeleteError": "Error al eliminar los gastos",
     "saveError": "Error al guardar el gasto",
     "payer": "Pagador",
-    "platform": "Plataforma",
+    "platform": {
+      "amazon": "Amazon",
+      "mercadolivre": "Mercado Libre",
+      "shopee": "Shopee",
+      "loja_fisica": "Tienda física"
+    },
     "noPlatform": "Sin plataforma",
     "selectPlaceholder": "Selecciona…",
     "description": "Descripción",
@@ -264,7 +270,18 @@
     "rowLabel": "Fila {line}:",
     "systemCategories": "Predeterminadas",
     "houseCategories": "De la casa",
-    "detailTitle": "Gasto"
+    "detailTitle": "Gasto",
+    "paymentLabel": "Forma de pago",
+    "filterAllPayments": "Todas las formas",
+    "noPayment": "Sin forma",
+    "platformLabel": "Plataforma",
+    "payment": {
+      "credit": "Crédito",
+      "debit": "Débito",
+      "pix": "Pix",
+      "cash": "Efectivo"
+    },
+    "customSplit": "División personalizada"
   },
   "Household": {
     "title": "Casa",
@@ -413,5 +430,30 @@
     "deleteError": "Error al eliminar categoría",
     "createdToast": "¡Categoría creada!",
     "deletedToast": "¡Categoría eliminada!"
+  },
+  "Catalogs": {
+    "title": "Catálogos",
+    "subtitle": "Categorías, plataformas y formas de pago de la casa.",
+    "sectionCategories": "Categorías",
+    "sectionPlatforms": "Plataformas",
+    "sectionPayments": "Formas de pago",
+    "systemTitle": "Predeterminadas",
+    "customTitle": "De la casa",
+    "new": "Añadir",
+    "createTitle": "Añadir {kind}",
+    "createButton": "Crear",
+    "nameLabel": "Nombre",
+    "namePlaceholder": "Ej: Streaming",
+    "delete": "Eliminar",
+    "actionsFor": "Acciones para {name}",
+    "expenseCount": "{count, plural, one {# gasto} other {# gastos}}",
+    "emptyHint": "Nada aún — añade el primero.",
+    "deleteTitle": "Eliminar",
+    "deleteExplanation": "Quitará \"{name}\" de {count, plural, one {# gasto} other {# gastos}}.",
+    "loadError": "Error al cargar",
+    "saveError": "Error al guardar",
+    "deleteError": "Error al eliminar",
+    "createdToast": "¡Añadido!",
+    "deletedToast": "¡Eliminado!"
   }
 }

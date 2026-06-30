@@ -8,6 +8,7 @@ import { Field, Input, Textarea, Select, Label } from "@/components/ui/Field";
 import { Money } from "@/components/ui/Money";
 import { MemberDot } from "@/components/ui/Member";
 import { ReceiptDivider } from "@/components/ui/Card";
+import type { TagTone } from "@/components/ui/Stamp";
 import { cn } from "@/components/ui/cn";
 import { useToast } from "@/components/ui/Toast";
 import { useSession } from "@/lib/session";
@@ -28,8 +29,10 @@ import {
   distributeByPercent,
 } from "@/lib/split";
 import { LIMITS } from "@/lib/constants";
-import { EXPENSE_CATEGORIES, isExpenseCategory } from "@/lib/categories";
-import type { Expense, Platform, Member, Category } from "@/lib/types";
+import { EXPENSE_CATEGORIES } from "@/lib/categories";
+import { DEFAULT_PLATFORMS } from "@/lib/platforms";
+import { DEFAULT_PAYMENT_METHODS } from "@/lib/payment-methods";
+import type { Expense, Platform, Member, Category, PaymentMethod } from "@/lib/types";
 
 interface ExpenseFormModalProps {
   open: boolean;
@@ -37,10 +40,55 @@ interface ExpenseFormModalProps {
   expense?: Expense | null;
   platforms: Platform[];
   categories: Category[];
+  paymentMethods: PaymentMethod[];
   onSaved: () => void;
 }
 
 type CustomMode = "valor" | "percent";
+
+/** Selected-chip fill per tag dimension (mirrors the Tag tones; color carries the dimension). */
+const CHIP_ON_TONES: Record<TagTone, string> = {
+  default: "border-ink bg-ink text-paper",
+  category: "border-cat bg-cat text-paper",
+  platform: "border-plat bg-plat text-paper",
+  payment: "border-pay bg-pay text-paper",
+};
+
+/** Toggle-chip multi-select for a tag dimension (system defaults + the house's custom entries). */
+function ChipMultiSelect({
+  options,
+  selected,
+  onToggle,
+  tone = "default",
+}: {
+  options: { value: string; label: string }[];
+  selected: Set<string>;
+  onToggle: (value: string) => void;
+  tone?: TagTone;
+}) {
+  if (options.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => {
+        const on = selected.has(o.value);
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onToggle(o.value)}
+            aria-pressed={on}
+            className={cn(
+              "rounded-md border px-2.5 py-1 text-[0.72rem] font-medium transition-colors",
+              on ? CHIP_ON_TONES[tone] : "border-rule bg-card text-ink-soft hover:bg-panel"
+            )}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function ExpenseFormModal({
   open,
@@ -48,6 +96,7 @@ export function ExpenseFormModal({
   expense,
   platforms,
   categories,
+  paymentMethods,
   onSaved,
 }: ExpenseFormModalProps) {
   const { me, members, activeGroup } = useSession();
@@ -63,10 +112,11 @@ export function ExpenseFormModal({
   const zeroPlaceholder = maskAmountInput("0", locale);
 
   const [payerId, setPayerId] = useState<string>("");
-  const [platformId, setPlatformId] = useState<string>("");
+  const [selCategories, setSelCategories] = useState<Set<string>>(new Set());
+  const [selPlatforms, setSelPlatforms] = useState<Set<string>>(new Set());
+  const [selPayments, setSelPayments] = useState<Set<string>>(new Set());
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
-  const [category, setCategory] = useState<string>("");
   const [amountMasked, setAmountMasked] = useState("");
   const [date, setDate] = useState(todayInputValue());
   const [splitEqually, setSplitEqually] = useState(true);
@@ -83,15 +133,38 @@ export function ExpenseFormModal({
     setPercent(next);
   }
 
+  const toggleTag = (setter: React.Dispatch<React.SetStateAction<Set<string>>>) => (value: string) =>
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+
+  // Options for each dimension: system defaults (i18n) + the house's custom entries (raw name).
+  const categoryOptions = [
+    ...EXPENSE_CATEGORIES.map((k) => ({ value: k, label: t(`category.${k}`) })),
+    ...categories.map((c) => ({ value: c.name, label: c.name })),
+  ];
+  const platformOptions = [
+    ...DEFAULT_PLATFORMS.map((k) => ({ value: k, label: t(`platform.${k}`) })),
+    ...platforms.map((p) => ({ value: p.name, label: p.name })),
+  ];
+  const paymentOptions = [
+    ...DEFAULT_PAYMENT_METHODS.map((k) => ({ value: k, label: t(`payment.${k}`) })),
+    ...paymentMethods.map((p) => ({ value: p.name, label: p.name })),
+  ];
+
   useEffect(() => {
     if (!open) return;
     setCustomMode("valor");
     if (expense) {
       setPayerId(String(expense.payerId));
-      setPlatformId(expense.platformId != null ? String(expense.platformId) : "");
+      setSelCategories(new Set(expense.categories));
+      setSelPlatforms(new Set(expense.platforms));
+      setSelPayments(new Set(expense.paymentMethods));
       setDescription(expense.description);
       setNotes(expense.notes ?? "");
-      setCategory(expense.category ?? "");
       setAmountMasked(maskAmountInput(String(toCents(expense.amount)), locale));
       setDate(toDateInputValue(expense.date));
       const equal = detectSplitEqually(expense, members);
@@ -99,10 +172,11 @@ export function ExpenseFormModal({
       setCustom(equal ? {} : participantsToMasked(expense, members, locale));
     } else {
       setPayerId(me ? String(me.user.id) : "");
-      setPlatformId("");
+      setSelCategories(new Set());
+      setSelPlatforms(new Set());
+      setSelPayments(new Set());
       setDescription("");
       setNotes("");
-      setCategory("");
       setAmountMasked("");
       setDate(todayInputValue());
       setSplitEqually(true);
@@ -175,10 +249,11 @@ export function ExpenseFormModal({
     const amount = parseAmountInput(amountMasked, locale);
     const body: Record<string, unknown> = {
       payerId: Number(payerId),
-      platformId: platformId === "" ? null : Number(platformId),
+      platforms: [...selPlatforms],
+      paymentMethods: [...selPayments],
       description: description.trim(),
       notes: notes.trim() === "" ? undefined : notes.trim(),
-      category: category === "" ? null : category,
+      categories: [...selCategories],
       amount,
       date,
       splitEqually,
@@ -262,45 +337,16 @@ export function ExpenseFormModal({
           </Select>
         </Field>
 
-        <Field label={t("platform")} htmlFor="exp-platform">
-          <Select
-            id="exp-platform"
-            value={platformId}
-            onChange={(e) => setPlatformId(e.target.value)}
-          >
-            <option value="">{t("noPlatform")}</option>
-            {platforms.map((p) => (
-              <option key={p.id} value={String(p.id)}>
-                {p.name}
-              </option>
-            ))}
-          </Select>
+        <Field label={t("categoryLabel")}>
+          <ChipMultiSelect tone="category" options={categoryOptions} selected={selCategories} onToggle={toggleTag(setSelCategories)} />
         </Field>
 
-        <Field label={t("categoryLabel")} htmlFor="exp-category">
-          <Select id="exp-category" value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">{t("noCategory")}</option>
-            <optgroup label={t("systemCategories")}>
-              {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {t(`category.${c}`)}
-                </option>
-              ))}
-            </optgroup>
-            {categories.length > 0 && (
-              <optgroup label={t("houseCategories")}>
-                {categories.map((c) => (
-                  <option key={c.publicId} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {/* Keep showing the current value even if it's a custom category since removed. */}
-            {category && !isExpenseCategory(category) && !categories.some((c) => c.name === category) && (
-              <option value={category}>{category}</option>
-            )}
-          </Select>
+        <Field label={t("platformLabel")}>
+          <ChipMultiSelect tone="platform" options={platformOptions} selected={selPlatforms} onToggle={toggleTag(setSelPlatforms)} />
+        </Field>
+
+        <Field label={t("paymentLabel")}>
+          <ChipMultiSelect tone="payment" options={paymentOptions} selected={selPayments} onToggle={toggleTag(setSelPayments)} />
         </Field>
 
         <Field label={t("description")} htmlFor="exp-desc" hint={`${description.length}/${LIMITS.DESCRIPTION}`}>
