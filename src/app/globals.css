@@ -39,6 +39,66 @@
   --radius-lg: 4px;
 }
 
+/* ============================================================
+   Theme: bolitas — cozy cottage-ledger (parchment, terracotta,
+   sage, amber; friendly rounded sans). Overrides ONLY token
+   VALUES + texture colors, so the layout stays byte-identical.
+   `html[data-theme]` outranks :root, so order is irrelevant.
+   ============================================================ */
+html[data-theme="bolitas"] {
+  /* Friendly sans + rounded display replace the mono families */
+  --font-mono: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fredoka), var(--font-nunito), ui-sans-serif, sans-serif;
+
+  /* Parchment paper & cozy brown ink */
+  --color-paper: #f5ead6;
+  --color-card: #fdf8f0;
+  --color-panel: #f0e4cc;
+  --color-ink: #4a3520;
+  --color-ink-soft: #6a563a;
+  --color-faint: #a08a66;
+  --color-rule: #d8c4a3;
+
+  /* Terracotta accent + cozy money colors */
+  --color-stamp: #a0553e;
+  --color-stamp-soft: #f1e0d7;
+  --color-credit: #3d7a4e; /* a receber — sage */
+  --color-debt: #a44b2a;   /* deve — rust */
+
+  /* Tag dimensions — same hue roles as default, warmed for the cottage palette */
+  --color-cat: #6e4a5e;       /* categoria — plum */
+  --color-cat-soft: #ece0e6;
+  --color-plat: #4f6f86;      /* plataforma — dusty blue */
+  --color-plat-soft: #e0e8ee;
+  --color-pay: #9a7414;       /* forma de pagamento — amber */
+  --color-pay-soft: #f0e7cf;
+
+  /* Cozy = rounded corners */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
+/* Bolitas re-skins the two textures whose mid-tones are hardcoded (color only). */
+html[data-theme="bolitas"] .paper-grain {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 27px,
+    rgba(74, 53, 32, 0.04) 27px,
+    rgba(74, 53, 32, 0.04) 28px
+  );
+}
+html[data-theme="bolitas"] .skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-panel) 25%,
+    #e6d8bd 37%,
+    var(--color-panel) 63%
+  );
+  background-size: 200% 100%;
+}
+
 @layer base {
   :root {
     color-scheme: light;

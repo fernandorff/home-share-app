@@ -455,5 +455,10 @@
     "deleteError": "Erro ao excluir",
     "createdToast": "Adicionado!",
     "deletedToast": "Excluído!"
+  },
+  "Theme": {
+    "label": "Tema",
+    "default": "Padrão",
+    "bolitas": "La Casa das Bolitas"
   }
 }

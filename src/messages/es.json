@@ -455,5 +455,10 @@
     "deleteError": "Error al eliminar",
     "createdToast": "¡Añadido!",
     "deletedToast": "¡Eliminado!"
+  },
+  "Theme": {
+    "label": "Tema",
+    "default": "Predeterminado",
+    "bolitas": "La Casa das Bolitas"
   }
 }

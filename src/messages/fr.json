@@ -455,5 +455,10 @@
     "deleteError": "Erreur de suppression",
     "createdToast": "Ajouté !",
     "deletedToast": "Supprimé !"
+  },
+  "Theme": {
+    "label": "Thème",
+    "default": "Par défaut",
+    "bolitas": "La Casa das Bolitas"
   }
 }

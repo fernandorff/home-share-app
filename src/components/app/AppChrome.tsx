@@ -9,6 +9,7 @@ import { cn } from "@/components/ui/cn";
 import { MemberDot } from "@/components/ui/Member";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/Menu";
 import { LanguageSelector } from "@/components/app/LanguageSelector";
+import { ThemeSelector } from "@/components/app/ThemeSelector";
 
 type IconProps = { className?: string };
 const ic = "h-[18px] w-[18px]";
@@ -152,6 +153,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           <span className="hidden text-faint sm:inline" aria-hidden>·</span>
           <CasaSelector />
           <div className="ml-auto flex items-center gap-2">
+            <ThemeSelector />
             <LanguageSelector />
             <UserMenu />
           </div>
