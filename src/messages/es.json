@@ -281,7 +281,11 @@
       "pix": "Pix",
       "cash": "Efectivo"
     },
-    "customSplit": "División personalizada"
+    "customSplit": "División personalizada",
+    "filter": "Filtrar",
+    "filtersTitle": "Filtros",
+    "searchLabel": "Búsqueda",
+    "amountOf": "Importe de {name}"
   },
   "Household": {
     "title": "Casa",
@@ -395,7 +399,10 @@
     "PARTICIPANTS_SUM_MISMATCH": "La división no cuadra con el total.",
     "SETTLEMENT_USERS_REQUIRED": "El pagador y el receptor son obligatorios.",
     "SETTLEMENT_SAME_USER": "El pagador y el receptor deben ser distintos.",
-    "NOTE_TOO_LONG": "Nota demasiado larga (máx. 500 caracteres)."
+    "NOTE_TOO_LONG": "Nota demasiado larga (máx. 500 caracteres).",
+    "USE_GOOGLE": "Esta cuenta inicia sesión con Google — usa el botón Entrar con Google.",
+    "RATE_LIMITED": "Demasiados intentos. Inténtalo de nuevo en unos instantes.",
+    "TOO_MANY": "Demasiados elementos a la vez (máx. 1000)."
   },
   "Currency": {
     "title": "Moneda",

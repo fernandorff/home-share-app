@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { api } from "@/lib/api";
@@ -35,15 +36,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setMe(data);
   }, []);
 
+  const membersReqId = useRef(0);
   const refreshMembers = useCallback(async () => {
+    const id = ++membersReqId.current;
     setMembersLoading(true);
     try {
       const data = await api.get<{ members: Member[] }>("/api/groups/active/members");
-      setMembers(data.members);
+      if (membersReqId.current === id) setMembers(data.members);
     } catch {
-      setMembers([]);
+      if (membersReqId.current === id) setMembers([]);
     } finally {
-      setMembersLoading(false);
+      if (membersReqId.current === id) setMembersLoading(false);
     }
   }, []);
 

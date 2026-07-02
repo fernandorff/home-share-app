@@ -281,7 +281,11 @@
       "pix": "Pix",
       "cash": "Dinheiro"
     },
-    "customSplit": "Divisão personalizada"
+    "customSplit": "Divisão personalizada",
+    "filter": "Filtrar",
+    "filtersTitle": "Filtros",
+    "searchLabel": "Busca",
+    "amountOf": "Valor de {name}"
   },
   "Household": {
     "title": "Casa",
@@ -395,7 +399,10 @@
     "PARTICIPANTS_SUM_MISMATCH": "A soma da divisão não bate com o total.",
     "SETTLEMENT_USERS_REQUIRED": "Pagador e recebedor são obrigatórios.",
     "SETTLEMENT_SAME_USER": "Pagador e recebedor devem ser diferentes.",
-    "NOTE_TOO_LONG": "Observação muito longa (máx. 500 caracteres)."
+    "NOTE_TOO_LONG": "Observação muito longa (máx. 500 caracteres).",
+    "USE_GOOGLE": "Esta conta entra com o Google — use o botão Entrar com o Google.",
+    "RATE_LIMITED": "Muitas tentativas. Tente novamente em instantes.",
+    "TOO_MANY": "Itens demais de uma vez (máx. 1000)."
   },
   "Currency": {
     "title": "Moeda",

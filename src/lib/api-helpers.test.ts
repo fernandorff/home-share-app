@@ -63,3 +63,26 @@ describe('validateExpenseInput — hardening (Wave 1 bug fixes)', () => {
     expect(validateExpenseInput({ ...base, amount: 99_999_999.99 }).valid).toBe(true)
   })
 })
+
+describe('validateExpenseInput — cents precision (review fixes)', () => {
+  it('rejects a total with more than 2 decimal places', () => {
+    expect(validateExpenseInput({ ...base, amount: 26.505 }).valid).toBe(false)
+  })
+
+  it('rejects a non-numeric amount', () => {
+    expect(validateExpenseInput({ ...base, amount: '10' as unknown as number }).valid).toBe(false)
+  })
+
+  it('rejects a participant share with sub-cent precision', () => {
+    const r = validateExpenseInput({
+      ...base, amount: 1, splitEqually: false,
+      participants: [{ userId: 1, amount: 0.333 }, { userId: 2, amount: 0.667 }],
+    })
+    expect(r.valid).toBe(false)
+  })
+
+  it('still accepts clean 2-decimal amounts', () => {
+    expect(validateExpenseInput({ ...base, amount: 26.5 }).valid).toBe(true)
+    expect(validateExpenseInput({ ...base, amount: 26.55 }).valid).toBe(true)
+  })
+})

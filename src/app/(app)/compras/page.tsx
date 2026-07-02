@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { api } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
+import { useSession } from "@/lib/session";
 import { formatDateLocale } from "@/lib/money";
 import type { ShoppingItem } from "@/lib/types";
 import { cn } from "@/components/ui/cn";
@@ -25,9 +26,11 @@ export default function ComprasPage() {
   const tc = useTranslations("Common");
   const apiErr = useApiError();
   const toast = useToast();
+  const { activeGroup } = useSession();
 
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const reqId = useRef(0);
 
   // quick-add
   const [draft, setDraft] = useState("");
@@ -56,19 +59,22 @@ export default function ComprasPage() {
     });
 
   const load = useCallback(async () => {
+    const id = ++reqId.current;
     try {
       const { items } = await api.get<{ items: ShoppingItem[] }>("/api/shopping-items");
-      setItems(items);
+      if (reqId.current === id) setItems(items);
     } catch (e) {
-      toast(errMsg(e), "error");
+      if (reqId.current === id) toast(errMsg(e), "error");
     } finally {
-      setLoading(false);
+      if (reqId.current === id) setLoading(false);
     }
   }, [toast]);
 
+  // Reload whenever the active house changes (and on mount); reqId drops stale responses.
   useEffect(() => {
+    setLoading(true);
     void load();
-  }, [load]);
+  }, [activeGroup?.id, load]);
 
   const add = async () => {
     const name = draft.trim();

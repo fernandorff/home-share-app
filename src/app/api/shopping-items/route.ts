@@ -22,8 +22,11 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { name } = body
 
-    if (!name || !name.trim()) {
+    if (typeof name !== 'string' || !name.trim()) {
       return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 })
+    }
+    if (name.trim().length > 200) {
+      return NextResponse.json({ error: 'Nome muito longo (máx. 200 caracteres)' }, { status: 400 })
     }
 
     const item = await shoppingItemService.create(check.groupId, name, check.session.userId)

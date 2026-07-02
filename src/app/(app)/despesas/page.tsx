@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import type { SelectHTMLAttributes } from "react";
 import { useFetch } from "@/lib/use-fetch";
 import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/Button";
@@ -24,41 +23,14 @@ import { money } from "@/lib/format";
 import { memberStyle } from "@/lib/members";
 import { toCents } from "@/lib/currency";
 import { detectSplitEqually } from "@/lib/split";
-import { EXPENSE_CATEGORIES } from "@/lib/categories";
-import { DEFAULT_PLATFORMS } from "@/lib/platforms";
-import { DEFAULT_PAYMENT_METHODS } from "@/lib/payment-methods";
 import type { Expense, ExpenseListResponse, ExpenseSortField, Platform, Category, PaymentMethod, Member } from "@/lib/types";
 import { ExpenseFormModal } from "@/components/expenses/ExpenseFormModal";
 import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
 import { ImportCsvModal } from "@/components/expenses/ImportCsvModal";
+import { ExpenseFiltersModal, type ExpenseFilters } from "@/components/expenses/ExpenseFiltersModal";
 
 type SortDirection = "asc" | "desc";
 type ViewMode = "list" | "byPayer";
-
-// Compact ledger field used across the filter bar (smaller than the form Field).
-const fieldCls =
-  "rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-1 focus-visible:ring-offset-card";
-
-// Filter select: appearance-none + custom chevron + truncate so a long selected label
-// (e.g. "Todas as plataformas" in pt) ellipsizes instead of being cut behind the native arrow.
-function FilterSelect({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <div className="relative min-w-0">
-      <select
-        className={cn(fieldCls, "w-full cursor-pointer appearance-none truncate pr-8", className)}
-        {...props}
-      >
-        {children}
-      </select>
-      <span
-        aria-hidden
-        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-faint"
-      >
-        ▼
-      </span>
-    </div>
-  );
-}
 
 interface SortableCol {
   field: ExpenseSortField;
@@ -130,7 +102,7 @@ function SortIndicator({
 }
 
 export default function DespesasPage() {
-  const { activeGroup, members } = useSession();
+  const { activeGroup, members, me } = useSession();
   const toast = useToast();
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
@@ -146,16 +118,17 @@ export default function DespesasPage() {
   const [sortField, setSortField] = useState<ExpenseSortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [view, setView] = useState<ViewMode>("list");
+  const [personTab, setPersonTab] = useState<number | null>(null);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
 
   // Filters (client-side; fit the load-all model). Tag filters hold one default-key-or-custom-name.
   const [query, setQuery] = useState("");
-  const [payerFilter, setPayerFilter] = useState<number | "">("");
-  const [platformFilter, setPlatformFilter] = useState<string>("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [paymentFilter, setPaymentFilter] = useState<string>("");
+  const [payerFilters, setPayerFilters] = useState<number[]>([]);
+  const [platformFilters, setPlatformFilters] = useState<string[]>([]);
+  const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
+  const [paymentFilters, setPaymentFilters] = useState<string[]>([]);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -167,6 +140,7 @@ export default function DespesasPage() {
   const [editing, setEditing] = useState<Expense | null>(null);
   const [viewing, setViewing] = useState<Expense | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
   const [bulkConfirm, setBulkConfirm] = useState(false);
@@ -191,16 +165,25 @@ export default function DespesasPage() {
     };
   }, [activeGroup?.id]);
 
+  // Switching houses must not leak the previous house's filters / person tab / selection
+  // (they reference member ids and publicIds that don't exist in the new house).
+  useEffect(() => {
+    clearFilters();
+    setPersonTab(null);
+    setSelected(new Set());
+    setSelectionMode(false);
+  }, [activeGroup?.id]);
+
   const all = useMemo(() => allData?.expenses ?? [], [allData]);
 
   // Filters applied BEFORE sort & grouping, so List and By-person see the same set.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return all.filter((e) => {
-      if (payerFilter !== "" && e.payerId !== payerFilter) return false;
-      if (platformFilter !== "" && !e.platforms.includes(platformFilter)) return false;
-      if (categoryFilter !== "" && !e.categories.includes(categoryFilter)) return false;
-      if (paymentFilter !== "" && !e.paymentMethods.includes(paymentFilter)) return false;
+      if (payerFilters.length && !payerFilters.includes(e.payerId)) return false;
+      if (platformFilters.length && !platformFilters.some((p) => e.platforms.includes(p))) return false;
+      if (categoryFilters.length && !categoryFilters.some((c) => e.categories.includes(c))) return false;
+      if (paymentFilters.length && !paymentFilters.some((p) => e.paymentMethods.includes(p))) return false;
       const day = e.date.slice(0, 10);
       if (fromDate && day < fromDate) return false;
       if (toDate && day > toDate) return false;
@@ -210,23 +193,74 @@ export default function DespesasPage() {
       }
       return true;
     });
-  }, [all, query, payerFilter, platformFilter, categoryFilter, paymentFilter, fromDate, toDate]);
+  }, [all, query, payerFilters, platformFilters, categoryFilters, paymentFilters, fromDate, toDate]);
 
-  const activeFilterCount = [
-    query.trim() !== "", payerFilter !== "", platformFilter !== "", categoryFilter !== "", paymentFilter !== "", fromDate !== "", toDate !== "",
-  ].filter(Boolean).length;
+  const activeFilterCount =
+    (query.trim() !== "" ? 1 : 0) +
+    payerFilters.length +
+    platformFilters.length +
+    categoryFilters.length +
+    paymentFilters.length +
+    (fromDate !== "" ? 1 : 0) +
+    (toDate !== "" ? 1 : 0);
   const filtersActive = activeFilterCount > 0;
   const filteredTotal = useMemo(() => filtered.reduce((s, e) => s + money(e.amount), 0), [filtered]);
 
   function clearFilters() {
     setQuery("");
-    setPayerFilter("");
-    setPlatformFilter("");
-    setCategoryFilter("");
-    setPaymentFilter("");
+    setPayerFilters([]);
+    setPlatformFilters([]);
+    setCategoryFilters([]);
+    setPaymentFilters([]);
     setFromDate("");
     setToDate("");
   }
+
+  // The currently-applied filters, as one object — the modal's starting draft.
+  const appliedFilters = useMemo<ExpenseFilters>(
+    () => ({
+      query,
+      payers: payerFilters,
+      platforms: platformFilters,
+      categories: categoryFilters,
+      payments: paymentFilters,
+      fromDate,
+      toDate,
+    }),
+    [query, payerFilters, platformFilters, categoryFilters, paymentFilters, fromDate, toDate]
+  );
+
+  // Commit a draft from the modal (the only path that runs a search, besides chip removal).
+  function applyFilters(f: ExpenseFilters) {
+    setQuery(f.query);
+    setPayerFilters(f.payers);
+    setPlatformFilters(f.platforms);
+    setCategoryFilters(f.categories);
+    setPaymentFilters(f.payments);
+    setFromDate(f.fromDate);
+    setToDate(f.toDate);
+  }
+
+  // Built-in tag keys translate; custom names render as-is.
+  const tagLabel = (ns: string, v: string) => (t.has(`${ns}.${v}`) ? t(`${ns}.${v}`) : v);
+  const brDate = (iso: string) => iso.split("-").reverse().join("/");
+  // Applied filters as removable chips — one per selected value (each × clears just that one).
+  const filterChips: { key: string; label: string; value: string; remove: () => void }[] = [];
+  if (query.trim()) filterChips.push({ key: "q", label: t("searchLabel"), value: query.trim(), remove: () => setQuery("") });
+  payerFilters.forEach((id) =>
+    filterChips.push({ key: `payer-${id}`, label: t("colPayer"), value: members.find((m) => m.id === id)?.name ?? String(id), remove: () => setPayerFilters((prev) => prev.filter((x) => x !== id)) })
+  );
+  platformFilters.forEach((p) =>
+    filterChips.push({ key: `plat-${p}`, label: t("platformLabel"), value: tagLabel("platform", p), remove: () => setPlatformFilters((prev) => prev.filter((x) => x !== p)) })
+  );
+  categoryFilters.forEach((c) =>
+    filterChips.push({ key: `cat-${c}`, label: t("categoryLabel"), value: tagLabel("category", c), remove: () => setCategoryFilters((prev) => prev.filter((x) => x !== c)) })
+  );
+  paymentFilters.forEach((p) =>
+    filterChips.push({ key: `pay-${p}`, label: t("paymentLabel"), value: tagLabel("payment", p), remove: () => setPaymentFilters((prev) => prev.filter((x) => x !== p)) })
+  );
+  if (fromDate) filterChips.push({ key: "from", label: t("filterFrom"), value: brDate(fromDate), remove: () => setFromDate("") });
+  if (toDate) filterChips.push({ key: "to", label: t("filterTo"), value: brDate(toDate), remove: () => setToDate("") });
 
   // List view: client-side sorted (all rows, infinite scroll).
   const listItems = useMemo(() => {
@@ -261,6 +295,11 @@ export default function DespesasPage() {
   }, [filtered, members, locale]);
 
   const byPersonEmpty = byPerson.every((p) => p.months.length === 0);
+  // Mobile by-person shows one person at a time (desktop keeps both columns).
+  // Default to the logged-in user when they're a member, else the first member.
+  const meId = me?.user.id;
+  const selectedPersonId =
+    personTab ?? (members.some((m) => m.id === meId) ? meId : members[0]?.id) ?? null;
   const selectedCount = selected.size;
   const allSelected = listItems.length > 0 && listItems.every((e) => selected.has(e.publicId));
 
@@ -320,9 +359,9 @@ export default function DespesasPage() {
   const mobileCards = useMemo(
     () => listItems.map((e) => (
       <ExpenseCard key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
-        locale={locale} members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
+        locale={locale} members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} onToggle={toggleRow} />
     )),
-    [listItems, colorByPayer, locale, members, selectionMode, openView, openEdit]
+    [listItems, colorByPayer, locale, members, selectionMode, openView, openEdit, toggleRow]
   );
 
   async function confirmDeleteOne() {
@@ -376,6 +415,7 @@ export default function DespesasPage() {
               <MenuItem onSelect={() => setImportOpen(true)}>{t("importCsv")}</MenuItem>
               <MenuSeparator />
               <MenuItem>
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API download endpoint, not a page route */}
                 <a href="/api/expenses/export" className="flex w-full items-center">
                   {t("exportCsv")}
                 </a>
@@ -439,95 +479,43 @@ export default function DespesasPage() {
         )}
       </div>
 
-      {/* Filter bar */}
+      {/* Filter toolbar — opens the modal; applied filters show as removable chips. */}
       {!loading && total > 0 && (
-        <Card className="px-3 py-2.5">
-          <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("searchPlaceholder")}
-              aria-label={t("searchPlaceholder")}
-              className={cn(fieldCls, "min-w-0 flex-1 placeholder:text-faint lg:min-w-[200px]")}
-            />
-            <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:items-center">
-              <FilterSelect
-                value={payerFilter}
-                onChange={(e) => setPayerFilter(e.target.value ? Number(e.target.value) : "")}
-                aria-label={t("colPayer")}
-              >
-                <option value="">{t("filterAllPeople")}</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </FilterSelect>
-              <FilterSelect
-                value={platformFilter}
-                onChange={(e) => setPlatformFilter(e.target.value)}
-                aria-label={t("platformLabel")}
-              >
-                <option value="">{t("filterAllPlatforms")}</option>
-                {DEFAULT_PLATFORMS.map((k) => (
-                  <option key={k} value={k}>{t(`platform.${k}`)}</option>
-                ))}
-                {platforms.map((p) => (
-                  <option key={p.publicId} value={p.name}>{p.name}</option>
-                ))}
-              </FilterSelect>
-              <FilterSelect
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                aria-label={t("categoryLabel")}
-              >
-                <option value="">{t("filterAllCategories")}</option>
-                {EXPENSE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{t(`category.${c}`)}</option>
-                ))}
-                {categories.map((c) => (
-                  <option key={c.publicId} value={c.name}>{c.name}</option>
-                ))}
-              </FilterSelect>
-              <FilterSelect
-                value={paymentFilter}
-                onChange={(e) => setPaymentFilter(e.target.value)}
-                aria-label={t("paymentLabel")}
-              >
-                <option value="">{t("filterAllPayments")}</option>
-                {DEFAULT_PAYMENT_METHODS.map((k) => (
-                  <option key={k} value={k}>{t(`payment.${k}`)}</option>
-                ))}
-                {paymentMethods.map((p) => (
-                  <option key={p.publicId} value={p.name}>{p.name}</option>
-                ))}
-              </FilterSelect>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                aria-label={t("filterFrom")}
-                className={cn(fieldCls, "tnum")}
-              />
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                aria-label={t("filterTo")}
-                className={cn(fieldCls, "tnum")}
-              />
-            </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setFilterModalOpen(true)}>
+              <span className="inline-flex items-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M3 5h18l-7 8v6l-4-2v-6Z" />
+                </svg>
+                {t("filter")}{filtersActive ? ` · ${activeFilterCount}` : ""}
+              </span>
+            </Button>
             {filtersActive && (
               <button
                 type="button"
                 onClick={clearFilters}
                 className="label-mono shrink-0 rounded-md px-2 py-1.5 text-stamp transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
               >
-                {t("clearFilters")} ({activeFilterCount})
+                {t("clearFilters")}
               </button>
             )}
+            {filterChips.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                onClick={c.remove}
+                aria-label={`${c.label}: ${c.value} — ${t("clearFilters")}`}
+                className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-rule bg-panel px-2 py-1 text-xs text-ink transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+              >
+                <span className="label-mono text-faint">{c.label}</span>
+                <span className="min-w-0 truncate">{c.value}</span>
+                <span aria-hidden className="text-faint">✕</span>
+              </button>
+            ))}
           </div>
           {filtersActive && (
-            <div className="mt-2 flex items-center justify-between gap-3 border-t border-dotted border-rule pt-2">
+            <div className="flex items-center justify-between gap-3 rounded-md border border-dotted border-rule bg-panel/40 px-3 py-1.5">
               <span className="label-mono">{t("filteredCount", { count: filtered.length })}</span>
               <span className="flex items-baseline gap-1.5">
                 <span className="label-mono text-faint">{t("filteredTotal")}</span>
@@ -535,7 +523,7 @@ export default function DespesasPage() {
               </span>
             </div>
           )}
-        </Card>
+        </div>
       )}
 
       {/* Bulk action bar — visible whenever selection mode is on (list only). */}
@@ -597,11 +585,46 @@ export default function DespesasPage() {
             <EmptyState title={t("emptyTitle")} hint={t("emptyHint")} icon="¤" />
           </Card>
         ) : (
-          <div className="grid items-start gap-5 lg:grid-cols-2">
+          <>
+          {/* Mobile: pick one person to view; desktop shows both columns side by side. */}
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+            {byPerson.map((person) => {
+              const s = memberStyle(person.colorIndex);
+              const active = person.payerId === selectedPersonId;
+              return (
+                <button
+                  key={person.payerId}
+                  type="button"
+                  onClick={() => setPersonTab(person.payerId)}
+                  aria-pressed={active}
+                  className={cn(
+                    "flex min-w-[8.5rem] flex-1 items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors",
+                    active ? "" : "border-rule bg-card hover:bg-panel"
+                  )}
+                  style={active ? { background: `${s.bg}1f`, borderColor: s.bg } : undefined}
+                >
+                  <MemberDot colorIndex={person.colorIndex} name={person.name} size={24} />
+                  <span className="min-w-0">
+                    <span className={cn("block truncate text-sm font-bold", active ? "text-ink" : "text-ink-soft")}>
+                      {person.name}
+                    </span>
+                    <Money value={person.total} className="block text-xs tnum text-ink-soft" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {/* grid-cols-1 (= minmax(0,1fr)) stops grid items from expanding to their
+              min-content width on mobile — without it, a long no-wrap description blows the row out. */}
+          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
             {byPerson.map((person, pi) => {
               const s = memberStyle(person.colorIndex);
               return (
-                <div key={person.payerId} className="reveal" style={revealDelay(pi)}>
+                <div
+                  key={person.payerId}
+                  className={cn("reveal min-w-0", person.payerId !== selectedPersonId && "hidden lg:block")}
+                  style={revealDelay(pi)}
+                >
                   <Card className="overflow-hidden">
                     <div
                       className="flex items-center justify-between gap-3 border-b border-rule px-4 py-3"
@@ -625,7 +648,7 @@ export default function DespesasPage() {
                             <span className="label-mono">▦ {mg.label}</span>
                             <Money value={mg.subtotal} className="text-ink-soft" />
                           </div>
-                          <table className="w-full table-fixed">
+                          <table className="hidden w-full table-fixed md:table">
                             <thead>
                               <tr className="border-t border-dotted border-rule">
                                 <th className="label-mono px-4 py-1.5 text-left">{t("colDescription")}</th>
@@ -649,7 +672,7 @@ export default function DespesasPage() {
                                     <Money value={e.amount} />
                                     {ratio && <span className="block text-[0.7rem] text-faint tnum" title={t("customSplit")}>⊟ {ratio}</span>}
                                     {/* Desktop: ⋯ floats in on hover; touch/narrow: stays in the reserved right padding. */}
-                                    <span onClick={(ev) => ev.stopPropagation()} className="absolute inset-y-0 right-0.5 flex items-center bg-gradient-to-l from-card via-card to-transparent pl-6 opacity-0 transition-opacity group-hover:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">
+                                    <span onClick={(ev) => ev.stopPropagation()} className="absolute inset-y-0 right-0.5 flex items-center bg-gradient-to-l from-card via-card to-transparent pl-6 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">
                                       <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
                                     </span>
                                   </td>
@@ -658,6 +681,23 @@ export default function DespesasPage() {
                               })}
                             </tbody>
                           </table>
+                          {/* Mobile: same card model as the list view (no cramped columns). */}
+                          <ul className="md:hidden">
+                            {mg.items.map((e) => (
+                              <ExpenseCard
+                                key={e.publicId}
+                                expense={e}
+                                colorIndex={person.colorIndex}
+                                locale={locale}
+                                members={members}
+                                selectionMode={false}
+                                onView={openView}
+                                onEdit={openEdit}
+                                onDelete={setDeleteTarget}
+                                hidePayer
+                              />
+                            ))}
+                          </ul>
                         </div>
                       ))
                     )}
@@ -666,6 +706,7 @@ export default function DespesasPage() {
               );
             })}
           </div>
+          </>
         )
       ) : (
         /* ===== LIST VIEW (all rows, scroll) ===== */
@@ -769,6 +810,17 @@ export default function DespesasPage() {
       {/* Import modal */}
       <ImportCsvModal open={importOpen} onOpenChange={setImportOpen} platforms={platforms} onImported={reload} />
 
+      <ExpenseFiltersModal
+        open={filterModalOpen}
+        onClose={() => setFilterModalOpen(false)}
+        initial={appliedFilters}
+        members={members}
+        platforms={platforms}
+        categories={categories}
+        paymentMethods={paymentMethods}
+        onApply={applyFilters}
+      />
+
       {/* Delete one confirm */}
       <Modal
         open={deleteTarget !== null}
@@ -857,7 +909,18 @@ function splitRatio(e: Expense, members: Member[]): string | null {
   if (detectSplitEqually(e, members)) return null;
   const total = toCents(e.amount);
   if (total <= 0 || e.participants.length === 0) return null;
-  return e.participants.map((p) => Math.round((toCents(p.amount) / total) * 100)).join("/");
+  // Largest-remainder rounding so the displayed parts always sum to exactly 100
+  // (rounding each independently could show 60/41 or 33/33/33).
+  const raw = e.participants.map((p) => (toCents(p.amount) / total) * 100);
+  const parts = raw.map((r) => Math.floor(r));
+  let remainder = 100 - parts.reduce((a, b) => a + b, 0);
+  const byFraction = raw
+    .map((r, i) => ({ frac: r - Math.floor(r), i }))
+    .sort((a, b) => b.frac - a.frac);
+  for (let k = 0; k < byFraction.length && remainder > 0; k++, remainder--) {
+    parts[byFraction[k].i]++;
+  }
+  return parts.join("/");
 }
 
 interface ExpenseRowProps {
@@ -869,6 +932,8 @@ interface ExpenseRowProps {
   onView: (expense: Expense) => void;
   onEdit: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
+  onToggle?: (publicId: string) => void; // toggle selection (card body tap in selection mode)
+  hidePayer?: boolean; // by-person cards omit the payer (it's the card's person)
 }
 
 /** Desktop ledger row — memoized so toggling one checkbox re-renders only that row. */
@@ -879,12 +944,21 @@ const ExpenseRow = memo(function ExpenseRow({
   const handleView = useCallback(() => onView(e), [onView, e]);
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
+  const onRowKey = (ev: React.KeyboardEvent) => {
+    if (selectionMode) return;
+    if (ev.target !== ev.currentTarget) return; // ignore keys bubbling from the ⋯ menu / checkbox
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); handleView(); }
+  };
   const ratio = splitRatio(e, members);
   return (
     <tr
       onClick={selectionMode ? undefined : handleView}
+      onKeyDown={selectionMode ? undefined : onRowKey}
+      tabIndex={selectionMode ? undefined : 0}
+      role={selectionMode ? undefined : "button"}
+      aria-label={selectionMode ? undefined : e.description}
       className={cn(
-        "border-b border-dotted border-rule align-top transition-colors last:border-b-0 hover:bg-panel/30 has-[:checked]:bg-panel/60",
+        "border-b border-dotted border-rule align-top transition-colors last:border-b-0 hover:bg-panel/30 has-[:checked]:bg-panel/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink",
         !selectionMode && "cursor-pointer"
       )}
     >
@@ -923,12 +997,17 @@ const ExpenseRow = memo(function ExpenseRow({
 
 /** Mobile stacked card — memoized (same rationale as ExpenseRow). */
 const ExpenseCard = memo(function ExpenseCard({
-  expense: e, colorIndex, locale, members, selectionMode, onView, onEdit, onDelete,
+  expense: e, colorIndex, locale, members, selectionMode, onView, onEdit, onDelete, onToggle, hidePayer,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
   const handleView = useCallback(() => onView(e), [onView, e]);
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
+  const handleBody = () => (selectionMode ? onToggle?.(e.publicId) : handleView());
+  const onCardKey = (ev: React.KeyboardEvent) => {
+    if (ev.target !== ev.currentTarget) return; // ignore keys bubbling from the ⋯ menu / checkbox
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); handleBody(); }
+  };
   const ratio = splitRatio(e, members);
   return (
     <li className="flex gap-3 border-b border-dotted border-rule px-4 py-3 last:border-b-0 has-[:checked]:bg-panel/60">
@@ -940,8 +1019,12 @@ const ExpenseCard = memo(function ExpenseCard({
         />
       )}
       <div
-        onClick={selectionMode ? undefined : handleView}
-        className={cn("min-w-0 flex-1", !selectionMode && "cursor-pointer")}
+        onClick={handleBody}
+        onKeyDown={onCardKey}
+        role="button"
+        tabIndex={0}
+        aria-label={e.description}
+        className="min-w-0 flex-1 cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
       >
         <div className="flex items-start justify-between gap-2">
           <span className="truncate text-sm font-medium text-ink">{e.description}</span>
@@ -951,11 +1034,15 @@ const ExpenseCard = memo(function ExpenseCard({
           </div>
         </div>
         <div className="mt-1.5 flex items-center gap-2 text-xs text-faint">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <MemberDot colorIndex={colorIndex} name={e.payer.name} size={18} />
-            <span className="truncate">{e.payer.name}</span>
-          </span>
-          <span aria-hidden>·</span>
+          {!hidePayer && (
+            <>
+              <span className="flex min-w-0 items-center gap-1.5">
+                <MemberDot colorIndex={colorIndex} name={e.payer.name} size={18} />
+                <span className="truncate">{e.payer.name}</span>
+              </span>
+              <span aria-hidden>·</span>
+            </>
+          )}
           <span className="shrink-0 tnum">{formatDateLocale(e.date, locale)}</span>
         </div>
         <ExpenseTags expense={e} className="mt-1.5" />

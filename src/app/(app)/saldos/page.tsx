@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
@@ -11,7 +11,6 @@ import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/Feedback";
 import { Skeleton, SkeletonRows } from "@/components/ui/Skeleton";
 import { revealDelay } from "@/components/ui/motion";
-import { cn } from "@/components/ui/cn";
 import { api } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { useSession } from "@/lib/session";
@@ -31,6 +30,7 @@ export default function SaldosPage() {
   const locale = useLocale();
   const [data, setData] = useState<BalancesResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const reqId = useRef(0);
 
   const [payOpen, setPayOpen] = useState(false);
   const [payPrefill, setPayPrefill] = useState<PaymentPrefill | null>(null);
@@ -38,13 +38,14 @@ export default function SaldosPage() {
   const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
+    const id = ++reqId.current;
     try {
       const res = await api.get<BalancesResponse>("/api/balances");
-      setData(res);
+      if (reqId.current === id) setData(res);
     } catch (err) {
-      toast(apiErr(err, t("loadError")), "error");
+      if (reqId.current === id) toast(apiErr(err, t("loadError")), "error");
     } finally {
-      setLoading(false);
+      if (reqId.current === id) setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -109,8 +110,10 @@ export default function SaldosPage() {
   const { balances, settlements, totalExpenses, payments, byCategory, byMonth } = data;
   const hasExpenses = balances.length > 0;
   const allSettled = balances.every((b) => b.balance === 0);
+  // Empty bucket -> "uncategorized"; a system-default key -> its translation; a house
+  // custom category -> its raw name (was wrongly falling through to "uncategorized").
   const catLabel = (c: string) =>
-    c && tcat.has(`category.${c}`) ? tcat(`category.${c}`) : t("uncategorized");
+    !c ? t("uncategorized") : tcat.has(`category.${c}`) ? tcat(`category.${c}`) : c;
   const monthLabel = (ym: string) => {
     const [y, m] = ym.split("-").map(Number);
     const d = new Date(y, (m ?? 1) - 1, 1);
@@ -164,9 +167,15 @@ export default function SaldosPage() {
                     <span className="min-w-0 flex-1 truncate text-sm text-ink">
                       {b.userName}
                     </span>
-                    {isCredit && <Stamp tone="credit">{t("toReceive")}</Stamp>}
-                    {isDebt && <Stamp tone="debt">{t("owes")}</Stamp>}
-                    {settled && <Stamp tone="ink">{ts("settled")}</Stamp>}
+                    {/* The signed value already carries the credit/debt color + sign on mobile;
+                        the stamp is decorative there, so it only shows from sm up (keeps the name room).
+                        Wrap to control the breakpoint — the Stamp's own `inline-block` base would
+                        otherwise override a `hidden` placed on it (project cn() doesn't merge conflicts). */}
+                    <span className="sr-only shrink-0 sm:not-sr-only sm:inline-block">
+                      {isCredit && <Stamp tone="credit">{t("toReceive")}</Stamp>}
+                      {isDebt && <Stamp tone="debt">{t("owes")}</Stamp>}
+                      {settled && <Stamp tone="ink">{ts("settled")}</Stamp>}
+                    </span>
                     <Money
                       signed
                       value={b.balance}

@@ -7,6 +7,7 @@ const USERNAME_REGEX = /^[a-z0-9._-]{3,30}$/
 export type LoginResult =
   | { status: 'ok'; user: { id: number; publicId: string; name: string } }
   | { status: 'requires_password_setup'; user: { id: number; publicId: string; name: string } }
+  | { status: 'use_google' }
   | { status: 'invalid' }
 
 class AuthService {
@@ -51,8 +52,11 @@ class AuthService {
 
     const publicUser = { id: user.id, publicId: user.publicId, name: user.name }
 
-    // Legacy users (pre-auth era) have no password yet — first login defines it.
     if (user.password === null) {
+      // Google accounts are passwordless by design — they log in via Google, never
+      // via the password-setup flow (which would otherwise let anyone claim them).
+      if (user.googleId !== null) return { status: 'use_google' }
+      // Legacy users (pre-auth era) have no password yet — first login defines it.
       return { status: 'requires_password_setup', user: publicUser }
     }
 
@@ -60,11 +64,13 @@ class AuthService {
     return valid ? { status: 'ok', user: publicUser } : { status: 'invalid' }
   }
 
-  /** Sets the password ONLY for users that don't have one yet (legacy first access). */
+  /** Sets the password ONLY for legacy users that don't have one yet (first access).
+   *  Google accounts (googleId set) are never claimable here — they authenticate via Google. */
   async setInitialPassword(username: string, password: string): Promise<LoginResult> {
     const user = await prisma.user.findUnique({ where: { username } })
     if (!user) return { status: 'invalid' }
     if (user.password !== null) return { status: 'invalid' }
+    if (user.googleId !== null) return { status: 'invalid' }
 
     await prisma.user.update({
       where: { id: user.id },

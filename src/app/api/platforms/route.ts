@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { platformService } from '@/services/platform.service'
 import { handleApiError, requireActiveGroup } from '@/lib/api-helpers'
+import { LIMITS } from '@/lib/constants'
 
 export async function GET(request: Request) {
   try {
@@ -28,8 +29,11 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { name } = body
 
-    if (!name || !name.trim()) {
-      return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 })
+    if (typeof name !== 'string' || !name.trim()) {
+      return NextResponse.json({ error: 'Nome é obrigatório', code: 'NAME_REQUIRED' }, { status: 400 })
+    }
+    if (name.trim().length > LIMITS.PLATFORM_NAME) {
+      return NextResponse.json({ error: `Nome muito longo (máx. ${LIMITS.PLATFORM_NAME} caracteres)`, code: 'NAME_TOO_LONG' }, { status: 400 })
     }
 
     const platform = await platformService.create(check.groupId, name)

@@ -30,7 +30,7 @@
   --color-cat-soft: #ece4ef;
   --color-plat: #4a6173;      /* plataforma — azul-ardósia */
   --color-plat-soft: #e4e9ee;
-  --color-pay: #8a6d3b;       /* forma de pagamento — ocre/mostarda */
+  --color-pay: #75591f;       /* forma de pagamento — ocre/mostarda (escurecido p/ contraste AA) */
   --color-pay-soft: #efe7d6;
 
   /* Receipts are crisp — keep radii tiny */
@@ -70,7 +70,7 @@ html[data-theme="bolitas"] {
   --color-cat-soft: #ece0e6;
   --color-plat: #4f6f86;      /* plataforma — dusty blue */
   --color-plat-soft: #e0e8ee;
-  --color-pay: #9a7414;       /* forma de pagamento — amber */
+  --color-pay: #7a5c0e;       /* forma de pagamento — amber (escurecido p/ contraste AA) */
   --color-pay-soft: #f0e7cf;
 
   /* Cozy = rounded corners */
@@ -179,7 +179,8 @@ html[data-theme="bolitas"] .skeleton {
     font-size: 0.68rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--color-faint);
+    /* ink-soft (not faint) so small uppercase labels/column headers clear WCAG AA */
+    color: var(--color-ink-soft);
   }
 }
 

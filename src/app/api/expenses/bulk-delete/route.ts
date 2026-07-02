@@ -14,6 +14,9 @@ export async function POST(request: Request) {
     if (!publicIds || !Array.isArray(publicIds) || publicIds.length === 0) {
       return NextResponse.json({ error: 'Lista de IDs é obrigatória' }, { status: 400 })
     }
+    if (publicIds.length > 1000) {
+      return NextResponse.json({ error: 'Máximo de 1000 despesas por vez', code: 'TOO_MANY' }, { status: 400 })
+    }
 
     for (const id of publicIds) {
       if (!isValidUUID(id)) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { authService } from '@/services/auth.service'
 import { handleApiError } from '@/lib/api-helpers'
 import { signSession, sessionCookieOptions, SESSION_COOKIE } from '@/lib/auth'
+import { rateLimit, clientIp } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
@@ -9,6 +10,11 @@ export async function POST(request: Request) {
     const name = typeof body.name === 'string' ? body.name.trim() : ''
     const username = typeof body.username === 'string' ? body.username.trim().toLowerCase() : ''
     const password = typeof body.password === 'string' ? body.password : ''
+
+    const ip = clientIp(request)
+    if (ip !== 'unknown' && !rateLimit(`register:ip:${ip}`, 15, 60_000)) {
+      return NextResponse.json({ error: 'Muitas tentativas. Tente novamente em instantes.', code: 'RATE_LIMITED' }, { status: 429 })
+    }
 
     if (!name || name.length > 80) {
       return NextResponse.json({ error: 'Nome é obrigatório (máx. 80 caracteres)', code: 'INVALID_NAME' }, { status: 400 })

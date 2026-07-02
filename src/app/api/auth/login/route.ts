@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { authService } from '@/services/auth.service'
 import { handleApiError } from '@/lib/api-helpers'
 import { signSession, sessionCookieOptions, SESSION_COOKIE } from '@/lib/auth'
+import { rateLimit, clientIp } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
@@ -13,11 +14,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Informe o usuário', code: 'MISSING_USERNAME' }, { status: 400 })
     }
 
+    // Throttle floods per-IP only. A per-username limit is deliberately avoided: keyed on a
+    // public/enumerable username it would let an attacker lock a victim out by hammering their
+    // name. Skip when the IP is unknown (no proxy header) so we never collapse everyone into one bucket.
+    const ip = clientIp(request)
+    if (ip !== 'unknown' && !rateLimit(`login:ip:${ip}`, 30, 60_000)) {
+      return NextResponse.json({ error: 'Muitas tentativas. Tente novamente em instantes.', code: 'RATE_LIMITED' }, { status: 429 })
+    }
+
     const result = await authService.login(username, password)
 
     if (result.status === 'requires_password_setup') {
       // Legacy user without password — frontend redirects to the set-password step.
       return NextResponse.json({ requiresPasswordSetup: true })
+    }
+
+    if (result.status === 'use_google') {
+      return NextResponse.json({ error: 'Esta conta entra com o Google', code: 'USE_GOOGLE' }, { status: 401 })
     }
 
     if (result.status === 'invalid') {

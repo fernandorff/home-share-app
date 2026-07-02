@@ -1,6 +1,7 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
+import { useTranslations } from "next-intl";
 import { cn } from "./cn";
 import type { ReactNode } from "react";
 
@@ -21,12 +22,15 @@ export function Modal({
   footer?: ReactNode;
   className?: string;
 }) {
+  const tc = useTranslations("Common");
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="anim-overlay fixed inset-0 z-40 bg-ink/40 backdrop-blur-[1px]" />
         <Dialog.Content
-          aria-describedby={description ? undefined : undefined}
+          // With a description present, let Radix auto-wire aria-describedby to <Dialog.Description>;
+          // only suppress the "missing description" warning (undefined attr) when there is none.
+          {...(description ? {} : { "aria-describedby": undefined })}
           className={cn(
             "anim-sheet fixed z-50 flex flex-col bg-card border border-ink",
             "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-lg",
@@ -48,7 +52,7 @@ export function Modal({
               )}
             </div>
             <Dialog.Close
-              aria-label="Fechar"
+              aria-label={tc("close")}
               className="shrink-0 text-lg leading-none text-faint transition-colors hover:text-ink"
             >
               ✕

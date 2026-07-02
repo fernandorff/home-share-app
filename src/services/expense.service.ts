@@ -274,7 +274,9 @@ export class ExpenseService {
 
     const rows = expenses.map(e => {
       const dateStr = new Date(e.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
-      const amountStr = Number(e.amount).toFixed(2).replace('.', ',')
+      // Dot decimal (not comma): a comma would be read as a column break in this
+      // comma-separated file, corrupting the amount on re-import. parseMoneyValue accepts dot.
+      const amountStr = Number(e.amount).toFixed(2)
       const participantNames = e.participants.map(p => p.user.name).join('; ')
 
       return [

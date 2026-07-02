@@ -51,6 +51,8 @@ export async function exchangeCodeForProfile(
   });
   if (!infoRes.ok) throw new Error("Falha ao obter o perfil do Google");
 
-  const info = (await infoRes.json()) as { sub: string; email?: string; name?: string };
-  return { googleId: info.sub, email: info.email, name: info.name };
+  const info = (await infoRes.json()) as { sub: string; email?: string; email_verified?: boolean; name?: string };
+  // Only trust the email for account-linking when Google says it's verified — otherwise
+  // a Google account with an unverified email could be pointed at someone else's address.
+  return { googleId: info.sub, email: info.email_verified ? info.email : undefined, name: info.name };
 }

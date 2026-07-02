@@ -281,7 +281,11 @@
       "pix": "Pix",
       "cash": "Espèces"
     },
-    "customSplit": "Partage personnalisé"
+    "customSplit": "Partage personnalisé",
+    "filter": "Filtrer",
+    "filtersTitle": "Filtres",
+    "searchLabel": "Recherche",
+    "amountOf": "Montant de {name}"
   },
   "Household": {
     "title": "Maison",
@@ -395,7 +399,10 @@
     "PARTICIPANTS_SUM_MISMATCH": "La répartition ne correspond pas au total.",
     "SETTLEMENT_USERS_REQUIRED": "Le payeur et le bénéficiaire sont obligatoires.",
     "SETTLEMENT_SAME_USER": "Le payeur et le bénéficiaire doivent être différents.",
-    "NOTE_TOO_LONG": "Note trop longue (max. 500 caractères)."
+    "NOTE_TOO_LONG": "Note trop longue (max. 500 caractères).",
+    "USE_GOOGLE": "Ce compte se connecte avec Google — utilisez le bouton Se connecter avec Google.",
+    "RATE_LIMITED": "Trop de tentatives. Réessayez dans un instant.",
+    "TOO_MANY": "Trop d’éléments à la fois (max 1000)."
   },
   "Currency": {
     "title": "Devise",

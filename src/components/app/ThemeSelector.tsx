@@ -5,6 +5,12 @@ import { useTranslations } from "next-intl";
 import { Menu, MenuItem } from "@/components/ui/Menu";
 import { THEMES, DEFAULT_THEME, THEME_COOKIE, isTheme, type Theme } from "@/lib/theme";
 
+/** Applies the theme to the document outside React's reactive scope (DOM write + cookie). */
+function applyTheme(theme: Theme) {
+  document.documentElement.dataset.theme = theme;
+  document.cookie = `${THEME_COOKIE}=${theme}; path=/; max-age=31536000; samesite=lax`;
+}
+
 /** Header control to switch the visual theme. Applies instantly via the
  *  `<html data-theme>` attribute and persists in a cookie for SSR (no FOUC). */
 export function ThemeSelector() {
@@ -14,12 +20,12 @@ export function ThemeSelector() {
   // Sync from the server-rendered attribute after hydration (avoids a mismatch).
   useEffect(() => {
     const current = document.documentElement.dataset.theme;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional external (DOM) → state sync after mount
     if (isTheme(current)) setTheme(current);
   }, []);
 
   function pick(next: Theme) {
-    document.documentElement.dataset.theme = next;
-    document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
+    applyTheme(next);
     setTheme(next);
   }
 

@@ -281,7 +281,11 @@
       "pix": "Pix",
       "cash": "Cash"
     },
-    "customSplit": "Custom split"
+    "customSplit": "Custom split",
+    "filter": "Filter",
+    "filtersTitle": "Filters",
+    "searchLabel": "Search",
+    "amountOf": "Amount for {name}"
   },
   "Household": {
     "title": "House",
@@ -395,7 +399,10 @@
     "PARTICIPANTS_SUM_MISMATCH": "The split doesn't add up to the total.",
     "SETTLEMENT_USERS_REQUIRED": "Payer and receiver are required.",
     "SETTLEMENT_SAME_USER": "Payer and receiver must be different.",
-    "NOTE_TOO_LONG": "Note is too long (max. 500 characters)."
+    "NOTE_TOO_LONG": "Note is too long (max. 500 characters).",
+    "USE_GOOGLE": "This account signs in with Google — use the Sign in with Google button.",
+    "RATE_LIMITED": "Too many attempts. Please try again shortly.",
+    "TOO_MANY": "Too many items at once (max 1000)."
   },
   "Currency": {
     "title": "Currency",

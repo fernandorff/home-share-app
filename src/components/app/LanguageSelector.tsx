@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Menu, MenuItem } from "@/components/ui/Menu";
 
@@ -11,12 +11,18 @@ const LANGS = [
   { code: "fr", label: "Français" },
 ] as const;
 
+/** Cookie write outside React's reactive scope (next-intl reads `locale` server-side). */
+function setLocaleCookie(code: string) {
+  document.cookie = `locale=${code}; path=/; max-age=31536000; samesite=lax`;
+}
+
 export function LanguageSelector() {
   const locale = useLocale();
+  const tc = useTranslations("Common");
   const router = useRouter();
 
   function pick(code: string) {
-    document.cookie = `locale=${code}; path=/; max-age=31536000; samesite=lax`;
+    setLocaleCookie(code);
     router.refresh();
   }
 
@@ -27,7 +33,7 @@ export function LanguageSelector() {
       align="end"
       trigger={
         <button
-          aria-label="Language"
+          aria-label={tc("language")}
           className="inline-flex items-center gap-1.5 rounded-md border border-rule bg-card px-2 py-1.5 text-xs uppercase tracking-wide text-ink-soft transition-colors hover:bg-panel"
         >
           <svg

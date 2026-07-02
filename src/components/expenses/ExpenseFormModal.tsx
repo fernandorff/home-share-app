@@ -182,9 +182,26 @@ export function ExpenseFormModal({
       setSplitEqually(true);
       setCustom({});
     }
-    const eq = equalPercents(members.length);
+    // Seed the percent map from the REAL split when editing a custom-split expense, so merely
+    // toggling to "por percentual" (without editing) doesn't silently rewrite e.g. 70/30 as 50/50.
     const seeded: Record<number, number> = {};
-    members.forEach((m, i) => (seeded[m.id] = eq[i] ?? 0));
+    if (expense && !detectSplitEqually(expense, members)) {
+      const total = toCents(expense.amount);
+      const raw = members.map((m) => {
+        const part = expense.participants.find((p) => p.userId === m.id);
+        return part && total > 0 ? (toCents(part.amount) / total) * 100 : 0;
+      });
+      const floors = raw.map((r) => Math.floor(r));
+      let rem = 100 - floors.reduce((a, b) => a + b, 0);
+      raw
+        .map((r, i) => ({ frac: r - Math.floor(r), i }))
+        .sort((a, b) => b.frac - a.frac)
+        .forEach((o) => { if (rem > 0) { floors[o.i]++; rem--; } });
+      members.forEach((m, i) => (seeded[m.id] = floors[i]));
+    } else {
+      const eq = equalPercents(members.length);
+      members.forEach((m, i) => (seeded[m.id] = eq[i] ?? 0));
+    }
     setPercent(seeded);
     setFormError(null);
   }, [open, expense, members, me, locale]);
@@ -471,6 +488,7 @@ export function ExpenseFormModal({
                       </span>
                       <Input
                         inputMode="numeric"
+                        aria-label={t("amountOf", { name: m.name })}
                         value={custom[m.id] ?? ""}
                         placeholder={zeroPlaceholder}
                         className="w-28 text-right tnum tabular-nums"
@@ -573,7 +591,7 @@ export function ExpenseFormModal({
           </div>
         )}
 
-        {formError && <p className="text-sm text-debt">{formError}</p>}
+        {formError && <p role="alert" className="text-sm text-debt">{formError}</p>}
       </div>
     </Modal>
   );

@@ -157,6 +157,11 @@ export interface ValidatedExpenseInput {
   participants: { userId: number; amount: number }[]
 }
 
+/** True when `n` is a finite amount with at most 2 decimal places (a whole number of cents). */
+function isCents(n: number): boolean {
+  return Number.isFinite(n) && Math.abs(n - Math.round(n * 100) / 100) < 1e-9
+}
+
 /** Normalize a tag array from the request: strings only, trimmed, non-empty, deduped, bounded. */
 function cleanTags(values: unknown, maxLen: number): string[] {
   if (!Array.isArray(values)) return []
@@ -195,8 +200,13 @@ export function validateExpenseInput(
   if (notes && notes.length > LIMITS.NOTES) {
     return fail(`Observação muito longa (máx. ${LIMITS.NOTES} caracteres)`, 'NOTES_TOO_LONG')
   }
-  if (!amount || amount <= 0) {
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
     return fail('Valor deve ser maior que zero', 'AMOUNT_INVALID')
+  }
+  // Reject sub-cent precision: Decimal(10,2) rounds the decimal string while our cents math
+  // uses float rounding — divergent rounding would break the participants-sum == total invariant.
+  if (!isCents(amount)) {
+    return fail('Valor deve ter no máximo 2 casas decimais', 'AMOUNT_PRECISION')
   }
   // amount is stored as Decimal(10,2) — reject values that would overflow the column.
   if (toCents(amount) > 9_999_999_999) {
@@ -221,6 +231,9 @@ export function validateExpenseInput(
     }
     if (participants.some(p => !Number.isFinite(p.amount) || p.amount < 0)) {
       return fail('Valor de um participante não pode ser negativo', 'PARTICIPANT_NEGATIVE')
+    }
+    if (participants.some(p => !isCents(p.amount))) {
+      return fail('Valor de um participante deve ter no máximo 2 casas decimais', 'PARTICIPANT_PRECISION')
     }
     const totalCents = participants.reduce((sum, p) => sum + toCents(p.amount), 0)
     const totalParticipants = fromCents(totalCents)
@@ -273,7 +286,8 @@ export function validateSettlementInput(
 
   if (!Number.isInteger(fromUserId) || !Number.isInteger(toUserId)) return bad('Pagador e recebedor são obrigatórios', 'SETTLEMENT_USERS_REQUIRED')
   if (fromUserId === toUserId) return bad('O pagamento precisa ser entre duas pessoas diferentes', 'SETTLEMENT_SAME_USER')
-  if (!amount || amount <= 0) return bad('Valor deve ser maior que zero', 'AMOUNT_INVALID')
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return bad('Valor deve ser maior que zero', 'AMOUNT_INVALID')
+  if (!isCents(amount)) return bad('Valor deve ter no máximo 2 casas decimais', 'AMOUNT_PRECISION')
   if (toCents(amount) > 9_999_999_999) return bad('Valor muito alto (máx. 99.999.999,99)', 'AMOUNT_TOO_HIGH')
   if (note && note.length > LIMITS.SETTLEMENT_NOTE) return bad(`Observação muito longa (máx. ${LIMITS.SETTLEMENT_NOTE} caracteres)`, 'NOTE_TOO_LONG')
 
