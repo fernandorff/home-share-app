@@ -11,10 +11,16 @@ export class PlatformService {
 
   async listWithCounts(groupId: number) {
     const platforms = await prisma.platform.findMany({ where: { groupId }, orderBy: { name: 'asc' } })
-    const counts = await Promise.all(
-      platforms.map((p) => prisma.expense.count({ where: { groupId, platforms: { has: p.name } } }))
-    )
-    return platforms.map((p, i) => ({ ...p, _count: { expenses: counts[i] } }))
+    if (platforms.length === 0) return []
+    // One aggregate instead of one count per platform (see CategoryService.listWithCounts).
+    const rows = await prisma.$queryRaw<{ tag: string; count: bigint }[]>`
+      SELECT tag, COUNT(*)::bigint AS count
+      FROM "Expense", unnest(plataformas) AS tag
+      WHERE "groupId" = ${groupId}
+      GROUP BY tag
+    `
+    const byTag = new Map(rows.map((r) => [r.tag, Number(r.count)]))
+    return platforms.map((p) => ({ ...p, _count: { expenses: byTag.get(p.name) ?? 0 } }))
   }
 
   /** Group-scoped — never resolves another house's platform. */

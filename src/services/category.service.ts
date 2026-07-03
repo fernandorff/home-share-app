@@ -10,10 +10,18 @@ export class CategoryService {
   /** Categories with how many of the house's expenses currently use each one (categories[] contains the name). */
   async listWithCounts(groupId: number) {
     const categories = await prisma.category.findMany({ where: { groupId }, orderBy: { name: 'asc' } })
-    const counts = await Promise.all(
-      categories.map((c) => prisma.expense.count({ where: { groupId, categories: { has: c.name } } }))
-    )
-    return categories.map((c, i) => ({ ...c, _count: { expenses: counts[i] } }))
+    if (categories.length === 0) return []
+    // One aggregate instead of one count per category (1+N -> 2 queries): unnest the array
+    // column and count occurrences per tag. Tags are deduped per expense on write, so each
+    // (expense, tag) pair counts one expense that contains the tag — same as the old `has` count.
+    const rows = await prisma.$queryRaw<{ tag: string; count: bigint }[]>`
+      SELECT tag, COUNT(*)::bigint AS count
+      FROM "Expense", unnest(categorias) AS tag
+      WHERE "groupId" = ${groupId}
+      GROUP BY tag
+    `
+    const byTag = new Map(rows.map((r) => [r.tag, Number(r.count)]))
+    return categories.map((c) => ({ ...c, _count: { expenses: byTag.get(c.name) ?? 0 } }))
   }
 
   /** Group-scoped — never resolves another house's category. */

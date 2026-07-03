@@ -11,10 +11,16 @@ export class PaymentMethodService {
 
   async listWithCounts(groupId: number) {
     const methods = await prisma.paymentMethod.findMany({ where: { groupId }, orderBy: { name: 'asc' } })
-    const counts = await Promise.all(
-      methods.map((m) => prisma.expense.count({ where: { groupId, paymentMethods: { has: m.name } } }))
-    )
-    return methods.map((m, i) => ({ ...m, _count: { expenses: counts[i] } }))
+    if (methods.length === 0) return []
+    // One aggregate instead of one count per method (see CategoryService.listWithCounts).
+    const rows = await prisma.$queryRaw<{ tag: string; count: bigint }[]>`
+      SELECT tag, COUNT(*)::bigint AS count
+      FROM "Expense", unnest(formas_pagamento) AS tag
+      WHERE "groupId" = ${groupId}
+      GROUP BY tag
+    `
+    const byTag = new Map(rows.map((r) => [r.tag, Number(r.count)]))
+    return methods.map((m) => ({ ...m, _count: { expenses: byTag.get(m.name) ?? 0 } }))
   }
 
   async findByPublicId(groupId: number, publicId: string) {
