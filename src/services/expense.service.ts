@@ -71,6 +71,10 @@ const expenseListInclude = {
   participants: { select: { id: true, expenseId: true, userId: true, amount: true } }
 }
 
+// Vestigial legacy columns (kept in the DB as a safety net, superseded by the array columns).
+// Never read client-side — omit them from responses to trim the payload without dropping data.
+const legacyOmit = { category: true, platformId: true, platformIds: true } as const
+
 export class ExpenseService {
   async list(groupId: number, params: PaginationParams) {
     const { page, pageSize, sortField, sortDirection } = params
@@ -85,6 +89,7 @@ export class ExpenseService {
     const [expenses, total] = await Promise.all([
       prisma.expense.findMany({
         where: { groupId },
+        omit: legacyOmit,
         include: expenseListInclude,
         orderBy,
         skip: (page - 1) * pageSize,
@@ -108,6 +113,7 @@ export class ExpenseService {
   async findByPublicId(groupId: number, publicId: string) {
     return prisma.expense.findFirst({
       where: { publicId, groupId },
+      omit: legacyOmit,
       include: expenseInclude
     })
   }
@@ -136,6 +142,7 @@ export class ExpenseService {
         date: date ?? new Date(),
         participants: { create: participantData }
       },
+      omit: legacyOmit,
       include: expenseInclude
     })
   }
@@ -178,6 +185,7 @@ export class ExpenseService {
           ...(date && { date }),
           ...(participantData && { participants: { create: participantData } })
         },
+        omit: legacyOmit,
         include: expenseInclude
       })
     })
