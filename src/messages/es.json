@@ -153,7 +153,38 @@
       "amount": "importe",
       "date": "fecha",
       "currency": "moneda",
-      "name": "nombre"
+      "name": "nombre",
+      "payerId": "pagador",
+      "categories": "categorías",
+      "platforms": "plataformas",
+      "paymentMethods": "formas de pago",
+      "notes": "notas",
+      "isPurchased": "comprado",
+      "fromUserId": "de",
+      "toUserId": "para",
+      "note": "nota"
+    },
+    "tabs": {
+      "summary": "Resumen",
+      "detailed": "Detallado"
+    },
+    "filterAll": "Todo",
+    "detailedEmpty": "Sin revisiones",
+    "detailedEmptyHint": "Cada cambio en gastos, pagos y listas se registra aquí.",
+    "yes": "Sí",
+    "no": "No",
+    "entity": {
+      "Expense": "Gasto",
+      "Settlement": "Pago",
+      "ShoppingItem": "Artículo de compra",
+      "Category": "Categoría",
+      "Platform": "Plataforma",
+      "PaymentMethod": "Forma de pago"
+    },
+    "action": {
+      "CREATE": "creó",
+      "UPDATE": "actualizó",
+      "DELETE": "eliminó"
     }
   },
   "Expenses": {
@@ -273,7 +304,17 @@
     "filter": "Filtrar",
     "filtersTitle": "Filtros",
     "searchLabel": "Búsqueda",
-    "amountOf": "Importe de {name}"
+    "amountOf": "Importe de {name}",
+    "history": {
+      "title": "Historial",
+      "someone": "Alguien",
+      "CREATE": "creó este gasto",
+      "UPDATE": "editó",
+      "DELETE": "eliminó este gasto",
+      "noFieldChanges": "sin cambios de campos",
+      "empty": "Sin cambios registrados",
+      "loadError": "No se pudo cargar el historial."
+    }
   },
   "Household": {
     "title": "Casa",

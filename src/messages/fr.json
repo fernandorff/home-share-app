@@ -153,7 +153,38 @@
       "amount": "montant",
       "date": "date",
       "currency": "devise",
-      "name": "nom"
+      "name": "nom",
+      "payerId": "payeur",
+      "categories": "catégories",
+      "platforms": "plateformes",
+      "paymentMethods": "moyens de paiement",
+      "notes": "notes",
+      "isPurchased": "acheté",
+      "fromUserId": "de",
+      "toUserId": "à",
+      "note": "note"
+    },
+    "tabs": {
+      "summary": "Résumé",
+      "detailed": "Détaillé"
+    },
+    "filterAll": "Tout",
+    "detailedEmpty": "Aucune révision",
+    "detailedEmptyHint": "Chaque modification des dépenses, paiements et listes est enregistrée ici.",
+    "yes": "Oui",
+    "no": "Non",
+    "entity": {
+      "Expense": "Dépense",
+      "Settlement": "Paiement",
+      "ShoppingItem": "Article de courses",
+      "Category": "Catégorie",
+      "Platform": "Plateforme",
+      "PaymentMethod": "Moyen de paiement"
+    },
+    "action": {
+      "CREATE": "a créé",
+      "UPDATE": "a mis à jour",
+      "DELETE": "a supprimé"
     }
   },
   "Expenses": {
@@ -273,7 +304,17 @@
     "filter": "Filtrer",
     "filtersTitle": "Filtres",
     "searchLabel": "Recherche",
-    "amountOf": "Montant de {name}"
+    "amountOf": "Montant de {name}",
+    "history": {
+      "title": "Historique",
+      "someone": "Quelqu'un",
+      "CREATE": "a créé cette dépense",
+      "UPDATE": "a modifié",
+      "DELETE": "a supprimé cette dépense",
+      "noFieldChanges": "aucun champ modifié",
+      "empty": "Aucune modification enregistrée",
+      "loadError": "Impossible de charger l'historique."
+    }
   },
   "Household": {
     "title": "Maison",

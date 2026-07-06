@@ -153,7 +153,38 @@
       "amount": "amount",
       "date": "date",
       "currency": "currency",
-      "name": "name"
+      "name": "name",
+      "payerId": "payer",
+      "categories": "categories",
+      "platforms": "platforms",
+      "paymentMethods": "payment methods",
+      "notes": "notes",
+      "isPurchased": "purchased",
+      "fromUserId": "from",
+      "toUserId": "to",
+      "note": "note"
+    },
+    "tabs": {
+      "summary": "Summary",
+      "detailed": "Detailed"
+    },
+    "filterAll": "All",
+    "detailedEmpty": "No revisions",
+    "detailedEmptyHint": "Every change to expenses, payments and lists is recorded here.",
+    "yes": "Yes",
+    "no": "No",
+    "entity": {
+      "Expense": "Expense",
+      "Settlement": "Payment",
+      "ShoppingItem": "Shopping item",
+      "Category": "Category",
+      "Platform": "Platform",
+      "PaymentMethod": "Payment method"
+    },
+    "action": {
+      "CREATE": "created",
+      "UPDATE": "updated",
+      "DELETE": "deleted"
     }
   },
   "Expenses": {
@@ -273,7 +304,17 @@
     "filter": "Filter",
     "filtersTitle": "Filters",
     "searchLabel": "Search",
-    "amountOf": "Amount for {name}"
+    "amountOf": "Amount for {name}",
+    "history": {
+      "title": "History",
+      "someone": "Someone",
+      "CREATE": "created this expense",
+      "UPDATE": "edited",
+      "DELETE": "deleted this expense",
+      "noFieldChanges": "no field changes",
+      "empty": "No changes recorded",
+      "loadError": "Couldn't load the history."
+    }
   },
   "Household": {
     "title": "House",

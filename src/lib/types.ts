@@ -160,6 +160,27 @@ export interface ActivityResponse {
   entries: ActivityEntry[];
 }
 
+/** One row of the Envers-style EntityRevision trail (post-state snapshot + who/when). */
+export interface RevisionRecord {
+  id: number;
+  entityType: string; // Prisma model name (Expense, Settlement, …)
+  entityId: string;
+  action: string; // CREATE | UPDATE | DELETE
+  actorId: number | null;
+  actorName: string | null;
+  createdAt: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+}
+
+export interface ExpenseHistoryResponse {
+  revisions: RevisionRecord[];
+}
+
+export interface RevisionsResponse {
+  revisions: RevisionRecord[];
+}
+
 export interface ShoppingItem {
   id: number;
   publicId: string;

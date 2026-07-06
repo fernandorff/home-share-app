@@ -1,15 +1,20 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
 import { MemberDot } from "@/components/ui/Member";
 import { Tag, type TagTone } from "@/components/ui/Stamp";
+import { SkeletonRows } from "@/components/ui/Skeleton";
 import { useSession } from "@/lib/session";
+import { useToast } from "@/components/ui/Toast";
+import { api } from "@/lib/api";
+import { useApiError } from "@/lib/api-errors";
 import { formatDateLocale } from "@/lib/money";
-import type { Expense } from "@/lib/types";
+import { buildExpenseHistory, type RawRevision } from "@/lib/audit-diff";
+import type { Expense, ExpenseHistoryResponse, Money as MoneyValue } from "@/lib/types";
 
 /** Read-only detail view of an expense, with Edit / Delete actions. */
 export function ExpenseDetailModal({
@@ -97,9 +102,150 @@ export function ExpenseDetailModal({
               })}
             </ul>
           </div>
+
+          <ExpenseHistory expense={expense} />
         </div>
       )}
     </Modal>
+  );
+}
+
+/** Change history for one expense (from the EntityRevision trail). Fetched lazily on expand. */
+function ExpenseHistory({ expense }: { expense: Expense }) {
+  const t = useTranslations("Expenses");
+  const locale = useLocale();
+  const apiErr = useApiError();
+  const toast = useToast();
+  const { members } = useSession();
+  const memberById = new Map(members.map((m) => [m.id, m]));
+
+  const [expanded, setExpanded] = useState(false);
+  const [entries, setEntries] = useState<ReturnType<typeof buildExpenseHistory> | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Reset when the modal is reused for a different expense.
+  useEffect(() => {
+    setExpanded(false);
+    setEntries(null);
+  }, [expense.publicId]);
+
+  useEffect(() => {
+    if (!expanded || entries !== null) return;
+    let alive = true;
+    setLoading(true);
+    (async () => {
+      try {
+        const res = await api.get<ExpenseHistoryResponse>(`/api/expenses/${expense.publicId}/history`);
+        if (alive) setEntries(buildExpenseHistory(res.revisions as RawRevision[]));
+      } catch (err) {
+        if (alive) {
+          toast(apiErr(err, t("history.loadError")), "error");
+          setExpanded(false);
+        }
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, expense.publicId]);
+
+  const lbl = (ns: string, v: string) => (t.has(`${ns}.${v}`) ? t(`${ns}.${v}`) : v);
+
+  const fieldLabelKey: Record<string, string> = {
+    description: "description",
+    // colAmount is a plain "Valor"; amountLabel is an ICU message that requires a {symbol} arg.
+    amount: "colAmount",
+    categories: "categoryLabel",
+    platforms: "platformLabel",
+    paymentMethods: "paymentLabel",
+    date: "date",
+    notes: "notes",
+    payerId: "payer",
+  };
+  const fieldLabel = (f: string) => (fieldLabelKey[f] ? t(fieldLabelKey[f]) : f);
+
+  const renderValue = (field: string, value: unknown): ReactNode => {
+    if (value === null || value === undefined || (Array.isArray(value) && value.length === 0)) {
+      return <span className="text-faint">—</span>;
+    }
+    switch (field) {
+      case "amount":
+        return <Money value={value as MoneyValue} />;
+      case "date":
+        return <span className="tnum">{formatDateLocale(String(value), locale)}</span>;
+      case "payerId":
+        return <span>{memberById.get(Number(value))?.name ?? `#${value}`}</span>;
+      case "categories":
+        return <span>{(value as string[]).map((v) => lbl("category", v)).join(", ")}</span>;
+      case "platforms":
+        return <span>{(value as string[]).map((v) => lbl("platform", v)).join(", ")}</span>;
+      case "paymentMethods":
+        return <span>{(value as string[]).map((v) => lbl("payment", v)).join(", ")}</span>;
+      default:
+        return <span className="break-words">{String(value)}</span>;
+    }
+  };
+
+  const when = (iso: string) => {
+    const d = new Date(iso);
+    return (
+      d.toLocaleDateString(locale, { day: "2-digit", month: "2-digit" }) +
+      " " +
+      d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-1 border-t border-dotted border-rule pt-4">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="flex items-center gap-1.5 self-start label-mono text-ink-soft hover:text-ink"
+      >
+        <span aria-hidden className="text-faint">{expanded ? "–" : "+"}</span>
+        {t("history.title")}
+      </button>
+
+      {expanded &&
+        (loading ? (
+          <div className="mt-1">
+            <SkeletonRows rows={3} />
+          </div>
+        ) : entries && entries.length > 0 ? (
+          <ol className="mt-1.5 flex flex-col gap-2.5 border-l border-dotted border-rule pl-3">
+            {entries.map((e) => (
+              <li key={e.id} className="text-sm">
+                <p className="text-ink">
+                  <span className="font-medium">{e.actorName ?? t("history.someone")}</span>{" "}
+                  <span className="text-ink-soft">{t(`history.${e.action}`)}</span>
+                  <span className="ml-1.5 text-xs text-faint tnum">{when(e.createdAt)}</span>
+                </p>
+                {e.action === "UPDATE" &&
+                  (e.changes.length > 0 ? (
+                    <ul className="mt-1 flex flex-col gap-0.5">
+                      {e.changes.map((c) => (
+                        <li key={c.field} className="flex flex-wrap items-center gap-1 text-xs text-faint">
+                          <span>{fieldLabel(c.field)}:</span>
+                          <span className="line-through opacity-70">{renderValue(c.field, c.from)}</span>
+                          <span aria-hidden>→</span>
+                          <span className="text-ink-soft">{renderValue(c.field, c.to)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-faint">{t("history.noFieldChanges")}</p>
+                  ))}
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="mt-1 text-sm text-faint">{t("history.empty")}</p>
+        ))}
+    </div>
   );
 }
 
