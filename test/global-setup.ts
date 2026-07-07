@@ -18,7 +18,8 @@ export default async function setup() {
   );
   await db.exec(ddl);
 
-  const server = new PGLiteSocketServer({ db, port: 54329, host: "127.0.0.1" });
+  // Port must match vitest.config.ts's test.env.DATABASE_URL.
+  const server = new PGLiteSocketServer({ db, port: 45432, host: "127.0.0.1" });
   await server.start();
 
   return async () => {
