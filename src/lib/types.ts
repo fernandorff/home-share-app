@@ -28,6 +28,8 @@ export interface Me {
     publicId: string;
     name: string;
     username: string;
+    email: string | null;
+    hasPassword: boolean;
     groups: MeGroup[];
   };
   activeGroupId: number | null;

@@ -153,6 +153,8 @@ class AuthService {
         publicId: true,
         name: true,
         username: true,
+        email: true,
+        password: true,
         memberships: {
           select: {
             role: true,
@@ -170,6 +172,8 @@ class AuthService {
       publicId: user.publicId,
       name: user.name,
       username: user.username,
+      email: user.email,
+      hasPassword: user.password !== null,
       groups: user.memberships.map(m => ({
         id: m.group.id,
         publicId: m.group.publicId,

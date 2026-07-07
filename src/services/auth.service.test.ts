@@ -14,7 +14,7 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-function baseUser(overrides: Partial<{ password: string | null; email: string | null }> = {}) {
+function baseUser(overrides: Partial<{ password: string | null; email: string | null; username: string }> = {}) {
   return {
     id: 1,
     publicId: 'pub-1',
