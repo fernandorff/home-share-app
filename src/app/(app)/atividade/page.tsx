@@ -104,7 +104,7 @@ function SummaryFeed({ groupKey }: { groupKey: number | undefined }) {
   if (loading) {
     return (
       <Card className="overflow-hidden">
-        <SkeletonRows rows={8} />
+        <SkeletonRows rows={8} inset />
       </Card>
     );
   }
@@ -249,7 +249,7 @@ function DetailedFeed({ groupKey }: { groupKey: number | undefined }) {
 
       {loading ? (
         <Card className="overflow-hidden">
-          <SkeletonRows rows={8} />
+          <SkeletonRows rows={8} inset />
         </Card>
       ) : !revisions || revisions.length === 0 ? (
         <Card>
