@@ -25,7 +25,8 @@
     "houseAndMembers": "House & members",
     "logout": "Log out",
     "categories": "Categories",
-    "catalogs": "Catalogs"
+    "catalogs": "Catalogs",
+    "myAccount": "My account"
   },
   "Auth": {
     "brandTagline": "household accounts · ledger",
@@ -424,7 +425,11 @@
     "NOTE_TOO_LONG": "Note is too long (max. 500 characters).",
     "USE_GOOGLE": "This account signs in with Google — use the Sign in with Google button.",
     "RATE_LIMITED": "Too many attempts. Please try again shortly.",
-    "TOO_MANY": "Too many items at once (max 1000)."
+    "TOO_MANY": "Too many items at once (max 1000).",
+    "INVALID_EMAIL": "Invalid e-mail",
+    "EMAIL_TAKEN": "This e-mail is already in use",
+    "CURRENT_PASSWORD_REQUIRED": "Enter your current password",
+    "CURRENT_PASSWORD_INVALID": "Current password is incorrect"
   },
   "Currency": {
     "title": "Currency",
@@ -488,5 +493,31 @@
     "label": "Theme",
     "default": "Default",
     "bolitas": "La Casa das Bolitas"
+  },
+  "Account": {
+    "title": "My account",
+    "subtitle": "Your access details.",
+    "profileTitle": "Personal details",
+    "name": "Name",
+    "email": "E-mail",
+    "username": "Username",
+    "currentPassword": "Current password",
+    "currentPasswordHint": "Required to confirm an e-mail or username change.",
+    "save": "Save",
+    "profileSaved": "Details updated.",
+    "profileError": "Error updating your details.",
+    "passwordTitle": "Password",
+    "passwordHint": "Minimum 8 characters",
+    "definePasswordTitle": "Set a password",
+    "definePasswordHint": "Your account signs in with Google. Set a password so you can also log in with a username and password.",
+    "changePasswordHint": "Choose a new password.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "passwordMismatch": "Passwords don't match.",
+    "passwordSaved": "Password updated.",
+    "passwordDefined": "Password set. You can now also log in with a username and password.",
+    "passwordError": "Error updating the password.",
+    "saveButton": "Save password",
+    "defineButton": "Set password"
   }
 }

@@ -25,7 +25,8 @@
     "houseAndMembers": "Casa y miembros",
     "logout": "Salir",
     "categories": "Categorías",
-    "catalogs": "Catálogos"
+    "catalogs": "Catálogos",
+    "myAccount": "Mi cuenta"
   },
   "Auth": {
     "brandTagline": "cuentas de la casa · extracto",
@@ -424,7 +425,11 @@
     "NOTE_TOO_LONG": "Nota demasiado larga (máx. 500 caracteres).",
     "USE_GOOGLE": "Esta cuenta inicia sesión con Google — usa el botón Entrar con Google.",
     "RATE_LIMITED": "Demasiados intentos. Inténtalo de nuevo en unos instantes.",
-    "TOO_MANY": "Demasiados elementos a la vez (máx. 1000)."
+    "TOO_MANY": "Demasiados elementos a la vez (máx. 1000).",
+    "INVALID_EMAIL": "Correo electrónico inválido",
+    "EMAIL_TAKEN": "Este correo ya está en uso",
+    "CURRENT_PASSWORD_REQUIRED": "Ingresa tu contraseña actual",
+    "CURRENT_PASSWORD_INVALID": "La contraseña actual es incorrecta"
   },
   "Currency": {
     "title": "Moneda",
@@ -488,5 +493,31 @@
     "label": "Tema",
     "default": "Predeterminado",
     "bolitas": "La Casa das Bolitas"
+  },
+  "Account": {
+    "title": "Mi cuenta",
+    "subtitle": "Tus datos de acceso.",
+    "profileTitle": "Datos personales",
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "username": "Usuario",
+    "currentPassword": "Contraseña actual",
+    "currentPasswordHint": "Necesaria para confirmar el cambio de correo o usuario.",
+    "save": "Guardar",
+    "profileSaved": "Datos actualizados.",
+    "profileError": "Error al actualizar los datos.",
+    "passwordTitle": "Contraseña",
+    "passwordHint": "Mínimo 8 caracteres",
+    "definePasswordTitle": "Definir una contraseña",
+    "definePasswordHint": "Tu cuenta inicia sesión con Google. Define una contraseña para también poder entrar con usuario y contraseña.",
+    "changePasswordHint": "Elige una nueva contraseña.",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar nueva contraseña",
+    "passwordMismatch": "Las contraseñas no coinciden.",
+    "passwordSaved": "Contraseña actualizada.",
+    "passwordDefined": "Contraseña definida. Ahora también puedes entrar con usuario y contraseña.",
+    "passwordError": "Error al actualizar la contraseña.",
+    "saveButton": "Guardar contraseña",
+    "defineButton": "Definir contraseña"
   }
 }

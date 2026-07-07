@@ -25,7 +25,8 @@
     "houseAndMembers": "Casa & membros",
     "logout": "Sair",
     "categories": "Categorias",
-    "catalogs": "Catálogos"
+    "catalogs": "Catálogos",
+    "myAccount": "Minha conta"
   },
   "Auth": {
     "brandTagline": "contas da casa · extrato",
@@ -424,7 +425,11 @@
     "NOTE_TOO_LONG": "Observação muito longa (máx. 500 caracteres).",
     "USE_GOOGLE": "Esta conta entra com o Google — use o botão Entrar com o Google.",
     "RATE_LIMITED": "Muitas tentativas. Tente novamente em instantes.",
-    "TOO_MANY": "Itens demais de uma vez (máx. 1000)."
+    "TOO_MANY": "Itens demais de uma vez (máx. 1000).",
+    "INVALID_EMAIL": "E-mail inválido",
+    "EMAIL_TAKEN": "Este e-mail já está em uso",
+    "CURRENT_PASSWORD_REQUIRED": "Informe sua senha atual",
+    "CURRENT_PASSWORD_INVALID": "Senha atual incorreta"
   },
   "Currency": {
     "title": "Moeda",
@@ -488,5 +493,31 @@
     "label": "Tema",
     "default": "Padrão",
     "bolitas": "La Casa das Bolitas"
+  },
+  "Account": {
+    "title": "Minha conta",
+    "subtitle": "Seus dados de acesso.",
+    "profileTitle": "Dados pessoais",
+    "name": "Nome",
+    "email": "E-mail",
+    "username": "Usuário",
+    "currentPassword": "Senha atual",
+    "currentPasswordHint": "Necessária pra confirmar a troca de e-mail ou usuário.",
+    "save": "Salvar",
+    "profileSaved": "Dados atualizados.",
+    "profileError": "Erro ao atualizar os dados.",
+    "passwordTitle": "Senha",
+    "passwordHint": "Mínimo 8 caracteres",
+    "definePasswordTitle": "Definir uma senha",
+    "definePasswordHint": "Sua conta usa login do Google. Defina uma senha pra também poder entrar com usuário e senha.",
+    "changePasswordHint": "Escolha uma nova senha.",
+    "newPassword": "Nova senha",
+    "confirmPassword": "Confirmar nova senha",
+    "passwordMismatch": "As senhas não coincidem.",
+    "passwordSaved": "Senha atualizada.",
+    "passwordDefined": "Senha definida. Agora você também pode entrar com usuário e senha.",
+    "passwordError": "Erro ao atualizar a senha.",
+    "saveButton": "Salvar senha",
+    "defineButton": "Definir senha"
   }
 }

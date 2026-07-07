@@ -25,7 +25,8 @@
     "houseAndMembers": "Foyer et membres",
     "logout": "Se déconnecter",
     "categories": "Catégories",
-    "catalogs": "Catalogues"
+    "catalogs": "Catalogues",
+    "myAccount": "Mon compte"
   },
   "Auth": {
     "brandTagline": "comptes du foyer · grand livre",
@@ -424,7 +425,11 @@
     "NOTE_TOO_LONG": "Note trop longue (max. 500 caractères).",
     "USE_GOOGLE": "Ce compte se connecte avec Google — utilisez le bouton Se connecter avec Google.",
     "RATE_LIMITED": "Trop de tentatives. Réessayez dans un instant.",
-    "TOO_MANY": "Trop d’éléments à la fois (max 1000)."
+    "TOO_MANY": "Trop d’éléments à la fois (max 1000).",
+    "INVALID_EMAIL": "E-mail invalide",
+    "EMAIL_TAKEN": "Cet e-mail est déjà utilisé",
+    "CURRENT_PASSWORD_REQUIRED": "Indiquez votre mot de passe actuel",
+    "CURRENT_PASSWORD_INVALID": "Mot de passe actuel incorrect"
   },
   "Currency": {
     "title": "Devise",
@@ -488,5 +493,31 @@
     "label": "Thème",
     "default": "Par défaut",
     "bolitas": "La Casa das Bolitas"
+  },
+  "Account": {
+    "title": "Mon compte",
+    "subtitle": "Vos informations de connexion.",
+    "profileTitle": "Informations personnelles",
+    "name": "Nom",
+    "email": "E-mail",
+    "username": "Nom d'utilisateur",
+    "currentPassword": "Mot de passe actuel",
+    "currentPasswordHint": "Requis pour confirmer un changement d'e-mail ou de nom d'utilisateur.",
+    "save": "Enregistrer",
+    "profileSaved": "Informations mises à jour.",
+    "profileError": "Erreur lors de la mise à jour des informations.",
+    "passwordTitle": "Mot de passe",
+    "passwordHint": "8 caractères minimum",
+    "definePasswordTitle": "Définir un mot de passe",
+    "definePasswordHint": "Votre compte se connecte avec Google. Définissez un mot de passe pour pouvoir aussi vous connecter avec un identifiant et un mot de passe.",
+    "changePasswordHint": "Choisissez un nouveau mot de passe.",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "passwordMismatch": "Les mots de passe ne correspondent pas.",
+    "passwordSaved": "Mot de passe mis à jour.",
+    "passwordDefined": "Mot de passe défini. Vous pouvez maintenant aussi vous connecter avec un identifiant et un mot de passe.",
+    "passwordError": "Erreur lors de la mise à jour du mot de passe.",
+    "saveButton": "Enregistrer le mot de passe",
+    "defineButton": "Définir le mot de passe"
   }
 }
