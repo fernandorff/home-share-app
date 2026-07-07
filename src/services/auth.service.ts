@@ -3,12 +3,21 @@ import { uuidv7 } from '@/lib/uuid'
 import { hashPassword, verifyPassword } from '@/lib/auth'
 
 const USERNAME_REGEX = /^[a-z0-9._-]{3,30}$/
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export type LoginResult =
   | { status: 'ok'; user: { id: number; publicId: string; name: string } }
   | { status: 'requires_password_setup'; user: { id: number; publicId: string; name: string } }
   | { status: 'use_google' }
   | { status: 'invalid' }
+
+export type UpdateProfileResult =
+  | { user: { id: number; publicId: string; name: string; username: string; email: string | null; hasPassword: boolean } }
+  | { error: string; code: string }
+
+export type ChangePasswordResult =
+  | { ok: true }
+  | { error: string; code: string }
 
 class AuthService {
   validateUsername(username: string): string | null {
@@ -24,6 +33,13 @@ class AuthService {
     }
     if (password.length > 72) {
       return 'Senha deve ter no máximo 72 caracteres'
+    }
+    return null
+  }
+
+  validateEmail(email: string): string | null {
+    if (email.length > 254 || !EMAIL_REGEX.test(email)) {
+      return 'E-mail inválido'
     }
     return null
   }
@@ -165,6 +181,82 @@ class AuthService {
         joinCode: m.role === 'ADMIN' ? m.group.joinCode : null,
       })),
     }
+  }
+
+  async updateProfile(
+    userId: number,
+    input: { name?: string; email?: string; username?: string; currentPassword?: string }
+  ): Promise<UpdateProfileResult> {
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) return { error: 'Usuário não encontrado', code: 'NOT_FOUND' }
+
+    const emailChanging = input.email !== undefined && input.email !== user.email
+    const usernameChanging = input.username !== undefined && input.username !== user.username
+
+    if ((emailChanging || usernameChanging) && user.password !== null) {
+      if (!input.currentPassword) {
+        return { error: 'Senha atual é obrigatória', code: 'CURRENT_PASSWORD_REQUIRED' }
+      }
+      const ok = await verifyPassword(input.currentPassword, user.password)
+      if (!ok) {
+        return { error: 'Senha atual incorreta', code: 'CURRENT_PASSWORD_INVALID' }
+      }
+    }
+
+    if (emailChanging) {
+      const conflict = await prisma.user.findUnique({ where: { email: input.email } })
+      if (conflict) return { error: 'Este e-mail já está em uso', code: 'EMAIL_TAKEN' }
+    }
+    if (usernameChanging) {
+      const conflict = await prisma.user.findUnique({ where: { username: input.username } })
+      if (conflict) return { error: 'Este usuário já existe', code: 'USERNAME_TAKEN' }
+    }
+
+    const data: { name?: string; email?: string; username?: string } = {}
+    if (input.name !== undefined) data.name = input.name
+    if (emailChanging) data.email = input.email
+    if (usernameChanging) data.username = input.username
+
+    try {
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data,
+        select: { id: true, publicId: true, name: true, username: true, email: true },
+      })
+      return { user: { ...updated, hasPassword: user.password !== null } }
+    } catch (e) {
+      const code = e && typeof e === 'object' && 'code' in e ? (e as { code?: string }).code : undefined
+      if (code === 'P2002') {
+        if (emailChanging) return { error: 'Este e-mail já está em uso', code: 'EMAIL_TAKEN' }
+        if (usernameChanging) return { error: 'Este usuário já existe', code: 'USERNAME_TAKEN' }
+      }
+      throw e
+    }
+  }
+
+  async changePassword(
+    userId: number,
+    currentPassword: string | undefined,
+    newPassword: string
+  ): Promise<ChangePasswordResult> {
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) return { error: 'Usuário não encontrado', code: 'NOT_FOUND' }
+
+    if (user.password !== null) {
+      if (!currentPassword) {
+        return { error: 'Senha atual é obrigatória', code: 'CURRENT_PASSWORD_REQUIRED' }
+      }
+      const ok = await verifyPassword(currentPassword, user.password)
+      if (!ok) {
+        return { error: 'Senha atual incorreta', code: 'CURRENT_PASSWORD_INVALID' }
+      }
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: await hashPassword(newPassword) },
+    })
+    return { ok: true }
   }
 }
 
