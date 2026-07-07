@@ -130,6 +130,7 @@ function UserMenu() {
       }
     >
       <MenuLabel>@{me.user.username}</MenuLabel>
+      <MenuItem onSelect={() => router.push("/conta")}>{t("myAccount")}</MenuItem>
       <MenuItem onSelect={() => router.push("/casa")}>{t("houseAndMembers")}</MenuItem>
       <MenuSeparator />
       <MenuItem danger onSelect={logout}>
