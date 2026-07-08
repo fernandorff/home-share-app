@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
-    user: { findUnique: vi.fn(), update: vi.fn() },
+    user: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
   },
 }))
 vi.mock('@/lib/prisma', () => ({ prisma: mockPrisma }))
@@ -11,10 +11,14 @@ import { authService } from './auth.service'
 import { hashPassword } from '@/lib/auth'
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  // resetAllMocks (not clearAllMocks): also drops any *persistent* mockResolvedValue set by a
+  // previous test, not just call history. Without this, a leftover default return value can leak
+  // into the NEXT test's unconfigured calls (e.g. uniqueUsernameFromEmail's internal uniqueness
+  // loop) and turn a `while (await find(...))` into a genuine infinite loop.
+  vi.resetAllMocks()
 })
 
-function baseUser(overrides: Partial<{ password: string | null; email: string | null; username: string }> = {}) {
+function baseUser(overrides: Partial<{ id: number; password: string | null; email: string | null; username: string; googleId: string | null; emailVerified: boolean }> = {}) {
   return {
     id: 1,
     publicId: 'pub-1',
@@ -23,6 +27,7 @@ function baseUser(overrides: Partial<{ password: string | null; email: string | 
     email: 'old@x.com',
     password: 'hash-of-something',
     googleId: null,
+    emailVerified: false,
     ...overrides,
   }
 }
@@ -86,7 +91,9 @@ describe('updateProfile', () => {
 
     expect('user' in result).toBe(true)
     const data = mockPrisma.user.update.mock.calls.at(-1)![0].data
-    expect(data).toEqual({ email: 'new@x.com' })
+    // A self-service email change always demotes emailVerified back to false — a fresh, unverified
+    // claim must never be trusted for Google auto-linking (see findOrCreateGoogleUser below).
+    expect(data).toEqual({ email: 'new@x.com', emailVerified: false })
   })
 
   it('does not ask for a password when email is resubmitted unchanged', async () => {
@@ -128,10 +135,12 @@ describe('updateProfile', () => {
 })
 
 describe('changePassword', () => {
+  const now = () => Math.floor(Date.now() / 1000)
+
   it('requires the current password when one is already set', async () => {
     mockPrisma.user.findUnique.mockResolvedValue(baseUser())
 
-    const result = await authService.changePassword(1, undefined, 'new-password-123')
+    const result = await authService.changePassword(1, undefined, 'new-password-123', now())
 
     expect(result).toMatchObject({ code: 'CURRENT_PASSWORD_REQUIRED' })
     expect(mockPrisma.user.update).not.toHaveBeenCalled()
@@ -141,7 +150,7 @@ describe('changePassword', () => {
     const hash = await hashPassword('correct-pw')
     mockPrisma.user.findUnique.mockResolvedValue(baseUser({ password: hash }))
 
-    const result = await authService.changePassword(1, 'wrong-pw', 'new-password-123')
+    const result = await authService.changePassword(1, 'wrong-pw', 'new-password-123', now())
 
     expect(result).toMatchObject({ code: 'CURRENT_PASSWORD_INVALID' })
     expect(mockPrisma.user.update).not.toHaveBeenCalled()
@@ -152,7 +161,7 @@ describe('changePassword', () => {
     mockPrisma.user.findUnique.mockResolvedValue(baseUser({ password: hash }))
     mockPrisma.user.update.mockResolvedValue(baseUser())
 
-    const result = await authService.changePassword(1, 'correct-pw', 'new-password-123')
+    const result = await authService.changePassword(1, 'correct-pw', 'new-password-123', now())
 
     expect(result).toEqual({ ok: true })
     const data = mockPrisma.user.update.mock.calls.at(-1)![0].data
@@ -160,13 +169,97 @@ describe('changePassword', () => {
     expect(typeof data.password).toBe('string')
   })
 
-  it('lets a Google-only account define a password with no current-password check', async () => {
+  it('lets a Google-only account define a password with no current-password check, given a fresh session', async () => {
     mockPrisma.user.findUnique.mockResolvedValue(baseUser({ password: null }))
     mockPrisma.user.update.mockResolvedValue(baseUser())
 
-    const result = await authService.changePassword(1, undefined, 'new-password-123')
+    const result = await authService.changePassword(1, undefined, 'new-password-123', now() - 60) // logged in 1 min ago
 
     expect(result).toEqual({ ok: true })
     expect(mockPrisma.user.update).toHaveBeenCalled()
+  })
+
+  it('refuses to define a first password from a STALE session (narrows the stolen-cookie window)', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(baseUser({ password: null }))
+
+    // Session was issued 1 hour ago — well past the reauth window — even though the cookie
+    // itself is still validly signed and not expired.
+    const result = await authService.changePassword(1, undefined, 'new-password-123', now() - 3600)
+
+    expect(result).toMatchObject({ code: 'REAUTH_REQUIRED' })
+    expect(mockPrisma.user.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('findOrCreateGoogleUser', () => {
+  it('matches an existing user by googleId and does not touch email linking at all', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce(baseUser({ googleId: 'g-1' }))
+
+    const result = await authService.findOrCreateGoogleUser({ googleId: 'g-1', email: 'old@x.com', name: 'Fernando' })
+
+    expect(result.id).toBe(1)
+    expect(mockPrisma.user.update).not.toHaveBeenCalled()
+    expect(mockPrisma.user.create).not.toHaveBeenCalled()
+  })
+
+  it('links an existing unclaimed, verified-email account on first Google login', async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(null) // no match by googleId
+      .mockResolvedValueOnce(baseUser({ googleId: null, emailVerified: true, password: 'x' })) // by email
+    mockPrisma.user.update.mockResolvedValue(baseUser({ googleId: 'g-new' }))
+
+    const result = await authService.findOrCreateGoogleUser({ googleId: 'g-new', email: 'old@x.com' })
+
+    expect(result.id).toBe(1)
+    expect(mockPrisma.user.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { googleId: 'g-new' } })
+    expect(mockPrisma.user.create).not.toHaveBeenCalled()
+  })
+
+  it('refuses to re-link an account that already has a DIFFERENT googleId (prevents account re-hijack)', async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(null) // no match by the attacker's googleId
+      .mockResolvedValueOnce(baseUser({ googleId: 'victim-google-id', emailVerified: true })) // by email
+      .mockResolvedValueOnce(null) // uniqueUsernameFromEmail's uniqueness check — candidate is free
+    mockPrisma.user.create.mockResolvedValue(baseUser({ id: 99, googleId: 'attacker-google-id', email: null, emailVerified: false }))
+
+    const result = await authService.findOrCreateGoogleUser({ googleId: 'attacker-google-id', email: 'old@x.com', name: 'Attacker' })
+
+    expect(mockPrisma.user.update).not.toHaveBeenCalled()
+    expect(mockPrisma.user.create).toHaveBeenCalled()
+    const createData = mockPrisma.user.create.mock.calls.at(-1)![0].data
+    // The disputed email must NOT be planted on the new row either — it already belongs to someone else.
+    expect(createData.email).toBeNull()
+    expect(result.id).toBe(99)
+  })
+
+  it('refuses to link by an UNVERIFIED (self-service-claimed) email — closes the pre-hijack chain', async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(null) // no match by googleId
+      .mockResolvedValueOnce(baseUser({ googleId: null, emailVerified: false })) // attacker pre-claimed this email
+      .mockResolvedValueOnce(null) // uniqueUsernameFromEmail's uniqueness check — candidate is free
+    mockPrisma.user.create.mockResolvedValue(baseUser({ id: 99, email: null, emailVerified: false, googleId: 'victim-google-id' }))
+
+    const result = await authService.findOrCreateGoogleUser({ googleId: 'victim-google-id', email: 'old@x.com', name: 'Victim' })
+
+    expect(mockPrisma.user.update).not.toHaveBeenCalled()
+    expect(mockPrisma.user.create).toHaveBeenCalled()
+    const createData = mockPrisma.user.create.mock.calls.at(-1)![0].data
+    expect(createData.email).toBeNull()
+    expect(result.id).toBe(99)
+  })
+
+  it('creates a brand-new, verified-email user when nothing matches', async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(null) // no match by googleId
+      .mockResolvedValueOnce(null) // no match by email either
+      .mockResolvedValueOnce(null) // uniqueUsernameFromEmail's uniqueness check — candidate is free
+    mockPrisma.user.create.mockResolvedValue(baseUser({ id: 42, email: 'brand-new@x.com', emailVerified: true, googleId: 'g-42', password: null }))
+
+    const result = await authService.findOrCreateGoogleUser({ googleId: 'g-42', email: 'brand-new@x.com', name: 'New Person' })
+
+    expect(result.id).toBe(42)
+    const createData = mockPrisma.user.create.mock.calls.at(-1)![0].data
+    expect(createData.email).toBe('brand-new@x.com')
+    expect(createData.emailVerified).toBe(true)
   })
 })

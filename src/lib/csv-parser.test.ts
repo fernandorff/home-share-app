@@ -35,6 +35,14 @@ describe('parseCSVDetailed', () => {
     ])
   })
 
+  it('reports a row whose amount exceeds the Decimal(10,2) column instead of letting it hit the DB', () => {
+    const { expenses, invalidRows } = parseCSVDetailed(
+      'description,amount\nOk,10.00\nToo big,99999999999.99'
+    )
+    expect(expenses).toHaveLength(1)
+    expect(invalidRows).toEqual([{ line: 3, reason: expect.stringContaining('valor muito alto') }])
+  })
+
   it('throws when required columns are missing', () => {
     expect(() => parseCSVDetailed('foo,bar\n1,2')).toThrow(/descricao/)
   })

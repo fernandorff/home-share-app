@@ -4,6 +4,22 @@ import { parseCSVDetailed, ExpenseRow, InvalidRow } from '@/lib/csv-parser'
 import { toCents, fromCents, splitCents } from '@/lib/currency'
 import { ApiError } from '@/lib/errors'
 
+// A cell starting with =, +, -, @ (or tab/CR) is parsed as a live formula by Excel/Sheets/LibreOffice
+// when the exported CSV is later opened — free-text fields here (description, notes, names, tags) are
+// fully user-controlled, so without this a housemate could plant a formula (e.g. HYPERLINK to exfiltrate
+// data, or on old Excel/DDE, run a command) that fires when someone else opens the file. Prefixing with
+// an apostrophe forces spreadsheet apps to render the cell as plain text instead of evaluating it.
+const FORMULA_INJECTION_PREFIX = /^[=+\-@\t\r]/
+
+export function escapeCSVField(value: string | null | undefined): string {
+  if (!value) return ''
+  const safe = FORMULA_INJECTION_PREFIX.test(value) ? `'${value}` : value
+  if (safe.includes(',') || safe.includes('"') || safe.includes('\n')) {
+    return `"${safe.replace(/"/g, '""')}"`
+  }
+  return safe
+}
+
 // Each of the three tag dimensions is an array of strings: a system-default key OR a custom name.
 export interface CreateExpenseInput {
   payerId: number
@@ -269,14 +285,6 @@ export class ExpenseService {
       orderBy: { date: 'desc' }
     })
 
-    const escapeCSV = (value: string | null | undefined): string => {
-      if (!value) return ''
-      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-        return `"${value.replace(/"/g, '""')}"`
-      }
-      return value
-    }
-
     const BOM = String.fromCharCode(0xfeff)
     const header = 'Date,Description,Notes,Amount,Paid by,Platforms,Payment,Categories,Participants'
 
@@ -289,14 +297,14 @@ export class ExpenseService {
 
       return [
         dateStr,
-        escapeCSV(e.description),
-        escapeCSV(e.notes),
+        escapeCSVField(e.description),
+        escapeCSVField(e.notes),
         amountStr,
-        escapeCSV(e.payer.name),
-        escapeCSV(e.platforms.join('; ')),
-        escapeCSV(e.paymentMethods.join('; ')),
-        escapeCSV(e.categories.join('; ')),
-        escapeCSV(participantNames)
+        escapeCSVField(e.payer.name),
+        escapeCSVField(e.platforms.join('; ')),
+        escapeCSVField(e.paymentMethods.join('; ')),
+        escapeCSVField(e.categories.join('; ')),
+        escapeCSVField(participantNames)
       ].join(',')
     })
 

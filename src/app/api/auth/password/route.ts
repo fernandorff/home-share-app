@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: passwordError, code: 'INVALID_PASSWORD' }, { status: 400 })
     }
 
-    const result = await authService.changePassword(check.session.userId, currentPassword, newPassword)
+    const result = await authService.changePassword(check.session.userId, currentPassword, newPassword, check.session.iat)
     if ('error' in result) {
       const status = result.code === 'NOT_FOUND' ? 404 : 401
       return NextResponse.json({ error: result.error, code: result.code }, { status })

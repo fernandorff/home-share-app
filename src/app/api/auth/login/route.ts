@@ -24,11 +24,6 @@ export async function POST(request: Request) {
 
     const result = await authService.login(username, password)
 
-    if (result.status === 'requires_password_setup') {
-      // Legacy user without password — frontend redirects to the set-password step.
-      return NextResponse.json({ requiresPasswordSetup: true })
-    }
-
     if (result.status === 'use_google') {
       return NextResponse.json({ error: 'Esta conta entra com o Google', code: 'USE_GOOGLE' }, { status: 401 })
     }

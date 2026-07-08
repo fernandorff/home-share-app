@@ -1,4 +1,10 @@
 import { LIMITS } from '@/lib/constants'
+import { toCents } from '@/lib/currency'
+
+// Same ceiling the JSON expense API enforces (validateExpenseInput) — the Decimal(10,2) column
+// tops out at 8 integer digits. Without this, an oversized CSV row reaches the DB write and
+// crashes the whole (all-or-nothing) import transaction instead of being reported per-row.
+const MAX_AMOUNT_CENTS = 9_999_999_999
 
 export interface ExpenseRow {
   descricao: string
@@ -88,6 +94,10 @@ export function parseCSVDetailed(csvText: string): ParsedCSV {
     const valor = parseMoneyValue(valorStr)
     if (valor === null || valor <= 0) {
       invalidRows.push({ line: i + 1, reason: `valor inválido: "${valorStr}"` })
+      continue
+    }
+    if (toCents(valor) > MAX_AMOUNT_CENTS) {
+      invalidRows.push({ line: i + 1, reason: `valor muito alto (máx. 99.999.999,99): "${valorStr}"` })
       continue
     }
 

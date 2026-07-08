@@ -11,6 +11,13 @@ export interface SessionPayload {
   name: string
 }
 
+// verifySession's return also carries the JWT's issued-at time (unix seconds) so callers can
+// gate step-up-sensitive actions (e.g. defining a password on a passwordless account) on how
+// recently the session was actually established, not just whether the cookie is still valid.
+export interface VerifiedSession extends SessionPayload {
+  iat: number
+}
+
 function getSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET
   if (!secret) {
@@ -38,7 +45,7 @@ export async function signSession(payload: SessionPayload): Promise<string> {
     .sign(getSecret())
 }
 
-export async function verifySession(token: string): Promise<SessionPayload | null> {
+export async function verifySession(token: string): Promise<VerifiedSession | null> {
   try {
     const { payload } = await jwtVerify(token, getSecret())
     if (typeof payload.userId !== 'number' || typeof payload.publicId !== 'string') {
@@ -48,6 +55,7 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
       userId: payload.userId,
       publicId: payload.publicId,
       name: typeof payload.name === 'string' ? payload.name : '',
+      iat: typeof payload.iat === 'number' ? payload.iat : 0,
     }
   } catch {
     return null

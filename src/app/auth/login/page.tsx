@@ -39,14 +39,7 @@ export default function LoginPage() {
     setError(null);
     const u = username.trim().toLowerCase();
     try {
-      const res = await api.post<{ user?: unknown; requiresPasswordSetup?: boolean }>(
-        "/api/auth/login",
-        { username: u, password }
-      );
-      if (res?.requiresPasswordSetup) {
-        router.push(`/auth/set-password?u=${encodeURIComponent(u)}`);
-        return;
-      }
+      await api.post("/api/auth/login", { username: u, password });
       router.replace("/");
     } catch (err) {
       setError(apiErr(err, t("errorLogin")));

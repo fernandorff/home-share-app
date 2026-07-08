@@ -17,7 +17,7 @@ const { mockPrisma } = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 
-import { expenseService } from "@/services/expense.service";
+import { expenseService, escapeCSVField } from "@/services/expense.service";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -100,5 +100,27 @@ describe("ExpenseService.update — tenant isolation", () => {
     await expect(
       expenseService.update(1, 999, [1, 2], { description: "x", amount: 10 })
     ).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("escapeCSVField — formula-injection guard", () => {
+  it("prefixes a leading-apostrophe when a cell starts with =, +, -, or @", () => {
+    expect(escapeCSVField("=HYPERLINK(evil.com)")).toBe("'=HYPERLINK(evil.com)");
+    expect(escapeCSVField("+1234")).toBe("'+1234");
+    expect(escapeCSVField("-1234")).toBe("'-1234");
+    expect(escapeCSVField("@SUM(A1)")).toBe("'@SUM(A1)");
+  });
+
+  it("leaves ordinary text untouched", () => {
+    expect(escapeCSVField("Almoço")).toBe("Almoço");
+    expect(escapeCSVField("")).toBe("");
+    expect(escapeCSVField(null)).toBe("");
+    expect(escapeCSVField(undefined)).toBe("");
+  });
+
+  it("still quotes commas/quotes/newlines, applied AFTER the formula-injection prefix", () => {
+    expect(escapeCSVField("a,b")).toBe('"a,b"');
+    expect(escapeCSVField("=1,2")).toBe("\"'=1,2\"");
+    expect(escapeCSVField('say "hi"')).toBe('"say ""hi"""');
   });
 });

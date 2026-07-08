@@ -23,7 +23,10 @@ describe('session JWT', () => {
   it('signs and verifies round-trip', async () => {
     const token = await signSession(payload)
     const session = await verifySession(token)
-    expect(session).toEqual(payload)
+    // verifySession also returns the JWT's issued-at time (iat), used to gate step-up-sensitive
+    // actions — not part of the signed payload, so check it separately from the rest.
+    expect(session).toMatchObject(payload)
+    expect(typeof session?.iat).toBe('number')
   })
 
   it('rejects tampered tokens', async () => {

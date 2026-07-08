@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { toCents, fromCents } from '@/lib/currency'
-import { verifySession, SessionPayload, SESSION_COOKIE, GROUP_COOKIE } from '@/lib/auth'
+import { verifySession, VerifiedSession, SESSION_COOKIE, GROUP_COOKIE } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ApiError } from '@/lib/errors'
 import { LIMITS } from '@/lib/constants'
@@ -38,7 +38,7 @@ export function handleApiError(error: unknown, defaultMsg: string): NextResponse
 }
 
 export type SessionCheck =
-  | { ok: true; session: SessionPayload }
+  | { ok: true; session: VerifiedSession }
   | { ok: false; response: NextResponse }
 
 export async function requireSession(): Promise<SessionCheck> {
@@ -57,7 +57,7 @@ export async function requireSession(): Promise<SessionCheck> {
 }
 
 export type GroupCheck =
-  | { ok: true; session: SessionPayload; groupId: number; role: 'ADMIN' | 'MEMBER' }
+  | { ok: true; session: VerifiedSession; groupId: number; role: 'ADMIN' | 'MEMBER' }
   | { ok: false; response: NextResponse }
 
 /**

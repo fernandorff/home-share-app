@@ -4,10 +4,10 @@ import { hashPassword, verifyPassword } from '@/lib/auth'
 
 const USERNAME_REGEX = /^[a-z0-9._-]{3,30}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const REAUTH_WINDOW_SECONDS = 15 * 60
 
 export type LoginResult =
   | { status: 'ok'; user: { id: number; publicId: string; name: string } }
-  | { status: 'requires_password_setup'; user: { id: number; publicId: string; name: string } }
   | { status: 'use_google' }
   | { status: 'invalid' }
 
@@ -69,30 +69,17 @@ class AuthService {
     const publicUser = { id: user.id, publicId: user.publicId, name: user.name }
 
     if (user.password === null) {
-      // Google accounts are passwordless by design — they log in via Google, never
-      // via the password-setup flow (which would otherwise let anyone claim them).
+      // Google accounts are passwordless by design — they log in via Google.
       if (user.googleId !== null) return { status: 'use_google' }
-      // Legacy users (pre-auth era) have no password yet — first login defines it.
-      return { status: 'requires_password_setup', user: publicUser }
+      // A password-less, Google-less row shouldn't exist in practice (the old unauthenticated
+      // "legacy first access" claim-by-username flow was retired as a security fix — anyone could
+      // claim any such account just by knowing its username). Treat it the same as any other
+      // wrong-credentials case: never reveal that this state is different from "wrong password".
+      return { status: 'invalid' }
     }
 
     const valid = await verifyPassword(password, user.password)
     return valid ? { status: 'ok', user: publicUser } : { status: 'invalid' }
-  }
-
-  /** Sets the password ONLY for legacy users that don't have one yet (first access).
-   *  Google accounts (googleId set) are never claimable here — they authenticate via Google. */
-  async setInitialPassword(username: string, password: string): Promise<LoginResult> {
-    const user = await prisma.user.findUnique({ where: { username } })
-    if (!user) return { status: 'invalid' }
-    if (user.password !== null) return { status: 'invalid' }
-    if (user.googleId !== null) return { status: 'invalid' }
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: await hashPassword(password) },
-    })
-    return { status: 'ok', user: { id: user.id, publicId: user.publicId, name: user.name } }
   }
 
   /** Derive a unique, regex-valid username from a Google email (or googleId fallback). */
@@ -112,19 +99,30 @@ class AuthService {
   }
 
   /**
-   * Google login: match by googleId, else link an existing account by email,
-   * else create a new passwordless user. Reuses the same session afterwards.
+   * Google login: match by googleId, else link an existing account by email, else create a new
+   * passwordless user. Reuses the same session afterwards.
+   *
+   * SECURITY: the by-email fallback only auto-links when the matched row is BOTH unclaimed
+   * (googleId === null) AND its email was itself verified (by an earlier Google login, or a
+   * trusted one-time backfill) — never a plain self-service PATCH /api/auth/me value. Trusting an
+   * unverified email here would let anyone pre-claim someone else's address on their own account
+   * and silently hijack that person's first-ever Google login (or, for an already-linked account,
+   * overwrite its googleId and permanently steal it). If the matched row fails either check, the
+   * disputed email is dropped (not planted on the new row either) and a fresh account is created.
    */
   async findOrCreateGoogleUser(profile: { googleId: string; email?: string; name?: string }) {
     let user = await prisma.user.findUnique({ where: { googleId: profile.googleId } })
+    let emailForNewUser = profile.email ?? null
 
     if (!user && profile.email) {
       const byEmail = await prisma.user.findUnique({ where: { email: profile.email } })
-      if (byEmail) {
+      if (byEmail && byEmail.googleId === null && byEmail.emailVerified) {
         user = await prisma.user.update({
           where: { id: byEmail.id },
           data: { googleId: profile.googleId },
         })
+      } else if (byEmail) {
+        emailForNewUser = null
       }
     }
 
@@ -135,7 +133,8 @@ class AuthService {
           publicId: uuidv7(),
           name: profile.name?.trim() || profile.email?.split('@')[0] || 'Usuário',
           username,
-          email: profile.email ?? null,
+          email: emailForNewUser,
+          emailVerified: emailForNewUser !== null,
           googleId: profile.googleId,
           password: null,
         },
@@ -216,9 +215,11 @@ class AuthService {
       if (conflict) return { error: 'Este usuário já existe', code: 'USERNAME_TAKEN' }
     }
 
-    const data: { name?: string; email?: string; username?: string } = {}
+    const data: { name?: string; email?: string; emailVerified?: boolean; username?: string } = {}
     if (input.name !== undefined) data.name = input.name
-    if (emailChanging) data.email = input.email
+    // A self-service email change is never trusted for OAuth auto-linking — always demote
+    // emailVerified back to false, even if the new value happens to match a real address.
+    if (emailChanging) { data.email = input.email; data.emailVerified = false }
     if (usernameChanging) data.username = input.username
 
     try {
@@ -238,10 +239,15 @@ class AuthService {
     }
   }
 
+  /**
+   * @param sessionIssuedAt the caller's JWT `iat` (unix seconds) — only consulted when DEFINING a
+   *   password for the first time (see REAUTH_WINDOW_SECONDS below).
+   */
   async changePassword(
     userId: number,
     currentPassword: string | undefined,
-    newPassword: string
+    newPassword: string,
+    sessionIssuedAt: number
   ): Promise<ChangePasswordResult> {
     const user = await prisma.user.findUnique({ where: { id: userId } })
     if (!user) return { error: 'Usuário não encontrado', code: 'NOT_FOUND' }
@@ -253,6 +259,16 @@ class AuthService {
       const ok = await verifyPassword(currentPassword, user.password)
       if (!ok) {
         return { error: 'Senha atual incorreta', code: 'CURRENT_PASSWORD_INVALID' }
+      }
+    } else {
+      // Defining a password for the very first time (Google-only account) has no prior secret to
+      // confirm — narrow the risk instead by requiring a RECENT login. A stolen/borrowed session
+      // cookie can still be valid for up to 30 days (SESSION_MAX_AGE_SECONDS); without this check
+      // it could be silently upgraded into a permanent, independent credential the real owner
+      // never notices. This does not apply once a password already exists (branch above).
+      const ageSeconds = Math.floor(Date.now() / 1000) - sessionIssuedAt
+      if (ageSeconds > REAUTH_WINDOW_SECONDS) {
+        return { error: 'Faça login novamente para definir uma senha', code: 'REAUTH_REQUIRED' }
       }
     }
 
