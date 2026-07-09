@@ -61,9 +61,9 @@ describe("tenant isolation (integration, real pglite DB)", () => {
   });
 
   it("update from another house throws 404 (cannot mutate another house's expense)", async () => {
-    const { ana, bob, houseB, expA } = await seedTwoHouses();
+    const { ana, bob, carol, houseB, expA } = await seedTwoHouses();
     await expect(
-      expenseService.update(houseB.id, expA.id, [ana.id, bob.id], { description: "hacked", amount: 50 })
+      expenseService.update(houseB.id, expA.id, carol.id, true, [ana.id, bob.id], { description: "hacked", amount: 50 })
     ).rejects.toMatchObject({ status: 404 });
   });
 

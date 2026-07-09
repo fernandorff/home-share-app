@@ -422,7 +422,8 @@
     "EMAIL_TAKEN": "This e-mail is already in use",
     "CURRENT_PASSWORD_REQUIRED": "Enter your current password",
     "CURRENT_PASSWORD_INVALID": "Current password is incorrect",
-    "REAUTH_REQUIRED": "Please log in again to do this"
+    "REAUTH_REQUIRED": "Please log in again to do this",
+    "NOT_EXPENSE_OWNER": "Only the person who paid (or the house admin) can do this"
   },
   "Currency": {
     "title": "Currency",

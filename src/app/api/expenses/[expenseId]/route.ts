@@ -47,7 +47,14 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const members = await groupService.listMembers(check.groupId)
     const memberIds = members.map(m => m.id)
 
-    const expense = await expenseService.update(check.groupId, existingExpense.id, memberIds, validation.data)
+    const expense = await expenseService.update(
+      check.groupId,
+      existingExpense.id,
+      check.session.userId,
+      check.role === 'ADMIN',
+      memberIds,
+      validation.data
+    )
 
     // Field-level diff for the activity history (only what actually changed).
     const changes: Record<string, { from: string; to: string }> = {}
@@ -89,7 +96,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: 'Despesa não encontrada' }, { status: 404 })
     }
 
-    await expenseService.delete(check.groupId, expense.id)
+    await expenseService.delete(check.groupId, expense.id, check.session.userId, check.role === 'ADMIN')
 
     await recordActivity({
       groupId: check.groupId,

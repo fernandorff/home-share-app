@@ -88,7 +88,7 @@ describe("ExpenseService.create — split math + persisted shape", () => {
   });
 });
 
-describe("ExpenseService.update — tenant isolation", () => {
+describe("ExpenseService.update — tenant isolation + ownership (C1)", () => {
   it("throws ApiError 404 when the expense is not in the active group", async () => {
     // $transaction(cb) → run cb with a tx whose findFirst returns null (not found in group)
     mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
@@ -98,8 +98,80 @@ describe("ExpenseService.update — tenant isolation", () => {
       })
     );
     await expect(
-      expenseService.update(1, 999, [1, 2], { description: "x", amount: 10 })
+      expenseService.update(1, 999, 1, false, [1, 2], { description: "x", amount: 10 })
     ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("throws ApiError 403 when a non-admin member who didn't pay tries to edit someone else's expense", async () => {
+    mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+      cb({
+        expense: { findFirst: vi.fn().mockResolvedValue({ id: 999, payerId: 1 }), update: vi.fn() },
+        expenseParticipant: { deleteMany: vi.fn() },
+      })
+    );
+    // actingUserId=2 (not the payer, id 1), isAdmin=false
+    await expect(
+      expenseService.update(1, 999, 2, false, [1, 2], { description: "x", amount: 10 })
+    ).rejects.toMatchObject({ status: 403, code: "NOT_EXPENSE_OWNER" });
+  });
+
+  it("allows the payer to edit their own expense (not admin)", async () => {
+    const update = vi.fn().mockResolvedValue({ id: 999, description: "x" });
+    mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+      cb({
+        expense: { findFirst: vi.fn().mockResolvedValue({ id: 999, payerId: 1 }), update },
+        expenseParticipant: { deleteMany: vi.fn() },
+      })
+    );
+    await expenseService.update(1, 999, 1, false, [1, 2], { description: "x", amount: 10 });
+    expect(update).toHaveBeenCalled();
+  });
+
+  it("allows an admin to edit an expense they didn't pay", async () => {
+    const update = vi.fn().mockResolvedValue({ id: 999, description: "x" });
+    mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+      cb({
+        expense: { findFirst: vi.fn().mockResolvedValue({ id: 999, payerId: 1 }), update },
+        expenseParticipant: { deleteMany: vi.fn() },
+      })
+    );
+    // actingUserId=2 (not the payer), isAdmin=true
+    await expenseService.update(1, 999, 2, true, [1, 2], { description: "x", amount: 10 });
+    expect(update).toHaveBeenCalled();
+  });
+});
+
+describe("ExpenseService.delete — tenant isolation + ownership (C1) + single-row audit trail (A2)", () => {
+  it("throws ApiError 404 when the expense is not in the active group", async () => {
+    mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+      cb({ expense: { findFirst: vi.fn().mockResolvedValue(null), delete: vi.fn() } })
+    );
+    await expect(expenseService.delete(1, 999, 1, false)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("throws ApiError 403 when a non-admin member who didn't pay tries to delete someone else's expense", async () => {
+    mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+      cb({ expense: { findFirst: vi.fn().mockResolvedValue({ id: 999, payerId: 1 }), delete: vi.fn() } })
+    );
+    await expect(expenseService.delete(1, 999, 2, false)).rejects.toMatchObject({ status: 403, code: "NOT_EXPENSE_OWNER" });
+  });
+
+  it("allows the payer to delete their own expense, via a single-row delete (not deleteMany — keeps the audit trail per-entity)", async () => {
+    const del = vi.fn().mockResolvedValue({ id: 999, payerId: 1 });
+    mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+      cb({ expense: { findFirst: vi.fn().mockResolvedValue({ id: 999, payerId: 1 }), delete: del } })
+    );
+    await expenseService.delete(1, 999, 1, false);
+    expect(del).toHaveBeenCalledWith({ where: { id: 999 } });
+  });
+
+  it("allows an admin to delete an expense they didn't pay", async () => {
+    const del = vi.fn().mockResolvedValue({ id: 999, payerId: 1 });
+    mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+      cb({ expense: { findFirst: vi.fn().mockResolvedValue({ id: 999, payerId: 1 }), delete: del } })
+    );
+    await expenseService.delete(1, 999, 2, true);
+    expect(del).toHaveBeenCalledWith({ where: { id: 999 } });
   });
 });
 

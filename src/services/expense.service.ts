@@ -163,7 +163,12 @@ export class ExpenseService {
     })
   }
 
-  async update(groupId: number, expenseId: number, memberIds: number[], input: UpdateExpenseInput) {
+  /**
+   * `actingUserId`/`isAdmin` enforce that only the expense's payer or a house admin can edit it —
+   * a plain member never gets to rewrite an expense they didn't pay for (money-critical: that
+   * would let anyone shift the shared balance in their own favor).
+   */
+  async update(groupId: number, expenseId: number, actingUserId: number, isAdmin: boolean, memberIds: number[], input: UpdateExpenseInput) {
     const { payerId, platforms, paymentMethods, description, notes, categories, amount, date, participants, splitEqually } = input
 
     let participantData: { userId: number; amount: number }[] | undefined
@@ -178,10 +183,13 @@ export class ExpenseService {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.expense.findFirst({
         where: { id: expenseId, groupId },
-        select: { id: true }
+        select: { id: true, payerId: true }
       })
       if (!existing) {
         throw new ApiError('Despesa não encontrada nesta casa', 404)
+      }
+      if (!isAdmin && existing.payerId !== actingUserId) {
+        throw new ApiError('Você só pode editar despesas que você pagou (ou ser admin da casa)', 403, 'NOT_EXPENSE_OWNER')
       }
 
       if (participantData) {
@@ -207,9 +215,26 @@ export class ExpenseService {
     })
   }
 
-  async delete(groupId: number, expenseId: number) {
-    const result = await prisma.expense.deleteMany({ where: { id: expenseId, groupId } })
-    return result.count
+  /**
+   * Same ownership rule as update() (payer or admin only). Uses a single-row `delete` (not
+   * `deleteMany`) so the audit extension records a proper per-entity DELETE revision — a
+   * `deleteMany` is indistinguishable from a bulk operation and gets excluded from the
+   * per-expense/detailed history views, which would make a single delete invisible there.
+   */
+  async delete(groupId: number, expenseId: number, actingUserId: number, isAdmin: boolean) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.expense.findFirst({
+        where: { id: expenseId, groupId },
+        select: { id: true, payerId: true }
+      })
+      if (!existing) {
+        throw new ApiError('Despesa não encontrada nesta casa', 404)
+      }
+      if (!isAdmin && existing.payerId !== actingUserId) {
+        throw new ApiError('Você só pode excluir despesas que você pagou (ou ser admin da casa)', 403, 'NOT_EXPENSE_OWNER')
+      }
+      return tx.expense.delete({ where: { id: expenseId } })
+    })
   }
 
   async bulkDelete(groupId: number, expenseIds: number[]) {

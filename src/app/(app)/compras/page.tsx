@@ -35,6 +35,9 @@ export default function ComprasPage() {
   // quick-add
   const [draft, setDraft] = useState("");
   const [adding, setAdding] = useState(false);
+  // Ref (not just the `adding` state) so a fast double-click/double-Enter can't re-enter add()
+  // before React re-renders — state reads inside the closure aren't a synchronous guard.
+  const addingRef = useRef(false);
 
   // per-item async guards (publicIds in flight)
   const [busy, setBusy] = useState<Set<string>>(new Set());
@@ -78,7 +81,8 @@ export default function ComprasPage() {
 
   const add = async () => {
     const name = draft.trim();
-    if (!name || adding) return;
+    if (!name || addingRef.current) return;
+    addingRef.current = true;
     setAdding(true);
     try {
       await api.post<{ item: ShoppingItem }>("/api/shopping-items", { name });
@@ -87,6 +91,7 @@ export default function ComprasPage() {
     } catch (e) {
       toast(errMsg(e), "error");
     } finally {
+      addingRef.current = false;
       setAdding(false);
     }
   };

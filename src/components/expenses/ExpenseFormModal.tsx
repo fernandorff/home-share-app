@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -124,6 +124,10 @@ export function ExpenseFormModal({
   const [custom, setCustom] = useState<Record<number, string>>({});
   const [percent, setPercent] = useState<Record<number, number>>({});
   const [submitting, setSubmitting] = useState(false);
+  // A ref (not state) guards against double-submit: state updates are batched/async, so a
+  // fast double-click can re-enter handleSubmit before React re-renders with the disabled
+  // button — a ref flips synchronously, closing that race.
+  const submittingRef = useRef(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   function seedPercentEqual() {
@@ -259,7 +263,8 @@ export function ExpenseFormModal({
   }
 
   async function handleSubmit() {
-    if (!canSubmit) return;
+    if (!canSubmit || submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setFormError(null);
 
@@ -305,6 +310,7 @@ export function ExpenseFormModal({
       setFormError(message);
       toast(message, "error");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }

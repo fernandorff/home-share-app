@@ -422,7 +422,8 @@
     "EMAIL_TAKEN": "Este correo ya está en uso",
     "CURRENT_PASSWORD_REQUIRED": "Ingresa tu contraseña actual",
     "CURRENT_PASSWORD_INVALID": "La contraseña actual es incorrecta",
-    "REAUTH_REQUIRED": "Inicia sesión de nuevo para continuar"
+    "REAUTH_REQUIRED": "Inicia sesión de nuevo para continuar",
+    "NOT_EXPENSE_OWNER": "Solo quien pagó el gasto (o el admin de la casa) puede hacer esto"
   },
   "Currency": {
     "title": "Moneda",

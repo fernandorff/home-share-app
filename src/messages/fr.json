@@ -422,7 +422,8 @@
     "EMAIL_TAKEN": "Cet e-mail est déjà utilisé",
     "CURRENT_PASSWORD_REQUIRED": "Indiquez votre mot de passe actuel",
     "CURRENT_PASSWORD_INVALID": "Mot de passe actuel incorrect",
-    "REAUTH_REQUIRED": "Veuillez vous reconnecter pour continuer"
+    "REAUTH_REQUIRED": "Veuillez vous reconnecter pour continuer",
+    "NOT_EXPENSE_OWNER": "Seule la personne qui a payé (ou l'admin de la maison) peut faire ça"
   },
   "Currency": {
     "title": "Devise",

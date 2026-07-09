@@ -422,7 +422,8 @@
     "EMAIL_TAKEN": "Este e-mail já está em uso",
     "CURRENT_PASSWORD_REQUIRED": "Informe sua senha atual",
     "CURRENT_PASSWORD_INVALID": "Senha atual incorreta",
-    "REAUTH_REQUIRED": "Faça login novamente para continuar"
+    "REAUTH_REQUIRED": "Faça login novamente para continuar",
+    "NOT_EXPENSE_OWNER": "Só quem pagou a despesa (ou o admin da casa) pode fazer isso"
   },
   "Currency": {
     "title": "Moeda",
