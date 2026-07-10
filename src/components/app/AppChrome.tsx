@@ -197,12 +197,16 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         <main className="min-w-0 flex-1 pb-24 md:pb-6">{children}</main>
       </div>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav — same 6 routes as the desktop sidebar above, just CSS-hidden per
+          breakpoint (both stay mounted). Left at Next's default prefetch there, so without this
+          every route got prefetched twice (12 requests for 6 routes, BL-32/P6); the desktop
+          sidebar's links keep prefetching. */}
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-rule bg-paper/95 backdrop-blur md:hidden">
         {NAV.map(({ href, key, Icon }) => (
           <Link
             key={href}
             href={href}
+            prefetch={false}
             className={cn(
               "flex min-w-0 flex-col items-center gap-1 px-0.5 py-2 text-[0.75rem] uppercase tracking-tight transition-colors",
               isActive(href) ? "text-stamp" : "text-ink-soft"

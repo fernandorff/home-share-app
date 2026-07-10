@@ -6,17 +6,23 @@ import { getLocale } from "next-intl/server";
 import { THEME_COOKIE, DEFAULT_THEME, isTheme } from "@/lib/theme";
 import "./globals.css";
 
+// preload: false on all 5 files (BL-32/P7) — only one theme's fonts are ever actually used
+// (--font-mono/--font-display point at default's or bolitas's pair depending on data-theme), so
+// eagerly preloading all 5 wastes ~190KB on every load; the browser now only fetches the 2-3
+// files the active theme's CSS actually resolves to.
 const spaceMono = Space_Mono({
   subsets: ["latin"],
   weight: ["400", "700"],
   variable: "--font-space-mono",
   display: "swap",
+  preload: false,
 });
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains-mono",
   display: "swap",
+  preload: false,
 });
 
 // Fonts for the "bolitas" theme (cozy cottage-ledger). Always loaded; the
@@ -25,12 +31,14 @@ const nunito = Nunito({
   subsets: ["latin"],
   variable: "--font-nunito",
   display: "swap",
+  preload: false,
 });
 
 const fredoka = Fredoka({
   subsets: ["latin"],
   variable: "--font-fredoka",
   display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
