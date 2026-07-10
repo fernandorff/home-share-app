@@ -11,17 +11,19 @@ import { Field, Input, Select } from "@/components/ui/Field";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { MemberDot } from "@/components/ui/Member";
+import { Menu, MenuItem } from "@/components/ui/Menu";
 import { Tag } from "@/components/ui/Stamp";
 import { Spinner } from "@/components/ui/Feedback";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import { revealDelay } from "@/components/ui/motion";
 import { SUPPORTED_CURRENCIES } from "@/lib/currencies";
 import { useApiError } from "@/lib/api-errors";
+import type { Member } from "@/lib/types";
 
 export default function CasaPage() {
   const t = useTranslations("Household");
   const tc = useTranslations("Common");
-  const { me, activeGroup, members, membersLoading, refresh, switchGroup } =
+  const { me, activeGroup, members, membersLoading, refresh, refreshMembers, switchGroup } =
     useSession();
   const toast = useToast();
   const tcur = useTranslations("Currency");
@@ -50,10 +52,18 @@ export default function CasaPage() {
   // Currency (ADMIN)
   const [savingCurrency, setSavingCurrency] = useState(false);
 
+  // Leave house (self) / remove member (admin) — BL-16
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
+  const [removing, setRemoving] = useState(false);
+
   if (!me || !activeGroup) return null;
 
   const isAdmin = activeGroup.role === "ADMIN";
   const code = activeGroup.joinCode;
+  const activeMembers = members.filter((m) => m.active);
+  const exMembers = members.filter((m) => !m.active);
 
   async function copyCode() {
     if (!code) return;
@@ -137,6 +147,35 @@ export default function CasaPage() {
       toast(apiErr(err, tcur("error")), "error");
     } finally {
       setSavingCurrency(false);
+    }
+  }
+
+  async function onLeave() {
+    setLeaving(true);
+    try {
+      await api.post("/api/groups/active/leave");
+      toast(t("leaveSuccess"), "success");
+      setLeaveConfirmOpen(false);
+      await refresh();
+    } catch (err) {
+      toast(apiErr(err, t("leaveError")), "error");
+    } finally {
+      setLeaving(false);
+    }
+  }
+
+  async function onRemove() {
+    if (!removeTarget) return;
+    setRemoving(true);
+    try {
+      await api.del(`/api/groups/active/members/${removeTarget.publicId}`);
+      toast(t("removeSuccess", { name: removeTarget.name }), "success");
+      setRemoveTarget(null);
+      await Promise.all([refresh(), refreshMembers()]);
+    } catch (err) {
+      toast(apiErr(err, t("removeError")), "error");
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -233,35 +272,91 @@ export default function CasaPage() {
         </Card>
       </section>
 
-      {/* 3 — Members */}
+      {/* 3 — Members (active only; ex-members get their own section below, BL-16) */}
       <section className="flex flex-col gap-4">
-        <SectionTitle right={<span className="label-mono">{members.length}</span>}>
+        <SectionTitle right={<span className="label-mono">{activeMembers.length}</span>}>
           {t("members")}
         </SectionTitle>
         <Card className="reveal p-2">
           {membersLoading ? (
             <SkeletonRows rows={3} className="px-2" />
-          ) : members.length === 0 ? (
+          ) : activeMembers.length === 0 ? (
             <p className="px-2 py-6 text-sm text-faint">{t("noMembers")}</p>
           ) : (
             <ul>
-              {members.map((m, i) => (
-                <li key={m.id} className="reveal" style={revealDelay(i)}>
-                  {i > 0 && <ReceiptDivider />}
-                  <div className="flex items-center gap-3 px-2 py-3">
-                    <MemberDot colorIndex={m.colorIndex} name={m.name} size={32} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-ink">{m.name}</p>
-                      <p className="truncate text-xs text-faint">@{m.username}</p>
+              {activeMembers.map((m, i) => {
+                const isSelf = m.id === me.user.id;
+                return (
+                  <li key={m.id} className="reveal" style={revealDelay(i)}>
+                    {i > 0 && <ReceiptDivider />}
+                    <div className="flex items-center gap-3 px-2 py-3">
+                      <MemberDot colorIndex={m.colorIndex} name={m.name} size={32} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-ink">{m.name}</p>
+                        <p className="truncate text-xs text-faint">@{m.username}</p>
+                      </div>
+                      <Tag>{roleLabel(m.role)}</Tag>
+                      {isSelf ? (
+                        <button
+                          type="button"
+                          onClick={() => setLeaveConfirmOpen(true)}
+                          className="label-mono shrink-0 text-debt hover:underline"
+                        >
+                          {t("leave")}
+                        </button>
+                      ) : isAdmin ? (
+                        <Menu
+                          trigger={
+                            <button
+                              type="button"
+                              aria-label={t("removeConfirmTitle", { name: m.name })}
+                              className="shrink-0 rounded-sm px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink"
+                            >
+                              ⋯
+                            </button>
+                          }
+                        >
+                          <MenuItem danger onSelect={() => setRemoveTarget(m)}>
+                            {t("remove")}
+                          </MenuItem>
+                        </Menu>
+                      ) : null}
                     </div>
-                    <Tag>{roleLabel(m.role)}</Tag>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>
       </section>
+
+      {/* 3b — Ex-members (BL-16): kept visible so a locked balance stays traceable to who it
+          belongs to; never selectable for new expenses. */}
+      {exMembers.length > 0 && (
+        <section className="flex flex-col gap-4">
+          <SectionTitle right={<span className="label-mono">{exMembers.length}</span>}>
+            {t("exMembersTitle")}
+          </SectionTitle>
+          <Card className="reveal p-2">
+            <ul>
+              {exMembers.map((m, i) => (
+                <li key={m.id} className="reveal" style={revealDelay(i)}>
+                  {i > 0 && <ReceiptDivider />}
+                  <div className="flex items-center gap-3 px-2 py-3 opacity-70">
+                    <MemberDot colorIndex={m.colorIndex} name={m.name} size={32} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-ink">
+                        {t("exMemberLabel", { name: m.name })}
+                      </p>
+                      <p className="truncate text-xs text-faint">@{m.username}</p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
+      )}
 
       {/* 4 — Your houses / switch */}
       <section className="flex flex-col gap-4">
@@ -407,6 +502,44 @@ export default function CasaPage() {
         }
       >
         <p className="text-sm text-ink">{t("regenerateConfirmPrompt")}</p>
+      </Modal>
+
+      {/* Leave house confirm (self, BL-16) */}
+      <Modal
+        open={leaveConfirmOpen}
+        onOpenChange={(o) => !o && !leaving && setLeaveConfirmOpen(false)}
+        title={t("leaveConfirmTitle")}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setLeaveConfirmOpen(false)} disabled={leaving}>
+              {tc("cancel")}
+            </Button>
+            <Button variant="danger" loading={leaving} onClick={onLeave}>
+              {t("leave")}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink">{t("leaveConfirmPrompt")}</p>
+      </Modal>
+
+      {/* Remove member confirm (admin, BL-16) */}
+      <Modal
+        open={removeTarget !== null}
+        onOpenChange={(o) => !o && !removing && setRemoveTarget(null)}
+        title={removeTarget ? t("removeConfirmTitle", { name: removeTarget.name }) : ""}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRemoveTarget(null)} disabled={removing}>
+              {tc("cancel")}
+            </Button>
+            <Button variant="danger" loading={removing} onClick={onRemove}>
+              {t("remove")}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink">{t("removeConfirmPrompt")}</p>
       </Modal>
     </div>
   );

@@ -30,11 +30,23 @@ export function ExpenseDetailModal({
 }) {
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
+  const thh = useTranslations("Household");
+  const tacc = useTranslations("Account");
   const { members } = useSession();
   const memberById = new Map(members.map((m) => [m.id, m]));
 
   const lbl = (ns: string, v: string) => (t.has(`${ns}.${v}`) ? t(`${ns}.${v}`) : v);
   const payerColor = expense ? memberById.get(expense.payerId)?.colorIndex ?? 0 : 0;
+  // Same ex-member/deleted-account treatment as saldos/atividade (BL-16/BL-23) — the embedded
+  // `expense.payer.name` snapshot is a live join to the CURRENT User row, so a deleted account
+  // would already show its (untranslated, raw) placeholder there without this override.
+  const memberDisplayName = (id: number, fallback: string) => {
+    const m = memberById.get(id);
+    if (!m) return fallback;
+    if (m.deleted) return tacc("deletedUserLabel");
+    if (!m.active) return thh("exMemberLabel", { name: m.name });
+    return m.name;
+  };
 
   return (
     <Modal
@@ -63,8 +75,8 @@ export function ExpenseDetailModal({
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
             <Detail label={t("payer")}>
               <span className="flex min-w-0 items-center gap-2">
-                <MemberDot colorIndex={payerColor} name={expense.payer.name} size={20} />
-                <span className="truncate">{expense.payer.name}</span>
+                <MemberDot colorIndex={payerColor} name={memberDisplayName(expense.payerId, expense.payer.name)} size={20} />
+                <span className="truncate">{memberDisplayName(expense.payerId, expense.payer.name)}</span>
               </span>
             </Detail>
             <Detail label={t("date")}>
@@ -89,11 +101,12 @@ export function ExpenseDetailModal({
             <ul className="mt-0.5 flex flex-col gap-1.5 rounded-md border border-dashed border-rule bg-panel/40 p-3">
               {expense.participants.map((p) => {
                 const m = memberById.get(p.userId);
+                const name = memberDisplayName(p.userId, m?.name ?? "?");
                 return (
                   <li key={p.id} className="flex items-center justify-between gap-2 text-sm">
                     <span className="flex min-w-0 items-center gap-2">
-                      <MemberDot colorIndex={m?.colorIndex ?? 0} name={m?.name ?? "?"} size={20} />
-                      <span className="truncate text-ink">{m?.name ?? "?"}</span>
+                      <MemberDot colorIndex={m?.colorIndex ?? 0} name={name} size={20} />
+                      <span className="truncate text-ink">{name}</span>
                     </span>
                     <Money value={p.amount} />
                   </li>
@@ -112,11 +125,21 @@ export function ExpenseDetailModal({
 /** Change history for one expense (from the EntityRevision trail). Fetched lazily on expand. */
 function ExpenseHistory({ expense }: { expense: Expense }) {
   const t = useTranslations("Expenses");
+  const thh = useTranslations("Household");
+  const tacc = useTranslations("Account");
   const locale = useLocale();
   const apiErr = useApiError();
   const toast = useToast();
   const { members } = useSession();
   const memberById = new Map(members.map((m) => [m.id, m]));
+  // Same ex-member/deleted-account treatment as the detail view above (BL-16/BL-23).
+  const memberDisplayName = (id: number) => {
+    const m = memberById.get(id);
+    if (!m) return `#${id}`;
+    if (m.deleted) return tacc("deletedUserLabel");
+    if (!m.active) return thh("exMemberLabel", { name: m.name });
+    return m.name;
+  };
 
   const [expanded, setExpanded] = useState(false);
   const [entries, setEntries] = useState<ReturnType<typeof buildExpenseHistory> | null>(null);
@@ -176,7 +199,7 @@ function ExpenseHistory({ expense }: { expense: Expense }) {
       case "date":
         return <span className="tnum">{formatDateLocale(String(value))}</span>;
       case "payerId":
-        return <span>{memberById.get(Number(value))?.name ?? `#${value}`}</span>;
+        return <span>{memberDisplayName(Number(value))}</span>;
       case "categories":
         return <span>{(value as string[]).map((v) => lbl("category", v)).join(", ")}</span>;
       case "platforms":

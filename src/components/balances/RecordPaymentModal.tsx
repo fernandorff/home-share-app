@@ -34,6 +34,12 @@ export function RecordPaymentModal({ open, onOpenChange, prefill, settlements, o
   const { members, activeGroup } = useSession();
   const t = useTranslations("Settlements");
   const tc = useTranslations("Common");
+  const thh = useTranslations("Household");
+  const tacc = useTranslations("Account");
+  // Ex-members stay selectable here on purpose (BL-16) — resolving their locked balance is
+  // exactly what this modal is for — just tagged so it's clear who's no longer active.
+  const optionLabel = (m: (typeof members)[number]) =>
+    m.deleted ? tacc("deletedUserLabel") : !m.active ? thh("exMemberLabel", { name: m.name }) : m.name;
   const toast = useToast();
   const apiErr = useApiError();
   const locale = useLocale();
@@ -109,7 +115,7 @@ export function RecordPaymentModal({ open, onOpenChange, prefill, settlements, o
             <Select id="pay-from" value={fromId} onChange={(e) => setFromId(e.target.value ? Number(e.target.value) : "")}>
               <option value="">{t("selectMember")}</option>
               {members.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
+                <option key={m.id} value={m.id}>{optionLabel(m)}</option>
               ))}
             </Select>
           </Field>
@@ -117,7 +123,7 @@ export function RecordPaymentModal({ open, onOpenChange, prefill, settlements, o
             <Select id="pay-to" value={toId} onChange={(e) => setToId(e.target.value ? Number(e.target.value) : "")}>
               <option value="">{t("selectMember")}</option>
               {members.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
+                <option key={m.id} value={m.id}>{optionLabel(m)}</option>
               ))}
             </Select>
           </Field>

@@ -359,7 +359,19 @@
     "houseCreated": "Casa creada",
     "createError": "Error al crear la casa",
     "youJoined": "Te has unido a la casa",
-    "joinError": "Error al unirse a la casa"
+    "joinError": "Error al unirse a la casa",
+    "exMembersTitle": "Ex miembros",
+    "exMemberLabel": "Ex miembro: {name}",
+    "leave": "Salir de la casa",
+    "leaveConfirmTitle": "¿Salir de esta casa?",
+    "leaveConfirmPrompt": "Tus gastos y saldos anteriores permanecen en el historial de esta casa, pero no podrás añadir nuevos. Si tienes un saldo pendiente, queda bloqueado hasta que un admin lo resuelva manualmente.",
+    "leaveSuccess": "Saliste de la casa",
+    "leaveError": "Error al salir de la casa",
+    "remove": "Quitar",
+    "removeConfirmTitle": "¿Quitar a {name}?",
+    "removeConfirmPrompt": "Sus gastos y saldos anteriores permanecen en el historial de esta casa, pero no podrá añadir nuevos. Si tiene un saldo pendiente, queda bloqueado hasta que un admin lo resuelva manualmente.",
+    "removeSuccess": "{name} fue eliminado(a)",
+    "removeError": "Error al quitar al miembro"
   },
   "Platforms": {
     "title": "Plataformas",
@@ -451,7 +463,10 @@
     "CURRENT_PASSWORD_INVALID": "La contraseña actual es incorrecta",
     "REAUTH_REQUIRED": "Inicia sesión de nuevo para continuar",
     "NOT_EXPENSE_OWNER": "Solo quien pagó el gasto (o el admin de la casa) puede hacer esto",
-    "STALE_EXPENSE": "Este gasto fue modificado por otra persona. Recarga la página para ver la versión más reciente."
+    "STALE_EXPENSE": "Este gasto fue modificado por otra persona. Recarga la página para ver la versión más reciente.",
+    "LAST_ADMIN": "Esta casa necesita al menos un admin — asciende a otra persona antes.",
+    "MEMBER_NOT_FOUND": "Esta persona ya no es miembro de esta casa.",
+    "CANNOT_REMOVE_SELF": "Usa \"Salir de la casa\" para quitarte a ti mismo."
   },
   "Currency": {
     "title": "Moneda",
@@ -543,6 +558,16 @@
     "passwordDefined": "Contraseña definida. Ahora también puedes entrar con usuario y contraseña.",
     "passwordError": "Error al actualizar la contraseña.",
     "saveButton": "Guardar contraseña",
-    "defineButton": "Definir contraseña"
+    "defineButton": "Definir contraseña",
+    "dangerZoneTitle": "Zona de riesgo",
+    "deleteAccountTitle": "Eliminar cuenta",
+    "deleteAccountHint": "Esto anonimiza tu nombre, correo y usuario. Tus gastos y saldos anteriores siguen visibles para los demás miembros, pero se cerrará tu sesión en todos lados y no podrás volver a entrar.",
+    "deleteAccountButton": "Eliminar mi cuenta",
+    "deleteAccountConfirmTitle": "¿Eliminar tu cuenta?",
+    "deleteAccountConfirmPrompt": "Esto no se puede deshacer.",
+    "deleteAccountConfirmButton": "Eliminar cuenta",
+    "deleteAccountSuccess": "Cuenta eliminada",
+    "deleteAccountError": "Error al eliminar la cuenta",
+    "deletedUserLabel": "Usuario eliminado"
   }
 }

@@ -85,8 +85,10 @@ export async function requireActiveGroup(): Promise<GroupCheck> {
   const cookieStore = await cookies()
   const preferredGroupId = Number(cookieStore.get(GROUP_COOKIE)?.value) || null
 
+  // leftAt: null — a house you left/were kicked from (BL-16) must never resolve as your active
+  // group again, even if the (now stale) group cookie still points at it.
   const memberships = await prisma.groupMember.findMany({
-    where: { userId: check.session.userId },
+    where: { userId: check.session.userId, leftAt: null },
     orderBy: { createdAt: 'asc' },
     select: { groupId: true, role: true },
   })
@@ -136,11 +138,23 @@ export async function validateExpenseTags(
   )
 }
 
-/** Validates that the given users are all members of the group (payer/participants). */
+/** Validates that the given users were EVER members of the group (active or ex, BL-16) — used by
+ *  settlements, where recording a payment involving an ex-member must stay possible so their
+ *  locked balance can actually get resolved. */
 export async function allGroupMembers(groupId: number, userIds: number[]): Promise<boolean> {
   if (userIds.length === 0) return true
   const count = await prisma.groupMember.count({
     where: { groupId, userId: { in: userIds } },
+  })
+  return count === new Set(userIds).size
+}
+
+/** Validates that the given users are CURRENTLY ACTIVE members of the group (BL-16) — used by
+ *  expense create/update, where an ex-member must not be assignable to a brand-new expense. */
+export async function allActiveGroupMembers(groupId: number, userIds: number[]): Promise<boolean> {
+  if (userIds.length === 0) return true
+  const count = await prisma.groupMember.count({
+    where: { groupId, userId: { in: userIds }, leftAt: null },
   })
   return count === new Set(userIds).size
 }

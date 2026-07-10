@@ -944,6 +944,8 @@ const ExpenseRow = memo(function ExpenseRow({
   expense: e, colorIndex, members, selectionMode, onView, onEdit, onDelete,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
+  const thh = useTranslations("Household");
+  const tacc = useTranslations("Account");
   const handleView = useCallback(() => onView(e), [onView, e]);
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
@@ -953,6 +955,13 @@ const ExpenseRow = memo(function ExpenseRow({
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); handleView(); }
   };
   const ratio = splitRatio(e, members);
+  // Same ex-member/deleted-account treatment as saldos/atividade/ExpenseDetailModal (BL-16/BL-23).
+  const payer = members.find((m) => m.id === e.payerId);
+  const payerName = payer?.deleted
+    ? tacc("deletedUserLabel")
+    : payer && !payer.active
+    ? thh("exMemberLabel", { name: payer.name })
+    : e.payer.name;
   return (
     <tr
       onClick={selectionMode ? undefined : handleView}
@@ -980,8 +989,8 @@ const ExpenseRow = memo(function ExpenseRow({
       </td>
       <td className="px-4 py-3">
         <span className="flex min-w-0 items-center gap-2">
-          <MemberDot colorIndex={colorIndex} name={e.payer.name} size={22} />
-          <span className="truncate text-sm text-ink">{e.payer.name}</span>
+          <MemberDot colorIndex={colorIndex} name={payerName} size={22} />
+          <span className="truncate text-sm text-ink">{payerName}</span>
         </span>
       </td>
       <td className="whitespace-nowrap px-4 py-3 text-right">
@@ -1003,6 +1012,8 @@ const ExpenseCard = memo(function ExpenseCard({
   expense: e, colorIndex, members, selectionMode, onView, onEdit, onDelete, onToggle, hidePayer,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
+  const thh = useTranslations("Household");
+  const tacc = useTranslations("Account");
   const handleView = useCallback(() => onView(e), [onView, e]);
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
@@ -1012,6 +1023,13 @@ const ExpenseCard = memo(function ExpenseCard({
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); handleBody(); }
   };
   const ratio = splitRatio(e, members);
+  // Same ex-member/deleted-account treatment as saldos/atividade/ExpenseDetailModal (BL-16/BL-23).
+  const payer = members.find((m) => m.id === e.payerId);
+  const payerName = payer?.deleted
+    ? tacc("deletedUserLabel")
+    : payer && !payer.active
+    ? thh("exMemberLabel", { name: payer.name })
+    : e.payer.name;
   return (
     <li className="flex gap-3 border-b border-dotted border-rule px-4 py-3 last:border-b-0 has-[:checked]:bg-panel/60">
       {selectionMode && (
@@ -1040,8 +1058,8 @@ const ExpenseCard = memo(function ExpenseCard({
           {!hidePayer && (
             <>
               <span className="flex min-w-0 items-center gap-1.5">
-                <MemberDot colorIndex={colorIndex} name={e.payer.name} size={18} />
-                <span className="truncate">{e.payer.name}</span>
+                <MemberDot colorIndex={colorIndex} name={payerName} size={18} />
+                <span className="truncate">{payerName}</span>
               </span>
               <span aria-hidden>·</span>
             </>

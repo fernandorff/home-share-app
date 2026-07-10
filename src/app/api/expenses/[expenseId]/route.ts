@@ -7,7 +7,7 @@ import {
   validateExpenseTags,
   handleApiError,
   requireActiveGroup,
-  allGroupMembers,
+  allActiveGroupMembers,
   recordActivity,
 } from '@/lib/api-helpers'
 
@@ -39,9 +39,14 @@ export async function PUT(request: Request, { params }: RouteParams) {
     // opened. A mismatch means someone else saved this expense in the meantime (see expense.service.ts).
     const expectedUpdatedAt = typeof body.expectedUpdatedAt === 'string' ? body.expectedUpdatedAt : undefined
 
+    // An ex-member (BL-16) already on THIS expense stays editable (grandfathered) — they just
+    // can't be newly (re-)introduced here or offered for equal-split among everyone.
+    const existingInvolvedIds = new Set([existingExpense.payerId, ...existingExpense.participants.map(p => p.userId)])
+
     const { payerId, participants } = validation.data
     const involvedIds = [payerId, ...participants.map(p => p.userId)]
-    if (!(await allGroupMembers(check.groupId, involvedIds))) {
+    const newlyIntroducedIds = involvedIds.filter(id => !existingInvolvedIds.has(id))
+    if (!(await allActiveGroupMembers(check.groupId, newlyIntroducedIds))) {
       return NextResponse.json({ error: 'Pagador ou participante não é membro desta casa' }, { status: 400 })
     }
 
@@ -49,7 +54,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (tagError) return tagError
 
     const members = await groupService.listMembers(check.groupId)
-    const memberIds = members.map(m => m.id)
+    const memberIds = members.filter(m => m.active || existingInvolvedIds.has(m.id)).map(m => m.id)
 
     const expense = await expenseService.update(
       check.groupId,

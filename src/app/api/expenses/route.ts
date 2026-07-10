@@ -6,7 +6,7 @@ import {
   validateExpenseTags,
   handleApiError,
   requireActiveGroup,
-  allGroupMembers,
+  allActiveGroupMembers,
   recordActivity,
 } from '@/lib/api-helpers'
 
@@ -46,7 +46,8 @@ export async function POST(request: Request) {
 
     const { payerId, participants } = validation.data
     const involvedIds = [payerId, ...participants.map(p => p.userId)]
-    if (!(await allGroupMembers(check.groupId, involvedIds))) {
+    // Active only (BL-16) — an ex-member can't be assigned to a brand-new expense.
+    if (!(await allActiveGroupMembers(check.groupId, involvedIds))) {
       return NextResponse.json({ error: 'Pagador ou participante não é membro desta casa' }, { status: 400 })
     }
 
@@ -54,7 +55,8 @@ export async function POST(request: Request) {
     if (tagError) return tagError
 
     const members = await groupService.listMembers(check.groupId)
-    const memberIds = members.map(m => m.id)
+    // Active only — "split equally" must never include someone who left/was removed.
+    const memberIds = members.filter(m => m.active).map(m => m.id)
 
     const expense = await expenseService.create(check.groupId, memberIds, validation.data)
 

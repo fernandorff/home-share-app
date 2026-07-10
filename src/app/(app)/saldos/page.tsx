@@ -24,6 +24,8 @@ export default function SaldosPage() {
   const ts = useTranslations("Settlements");
   const tc = useTranslations("Common");
   const tcat = useTranslations("Expenses");
+  const thh = useTranslations("Household");
+  const tacc = useTranslations("Account");
   const apiErr = useApiError();
   const { members, activeGroup } = useSession();
   const toast = useToast();
@@ -57,6 +59,17 @@ export default function SaldosPage() {
 
   const colorOf = (userId: number) =>
     members.find((m) => m.id === userId)?.colorIndex ?? 0;
+
+  // Historical name a balance/settlement row's userId resolves to (BL-16/BL-23): a deleted
+  // account always shows the fully translated "Deleted user" label (ignores whatever the raw,
+  // English-neutral name column holds); an ex-member keeps their real name, just tagged.
+  const displayName = (userId: number, fallbackName: string) => {
+    const m = members.find((mm) => mm.id === userId);
+    if (!m) return fallbackName;
+    if (m.deleted) return tacc("deletedUserLabel");
+    if (!m.active) return thh("exMemberLabel", { name: m.name });
+    return m.name;
+  };
 
   function openPayment(prefill: PaymentPrefill | null) {
     setPayPrefill(prefill);
@@ -165,9 +178,9 @@ export default function SaldosPage() {
                 <li key={b.userId} className="reveal" style={revealDelay(i)}>
                   {i > 0 && <ReceiptDivider />}
                   <div className="flex items-center gap-3 py-3">
-                    <MemberDot colorIndex={colorOf(b.userId)} name={b.userName} size={28} />
+                    <MemberDot colorIndex={colorOf(b.userId)} name={displayName(b.userId, b.userName)} size={28} />
                     <span className="min-w-0 flex-1 truncate text-sm text-ink">
-                      {b.userName}
+                      {displayName(b.userId, b.userName)}
                     </span>
                     {/* The signed value already carries the credit/debt color + sign on mobile;
                         the stamp is decorative there, so it only shows from sm up (keeps the name room).
@@ -212,9 +225,9 @@ export default function SaldosPage() {
                   style={revealDelay(i)}
                 >
                   <span className="flex min-w-0 items-center gap-1.5">
-                    <MemberChip colorIndex={colorOf(s.from.id)} name={s.from.name} />
+                    <MemberChip colorIndex={colorOf(s.from.id)} name={displayName(s.from.id, s.from.name)} />
                     <span className="px-0.5 text-faint" aria-hidden>→</span>
-                    <MemberChip colorIndex={colorOf(s.to.id)} name={s.to.name} />
+                    <MemberChip colorIndex={colorOf(s.to.id)} name={displayName(s.to.id, s.to.name)} />
                   </span>
                   <span className="mx-1 flex-1 border-b border-dotted border-rule" aria-hidden />
                   <Money value={s.amount} className="font-display text-sm font-bold sm:text-base" />
@@ -250,9 +263,9 @@ export default function SaldosPage() {
                 {i > 0 && <ReceiptDivider />}
                 <div className="flex items-center gap-3 py-3">
                   <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                    <MemberChip colorIndex={colorOf(p.fromUser.id)} name={p.fromUser.name} />
+                    <MemberChip colorIndex={colorOf(p.fromUser.id)} name={displayName(p.fromUser.id, p.fromUser.name)} />
                     <span className="px-0.5 text-faint" aria-hidden>→</span>
-                    <MemberChip colorIndex={colorOf(p.toUser.id)} name={p.toUser.name} />
+                    <MemberChip colorIndex={colorOf(p.toUser.id)} name={displayName(p.toUser.id, p.toUser.name)} />
                     <span className="ml-1 text-xs text-faint">{formatDateLocale(p.date)}</span>
                     {p.note && <span className="w-full truncate text-xs text-ink-soft sm:w-auto">· {p.note}</span>}
                   </span>

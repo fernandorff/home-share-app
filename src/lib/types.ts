@@ -42,6 +42,11 @@ export interface Member {
   username: string;
   role: Role;
   colorIndex: number;
+  // false = ex-member (left or was removed, BL-16) — still returned (with real name/color) so
+  // historical expenses/balances/activity resolve correctly; excluded from new-expense selection.
+  active: boolean;
+  // true = the account itself was deleted (BL-23) — name/username were scrubbed at that point.
+  deleted: boolean;
 }
 
 /** A house's custom tag entry (category / platform / payment method). System defaults are not stored. */

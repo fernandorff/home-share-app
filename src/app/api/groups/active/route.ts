@@ -18,7 +18,9 @@ export async function POST(request: Request) {
     const membership = await prisma.groupMember.findUnique({
       where: { userId_groupId: { userId: check.session.userId, groupId } },
     })
-    if (!membership) {
+    // leftAt: not-active check done explicitly (not in the query) so a left/kicked user (BL-16)
+    // gets the same clear "not a member" message instead of a Prisma null falling through.
+    if (!membership || membership.leftAt !== null) {
       return NextResponse.json({ error: 'Você não participa desta casa' }, { status: 403 })
     }
 

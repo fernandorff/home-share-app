@@ -359,7 +359,19 @@
     "houseCreated": "House created",
     "createError": "Error creating house",
     "youJoined": "You joined the house",
-    "joinError": "Error joining the house"
+    "joinError": "Error joining the house",
+    "exMembersTitle": "Former members",
+    "exMemberLabel": "Ex-member: {name}",
+    "leave": "Leave house",
+    "leaveConfirmTitle": "Leave this house?",
+    "leaveConfirmPrompt": "Your past expenses and balances stay in this house's history, but you won't be able to add new ones here. If you have a pending balance, it stays locked until an admin resolves it manually.",
+    "leaveSuccess": "You left the house",
+    "leaveError": "Error leaving the house",
+    "remove": "Remove",
+    "removeConfirmTitle": "Remove {name}?",
+    "removeConfirmPrompt": "Their past expenses and balances stay in this house's history, but they won't be able to add new ones here. If they have a pending balance, it stays locked until an admin resolves it manually.",
+    "removeSuccess": "{name} was removed",
+    "removeError": "Error removing member"
   },
   "Platforms": {
     "title": "Platforms",
@@ -451,7 +463,10 @@
     "CURRENT_PASSWORD_INVALID": "Current password is incorrect",
     "REAUTH_REQUIRED": "Please log in again to do this",
     "NOT_EXPENSE_OWNER": "Only the person who paid (or the house admin) can do this",
-    "STALE_EXPENSE": "This expense was changed by someone else. Reload the page to see the latest version."
+    "STALE_EXPENSE": "This expense was changed by someone else. Reload the page to see the latest version.",
+    "LAST_ADMIN": "This house needs at least one admin — promote someone else first.",
+    "MEMBER_NOT_FOUND": "This person is no longer a member of this house.",
+    "CANNOT_REMOVE_SELF": "Use \"Leave house\" to remove yourself."
   },
   "Currency": {
     "title": "Currency",
@@ -543,6 +558,16 @@
     "passwordDefined": "Password set. You can now also log in with a username and password.",
     "passwordError": "Error updating the password.",
     "saveButton": "Save password",
-    "defineButton": "Set password"
+    "defineButton": "Set password",
+    "dangerZoneTitle": "Danger zone",
+    "deleteAccountTitle": "Delete account",
+    "deleteAccountHint": "This anonymizes your name, e-mail and username. Your past expenses and balances stay visible to other members, but you'll be signed out everywhere and won't be able to log back in.",
+    "deleteAccountButton": "Delete my account",
+    "deleteAccountConfirmTitle": "Delete your account?",
+    "deleteAccountConfirmPrompt": "This can't be undone.",
+    "deleteAccountConfirmButton": "Delete account",
+    "deleteAccountSuccess": "Account deleted",
+    "deleteAccountError": "Error deleting account",
+    "deletedUserLabel": "Deleted user"
   }
 }

@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { expenseService } from "@/services/expense.service";
 import { settlementService } from "@/services/settlement.service";
 import { categoryService } from "@/services/category.service";
+import { groupService } from "@/services/group.service";
+import { authService } from "@/services/auth.service";
+import { allActiveGroupMembers, allGroupMembers } from "@/lib/api-helpers";
 import { runWithAuditContext } from "@/lib/audit-context";
 import { flushAudit } from "@/lib/prisma-audit";
 
@@ -309,5 +312,204 @@ describe("custom categories (integration, real pglite DB)", () => {
     await categoryService.create(houseA.id, "Streaming");
     expect(await categoryService.existsInGroup(houseA.id, "Streaming")).toBe(true);
     expect(await categoryService.existsInGroup(houseB.id, "Streaming")).toBe(false);
+  });
+});
+
+// BL-16: leave/kick soft-removes (never deletes) a GroupMember row, keeping real name/color for
+// history while excluding the person from new-expense assignment; rejoining reactivates the same
+// row instead of duplicating it.
+describe("membership leave/kick (integration, real pglite DB)", () => {
+  beforeEach(reset);
+
+  async function seedHouse(roles: Array<"ADMIN" | "MEMBER">) {
+    const users = await Promise.all(
+      roles.map((_, i) => prisma.user.create({ data: { publicId: randomUUID(), name: `U${i}`, username: `u${i}-mem` } }))
+    );
+    const house = await prisma.group.create({ data: { publicId: randomUUID(), name: "Mem House", joinCode: `CODE${roles.length}` } });
+    await prisma.groupMember.createMany({
+      data: users.map((u, i) => ({ userId: u.id, groupId: house.id, role: roles[i], colorIndex: i })),
+    });
+    return { users, house };
+  }
+
+  it("removeMember soft-removes: row survives with leftAt set, not deleted", async () => {
+    const { users: [admin, member], house } = await seedHouse(["ADMIN", "MEMBER"]);
+    await groupService.removeMember(house.id, member.id);
+    const row = await prisma.groupMember.findUnique({ where: { userId_groupId: { userId: member.id, groupId: house.id } } });
+    expect(row).not.toBeNull();
+    expect(row!.leftAt).not.toBeNull();
+    const list = await groupService.listMembers(house.id);
+    const entry = list.find((m) => m.id === member.id)!;
+    expect(entry.active).toBe(false);
+    expect(entry.name).toBe(member.name); // real name preserved, not anonymized
+    void admin;
+  });
+
+  it("refuses to remove the sole admin while another active member remains (409 LAST_ADMIN)", async () => {
+    const { users: [admin, member], house } = await seedHouse(["ADMIN", "MEMBER"]);
+    await expect(groupService.removeMember(house.id, admin.id)).rejects.toMatchObject({ status: 409, code: "LAST_ADMIN" });
+    // nothing changed — admin is still active
+    const row = await prisma.groupMember.findUnique({ where: { userId_groupId: { userId: admin.id, groupId: house.id } } });
+    expect(row!.leftAt).toBeNull();
+    void member;
+  });
+
+  it("allows removing an admin when another active admin remains", async () => {
+    const { users: [admin1, admin2], house } = await seedHouse(["ADMIN", "ADMIN"]);
+    await expect(groupService.removeMember(house.id, admin1.id)).resolves.toBeUndefined();
+    void admin2;
+  });
+
+  it("the last remaining member of a house can always leave (house becomes empty)", async () => {
+    const { users: [admin], house } = await seedHouse(["ADMIN"]);
+    await expect(groupService.removeMember(house.id, admin.id)).resolves.toBeUndefined();
+  });
+
+  // Adversarial-review finding: the pre-check + write in removeMember is check-then-act, not
+  // atomic — two concurrent removals of the last two admins could both pass the pre-check
+  // before either write commits. Fixed with a post-write re-check + self-heal (revert). This
+  // exercises the actual race (both calls fired together, interleaving at their `await` points),
+  // not just the sequential guard.
+  it("concurrent removal of both remaining admins never leaves the house with zero active admins", async () => {
+    const { users: [admin1, admin2, member], house } = await seedHouse(["ADMIN", "ADMIN", "MEMBER"]);
+    const results = await Promise.allSettled([
+      groupService.removeMember(house.id, admin1.id),
+      groupService.removeMember(house.id, admin2.id),
+    ]);
+    // Both were freely removable pairwise (each pre-check saw the other as active), so both may
+    // report success — the invariant that actually matters is the FINAL persisted state, not
+    // which promise resolved which way.
+    void results;
+    const activeAdmins = await prisma.groupMember.count({ where: { groupId: house.id, role: "ADMIN", leftAt: null } });
+    const activeMembers = await prisma.groupMember.count({ where: { groupId: house.id, leftAt: null } });
+    if (activeMembers > 0) {
+      expect(activeAdmins).toBeGreaterThan(0);
+    }
+    void member;
+  });
+
+  it("rejoining reactivates the SAME row (no duplicate) and restores active:true", async () => {
+    const { users: [admin, member], house } = await seedHouse(["ADMIN", "MEMBER"]);
+    await groupService.removeMember(house.id, member.id);
+
+    const result = await groupService.joinByCode(member.id, house.joinCode!);
+    expect("error" in result).toBe(false);
+
+    const rows = await prisma.groupMember.findMany({ where: { userId: member.id, groupId: house.id } });
+    expect(rows.length).toBe(1); // reactivated, not duplicated
+    expect(rows[0].leftAt).toBeNull();
+    const list = await groupService.listMembers(house.id);
+    expect(list.find((m) => m.id === member.id)!.active).toBe(true);
+    void admin;
+  });
+
+  it("an ex-member is excluded from allActiveGroupMembers but still passes allGroupMembers (settlements stay possible)", async () => {
+    const { users: [admin, member], house } = await seedHouse(["ADMIN", "MEMBER"]);
+    await groupService.removeMember(house.id, member.id);
+    expect(await allActiveGroupMembers(house.id, [member.id])).toBe(false);
+    expect(await allGroupMembers(house.id, [member.id])).toBe(true);
+    void admin;
+  });
+
+  it("a left/kicked user no longer resolves as a member for requireActiveGroup-style lookups (listForUser excludes it)", async () => {
+    const { users: [admin, member], house } = await seedHouse(["ADMIN", "MEMBER"]);
+    await groupService.removeMember(house.id, member.id);
+    const houses = await groupService.listForUser(member.id);
+    expect(houses.find((g) => g.id === house.id)).toBeUndefined();
+    void admin;
+  });
+});
+
+// BL-23: account deletion anonymizes the User row in place (never a real delete — Expense/
+// Settlement FKs point at User.id) and soft-leaves every house the account is active in.
+describe("account deletion (integration, real pglite DB)", () => {
+  beforeEach(reset);
+
+  async function seedUserWithPassword(name: string, username: string) {
+    return prisma.user.create({
+      data: { publicId: randomUUID(), name, username, password: "hashed-irrelevant-for-these-tests" },
+    });
+  }
+
+  it("wrong current password is refused, nothing changes", async () => {
+    const u = await seedUserWithPassword("Deletable", "deletable1");
+    const result = await authService.deleteAccount(u.id, "definitely-wrong");
+    expect(result).toMatchObject({ code: "CURRENT_PASSWORD_INVALID" });
+    const row = await prisma.user.findUnique({ where: { id: u.id } });
+    expect(row!.name).toBe("Deletable");
+    expect(row!.deletedAt).toBeNull();
+  });
+
+  it("refuses when the account is the sole admin of a house with other active members (409 LAST_ADMIN), nothing changes", async () => {
+    const admin = await prisma.user.create({ data: { publicId: randomUUID(), name: "SoleAdmin", username: "sole-admin1" } });
+    const member = await prisma.user.create({ data: { publicId: randomUUID(), name: "Other", username: "other-mem1" } });
+    const house = await prisma.group.create({ data: { publicId: randomUUID(), name: "H" } });
+    await prisma.groupMember.createMany({
+      data: [
+        { userId: admin.id, groupId: house.id, role: "ADMIN", colorIndex: 0 },
+        { userId: member.id, groupId: house.id, role: "MEMBER", colorIndex: 1 },
+      ],
+    });
+
+    const result = await authService.deleteAccount(admin.id, undefined);
+    expect(result).toMatchObject({ code: "LAST_ADMIN" });
+
+    const userRow = await prisma.user.findUnique({ where: { id: admin.id } });
+    expect(userRow!.name).toBe("SoleAdmin"); // untouched
+    expect(userRow!.deletedAt).toBeNull();
+    const memberRow = await prisma.groupMember.findUnique({ where: { userId_groupId: { userId: admin.id, groupId: house.id } } });
+    expect(memberRow!.leftAt).toBeNull(); // untouched
+  });
+
+  it("anonymizes name/username/email, clears password/googleId, and leaves every active house", async () => {
+    const u = await prisma.user.create({
+      data: {
+        publicId: randomUUID(),
+        name: "Real Name",
+        username: "realname1",
+        email: "real@example.com",
+        emailVerified: true,
+        password: "hashed",
+        googleId: "google-123",
+      },
+    });
+    const houseA = await prisma.group.create({ data: { publicId: randomUUID(), name: "A" } });
+    const houseB = await prisma.group.create({ data: { publicId: randomUUID(), name: "B" } });
+    // Sole member of both (no other admins to conflict with) — deletion must succeed cleanly.
+    await prisma.groupMember.createMany({
+      data: [
+        { userId: u.id, groupId: houseA.id, role: "ADMIN", colorIndex: 0 },
+        { userId: u.id, groupId: houseB.id, role: "ADMIN", colorIndex: 0 },
+      ],
+    });
+
+    const result = await authService.deleteAccount(u.id, "hashed" /* not actually verified against the fake hash, see note below */);
+    // The fake "hashed" password above isn't a real bcrypt hash, so verifyPassword will correctly
+    // reject it — assert the REAL behavior (refusal) here, then re-run with no password set at all
+    // to exercise the actual anonymization path below.
+    expect(result).toMatchObject({ code: "CURRENT_PASSWORD_INVALID" });
+
+    // Re-seed a passwordless account (Google-only) to exercise the success path without needing a
+    // real bcrypt hash in the test.
+    const g = await prisma.user.create({
+      data: { publicId: randomUUID(), name: "Google User", username: "googleuser1", email: "g@example.com", googleId: "google-456" },
+    });
+    const houseC = await prisma.group.create({ data: { publicId: randomUUID(), name: "C" } });
+    await prisma.groupMember.create({ data: { userId: g.id, groupId: houseC.id, role: "ADMIN", colorIndex: 0 } });
+
+    const success = await authService.deleteAccount(g.id, undefined);
+    expect(success).toMatchObject({ ok: true });
+
+    const row = await prisma.user.findUnique({ where: { id: g.id } });
+    expect(row!.name).toBe("Usuário excluído");
+    expect(row!.username).toBe(`usuario_excluido_${g.id}`);
+    expect(row!.email).toBeNull();
+    expect(row!.emailVerified).toBe(false);
+    expect(row!.password).toBeNull();
+    expect(row!.googleId).toBeNull();
+    expect(row!.deletedAt).not.toBeNull();
+
+    const membership = await prisma.groupMember.findUnique({ where: { userId_groupId: { userId: g.id, groupId: houseC.id } } });
+    expect(membership!.leftAt).not.toBeNull();
   });
 });

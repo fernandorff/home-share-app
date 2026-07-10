@@ -100,7 +100,16 @@ export function ExpenseFormModal({
   paymentMethods,
   onSaved,
 }: ExpenseFormModalProps) {
-  const { me, members, activeGroup } = useSession();
+  const { me, members: allMembers, activeGroup } = useSession();
+  // Active members only (BL-16) — an ex-member can't be assigned to a new expense. Editing an
+  // expense that already involves an ex-member (payer or participant) keeps them selectable for
+  // THIS expense only — grandfathered in, not offered for anything new. Every `members` reference
+  // below intentionally uses this filtered list, not the raw session one.
+  const members = useMemo(() => {
+    if (!expense) return allMembers.filter((m) => m.active);
+    const involvedIds = new Set([expense.payerId, ...expense.participants.map((p) => p.userId)]);
+    return allMembers.filter((m) => m.active || involvedIds.has(m.id));
+  }, [allMembers, expense]);
   const toast = useToast();
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");

@@ -39,7 +39,9 @@ export function ImportCsvModal({
   platforms,
   onImported,
 }: ImportCsvModalProps) {
-  const { me, members } = useSession();
+  const { me, members: allMembers } = useSession();
+  // Active only (BL-16) — CSV import only ever creates brand-new expenses.
+  const members = allMembers.filter((m) => m.active);
   const toast = useToast();
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");

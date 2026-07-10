@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { uuidv7 } from '@/lib/uuid'
 import { hashPassword, verifyPassword } from '@/lib/auth'
+import { groupService } from '@/services/group.service'
+import { ApiError } from '@/lib/errors'
 
 const USERNAME_REGEX = /^[a-z0-9._-]{3,30}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -25,6 +27,10 @@ export type UpdateProfileResult =
 
 export type ChangePasswordResult =
   | { ok: true; sessionVersion: number }
+  | { error: string; code: string }
+
+export type DeleteAccountResult =
+  | { ok: true }
   | { error: string; code: string }
 
 class AuthService {
@@ -179,7 +185,10 @@ class AuthService {
         username: true,
         email: true,
         password: true,
+        // leftAt: null — a house you left/were kicked from (BL-16) must disappear from your own
+        // house-switcher, not just refuse access server-side.
         memberships: {
+          where: { leftAt: null },
           select: {
             role: true,
             colorIndex: true,
@@ -306,6 +315,54 @@ class AuthService {
       select: { sessionVersion: true },
     })
     return { ok: true, sessionVersion: updated.sessionVersion }
+  }
+
+  /**
+   * Account deletion (BL-23): anonymizes the row in place instead of a real DELETE — Expense/
+   * ExpenseParticipant/Settlement all FK straight to User.id (`onDelete: Cascade`), so hard-
+   * deleting would silently wipe every other member's shared history too. The user is soft-
+   * removed (leftAt) from every house they're active in first, same rule as leaving one house
+   * (BL-16): refuses if it would leave any of them without an admin while other members remain.
+   */
+  async deleteAccount(userId: number, currentPassword: string | undefined): Promise<DeleteAccountResult> {
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) return { error: 'Usuário não encontrado', code: 'NOT_FOUND' }
+
+    if (user.password !== null) {
+      if (!currentPassword) {
+        return { error: 'Senha atual é obrigatória', code: 'CURRENT_PASSWORD_REQUIRED' }
+      }
+      const ok = await verifyPassword(currentPassword, user.password)
+      if (!ok) {
+        return { error: 'Senha atual incorreta', code: 'CURRENT_PASSWORD_INVALID' }
+      }
+    }
+
+    try {
+      await groupService.assertCanLeaveAllHouses(userId)
+    } catch (e) {
+      if (e instanceof ApiError) return { error: e.message, code: e.code ?? 'LAST_ADMIN' }
+      throw e
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.groupMember.updateMany({ where: { userId, leftAt: null }, data: { leftAt: new Date() } })
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: 'Usuário excluído',
+          username: `usuario_excluido_${userId}`,
+          email: null,
+          emailVerified: false,
+          password: null,
+          googleId: null,
+          deletedAt: new Date(),
+          sessionVersion: { increment: 1 },
+        },
+      })
+    })
+
+    return { ok: true }
   }
 }
 

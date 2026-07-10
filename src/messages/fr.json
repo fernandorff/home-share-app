@@ -359,7 +359,19 @@
     "houseCreated": "Maison créée",
     "createError": "Erreur lors de la création de la maison",
     "youJoined": "Vous avez rejoint la maison",
-    "joinError": "Erreur lors de l'accès à la maison"
+    "joinError": "Erreur lors de l'accès à la maison",
+    "exMembersTitle": "Anciens membres",
+    "exMemberLabel": "Ancien membre : {name}",
+    "leave": "Quitter la maison",
+    "leaveConfirmTitle": "Quitter cette maison ?",
+    "leaveConfirmPrompt": "Vos dépenses et soldes passés restent dans l'historique de cette maison, mais vous ne pourrez plus en ajouter de nouveaux. Si vous avez un solde en attente, il reste bloqué jusqu'à ce qu'un admin le résolve manuellement.",
+    "leaveSuccess": "Vous avez quitté la maison",
+    "leaveError": "Erreur lors de la sortie de la maison",
+    "remove": "Retirer",
+    "removeConfirmTitle": "Retirer {name} ?",
+    "removeConfirmPrompt": "Ses dépenses et soldes passés restent dans l'historique de cette maison, mais elle ne pourra plus en ajouter de nouveaux. Si elle a un solde en attente, il reste bloqué jusqu'à ce qu'un admin le résolve manuellement.",
+    "removeSuccess": "{name} a été retiré(e)",
+    "removeError": "Erreur lors du retrait du membre"
   },
   "Platforms": {
     "title": "Plateformes",
@@ -451,7 +463,10 @@
     "CURRENT_PASSWORD_INVALID": "Mot de passe actuel incorrect",
     "REAUTH_REQUIRED": "Veuillez vous reconnecter pour continuer",
     "NOT_EXPENSE_OWNER": "Seule la personne qui a payé (ou l'admin de la maison) peut faire ça",
-    "STALE_EXPENSE": "Cette dépense a été modifiée par quelqu’un d’autre. Rechargez la page pour voir la dernière version."
+    "STALE_EXPENSE": "Cette dépense a été modifiée par quelqu’un d’autre. Rechargez la page pour voir la dernière version.",
+    "LAST_ADMIN": "Cette maison a besoin d'au moins un admin — promouvez quelqu'un d'autre avant.",
+    "MEMBER_NOT_FOUND": "Cette personne n'est plus membre de cette maison.",
+    "CANNOT_REMOVE_SELF": "Utilisez « Quitter la maison » pour vous retirer vous-même."
   },
   "Currency": {
     "title": "Devise",
@@ -543,6 +558,16 @@
     "passwordDefined": "Mot de passe défini. Vous pouvez maintenant aussi vous connecter avec un identifiant et un mot de passe.",
     "passwordError": "Erreur lors de la mise à jour du mot de passe.",
     "saveButton": "Enregistrer le mot de passe",
-    "defineButton": "Définir le mot de passe"
+    "defineButton": "Définir le mot de passe",
+    "dangerZoneTitle": "Zone de danger",
+    "deleteAccountTitle": "Supprimer le compte",
+    "deleteAccountHint": "Cela anonymise votre nom, e-mail et identifiant. Vos dépenses et soldes passés restent visibles pour les autres membres, mais vous serez déconnecté(e) partout et ne pourrez plus vous reconnecter.",
+    "deleteAccountButton": "Supprimer mon compte",
+    "deleteAccountConfirmTitle": "Supprimer votre compte ?",
+    "deleteAccountConfirmPrompt": "Cette action est irréversible.",
+    "deleteAccountConfirmButton": "Supprimer le compte",
+    "deleteAccountSuccess": "Compte supprimé",
+    "deleteAccountError": "Erreur lors de la suppression du compte",
+    "deletedUserLabel": "Utilisateur supprimé"
   }
 }

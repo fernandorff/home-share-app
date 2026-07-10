@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { authService } from '@/services/auth.service'
 import { handleApiError, requireSession } from '@/lib/api-helpers'
-import { GROUP_COOKIE } from '@/lib/auth'
+import { GROUP_COOKIE, SESSION_COOKIE } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
 
 export async function GET() {
@@ -77,5 +77,42 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ user: result.user })
   } catch (error) {
     return handleApiError(error, 'Erro ao atualizar conta')
+  }
+}
+
+/**
+ * Delete (anonymize) the caller's own account (BL-23). Requires the current password when one is
+ * set (same confirmation as changing email/username). Refused if the account is the sole admin of
+ * a house with other active members (409 LAST_ADMIN — promote someone else, or leave that house,
+ * first).
+ */
+export async function DELETE(request: Request) {
+  try {
+    const check = await requireSession()
+    if (!check.ok) return check.response
+
+    const body = await request.json().catch(() => ({}))
+    const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : undefined
+
+    if (!rateLimit(`account:pw:${check.session.userId}`, 10, 60_000)) {
+      return NextResponse.json({ error: 'Muitas tentativas. Tente novamente em instantes.', code: 'RATE_LIMITED' }, { status: 429 })
+    }
+
+    const result = await authService.deleteAccount(check.session.userId, currentPassword)
+    if ('error' in result) {
+      const status =
+        result.code === 'CURRENT_PASSWORD_REQUIRED' || result.code === 'CURRENT_PASSWORD_INVALID' ? 401
+        : result.code === 'LAST_ADMIN' ? 409
+        : result.code === 'NOT_FOUND' ? 404
+        : 400
+      return NextResponse.json({ error: result.error, code: result.code }, { status })
+    }
+
+    const response = NextResponse.json({ ok: true })
+    response.cookies.delete(SESSION_COOKIE)
+    response.cookies.delete(GROUP_COOKIE)
+    return response
+  } catch (error) {
+    return handleApiError(error, 'Erro ao excluir conta')
   }
 }

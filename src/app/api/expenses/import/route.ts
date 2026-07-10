@@ -64,7 +64,9 @@ export async function POST(request: Request) {
     }
 
     const members = await groupService.listMembers(check.groupId)
-    const memberIds = members.map(m => m.id)
+    // Active only (BL-16) — CSV import only ever creates brand-new expenses, so an ex-member is
+    // never a valid payer/split target here (no edit-grandfathering case, unlike PUT /expenses/[id]).
+    const memberIds = members.filter(m => m.active).map(m => m.id)
 
     const effectivePayerId = payerId ?? check.session.userId
     if (!memberIds.includes(effectivePayerId)) {

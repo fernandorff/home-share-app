@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/Toast";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import type { Me } from "@/lib/types";
 
 export default function ContaPage() {
@@ -26,6 +27,7 @@ export default function ContaPage() {
 
       <ProfileSection me={me} onSaved={refresh} />
       <PasswordSection hasPassword={me.user.hasPassword} />
+      <DeleteAccountSection hasPassword={me.user.hasPassword} />
     </div>
   );
 }
@@ -235,6 +237,95 @@ function PasswordSection({ hasPassword }: { hasPassword: boolean }) {
           </Button>
         </form>
       </Card>
+    </section>
+  );
+}
+
+/** BL-23: anonymizes name/email/username/password/googleId in place (never a real row delete —
+ *  Expense/Settlement FKs point straight at User.id and must survive for other members'
+ *  history), soft-leaves every house the account is active in, then signs out everywhere. */
+function DeleteAccountSection({ hasPassword }: { hasPassword: boolean }) {
+  const t = useTranslations("Account");
+  const tc = useTranslations("Common");
+  const apiErr = useApiError();
+  const toast = useToast();
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function onDelete() {
+    setDeleting(true);
+    try {
+      await api.del("/api/auth/me", hasPassword ? { currentPassword } : undefined);
+      toast(t("deleteAccountSuccess"), "success");
+      // The server already cleared the session/group cookies — a full navigation (not
+      // router.push) guarantees the client picks up the logged-out state immediately.
+      window.location.href = "/auth/login";
+    } catch (err) {
+      toast(apiErr(err, t("deleteAccountError")), "error");
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-4">
+      <SectionTitle>{t("dangerZoneTitle")}</SectionTitle>
+      <Card className="border-debt/40 p-4">
+        <div className="flex flex-col gap-3">
+          <div>
+            <p className="text-sm font-medium text-ink">{t("deleteAccountTitle")}</p>
+            <p className="mt-1 text-sm text-faint">{t("deleteAccountHint")}</p>
+          </div>
+          <Button
+            variant="danger"
+            className="w-full sm:w-auto"
+            onClick={() => {
+              setCurrentPassword("");
+              setConfirmOpen(true);
+            }}
+          >
+            {t("deleteAccountButton")}
+          </Button>
+        </div>
+      </Card>
+
+      <Modal
+        open={confirmOpen}
+        onOpenChange={(o) => !o && !deleting && setConfirmOpen(false)}
+        title={t("deleteAccountConfirmTitle")}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={deleting}>
+              {tc("cancel")}
+            </Button>
+            <Button
+              variant="danger"
+              loading={deleting}
+              disabled={hasPassword && !currentPassword}
+              onClick={onDelete}
+            >
+              {t("deleteAccountConfirmButton")}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-ink">{t("deleteAccountConfirmPrompt")}</p>
+          {hasPassword && (
+            <Field label={t("currentPassword")} htmlFor="delete-account-password">
+              <Input
+                id="delete-account-password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </Field>
+          )}
+        </div>
+      </Modal>
     </section>
   );
 }

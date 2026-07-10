@@ -90,6 +90,8 @@ export default function AtividadePage() {
 /** The high-level activity feed (manual AuditLog entries). */
 function SummaryFeed({ groupKey }: { groupKey: number | undefined }) {
   const t = useTranslations("Activity");
+  const thh = useTranslations("Household");
+  const tacc = useTranslations("Account");
   const apiErr = useApiError();
   const { members } = useSession();
   const toast = useToast();
@@ -119,9 +121,40 @@ function SummaryFeed({ groupKey }: { groupKey: number | undefined }) {
   const colorOf = (id: number | undefined) => members.find((m) => m.id === id)?.colorIndex ?? 0;
   const when = (iso: string) => formatWhen(iso, locale);
 
+  // Who an actor id resolves to (BL-16/BL-23): a deleted account always shows the fully
+  // translated label (the raw name column is just a neutral placeholder); an ex-member keeps
+  // their real name, just tagged.
+  const displayName = (id: number | undefined, fallback: string) => {
+    if (id === undefined) return fallback;
+    const m = members.find((mm) => mm.id === id);
+    if (!m) return fallback;
+    if (m.deleted) return tacc("deletedUserLabel");
+    if (!m.active) return thh("exMemberLabel", { name: m.name });
+    return m.name;
+  };
+
   const actionLabel = (action: string, entityType: string) => {
     const key = `act.${action}_${entityType}`;
     return t.has(key) ? t(key) : t("act.fallback");
+  };
+
+  // A settlement's `summary` is a "Name → Name" string baked in at the moment it was recorded —
+  // it never updates if either person later leaves/is removed (BL-16) or deletes their account
+  // (BL-23). Reconstruct it from the involved userIds (recorded in `changes` for this reason) so
+  // an ex-member/deleted account shows correctly here too; falls back to the stored string for
+  // entries recorded before this fix (no fromUserId/toUserId in `changes` yet) and for every
+  // other entity type, whose `summary` isn't a name pair.
+  const resolvedSummary = (e: (typeof entries)[number]): string => {
+    if (e.entityType === "SETTLEMENT" && e.changes) {
+      const from = e.changes.fromUserId;
+      const to = e.changes.toUserId;
+      if (typeof from === "number" && typeof to === "number") {
+        const fromM = members.find((m) => m.id === from);
+        const toM = members.find((m) => m.id === to);
+        return `${displayName(from, fromM?.name ?? "?")} → ${displayName(to, toM?.name ?? "?")}`;
+      }
+    }
+    return e.summary;
   };
 
   const entries = data?.entries ?? [];
@@ -148,15 +181,15 @@ function SummaryFeed({ groupKey }: { groupKey: number | undefined }) {
           <li key={e.id} className="reveal" style={revealDelay(Math.min(i, 12))}>
             {i > 0 && <div className="border-t border-dotted border-rule" />}
             <div className="flex items-start gap-3 py-3">
-              <MemberDot colorIndex={colorOf(e.actor?.id)} name={e.actor?.name ?? "?"} size={26} />
+              <MemberDot colorIndex={colorOf(e.actor?.id)} name={displayName(e.actor?.id, e.actor?.name ?? "?")} size={26} />
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-ink">
-                  <span className="font-medium">{e.actor?.name ?? t("system")}</span>{" "}
+                  <span className="font-medium">{displayName(e.actor?.id, e.actor?.name ?? t("system"))}</span>{" "}
                   <span className="text-ink-soft">{actionLabel(e.action, e.entityType)}</span>
-                  {e.summary && (
+                  {resolvedSummary(e) && (
                     <>
                       {" — "}
-                      <span className="text-ink">{e.summary}</span>
+                      <span className="text-ink">{resolvedSummary(e)}</span>
                     </>
                   )}
                 </p>
@@ -208,6 +241,8 @@ const TAG_FIELD_NS: Record<string, string> = { categories: "category", platforms
 function DetailedFeed({ groupKey }: { groupKey: number | undefined }) {
   const t = useTranslations("Activity");
   const tExp = useTranslations("Expenses");
+  const thh = useTranslations("Household");
+  const tacc = useTranslations("Account");
   const apiErr = useApiError();
   const { members } = useSession();
   const toast = useToast();
@@ -247,7 +282,23 @@ function DetailedFeed({ groupKey }: { groupKey: number | undefined }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupKey, filter]);
 
-  const memberName = (id: unknown) => members.find((m) => m.id === Number(id))?.name ?? `#${id}`;
+  // Field-value lookup (e.g. "payerId changed to X") AND actor-name lookup share the same
+  // ex-member/deleted-account treatment as saldos/page.tsx's displayName (BL-16/BL-23).
+  const memberName = (id: unknown) => {
+    const m = members.find((mm) => mm.id === Number(id));
+    if (!m) return `#${id}`;
+    if (m.deleted) return tacc("deletedUserLabel");
+    if (!m.active) return thh("exMemberLabel", { name: m.name });
+    return m.name;
+  };
+  const displayName = (id: number | null, fallback: string) => {
+    if (id === null) return fallback;
+    const m = members.find((mm) => mm.id === id);
+    if (!m) return fallback;
+    if (m.deleted) return tacc("deletedUserLabel");
+    if (!m.active) return thh("exMemberLabel", { name: m.name });
+    return m.name;
+  };
   const colorOf = (id: number | null) => members.find((m) => m.id === id)?.colorIndex ?? 0;
   const when = (iso: string) => formatWhen(iso, locale);
 
@@ -314,10 +365,10 @@ function DetailedFeed({ groupKey }: { groupKey: number | undefined }) {
                 <li key={r.id} className="reveal" style={revealDelay(Math.min(i, 12))}>
                   {i > 0 && <div className="border-t border-dotted border-rule" />}
                   <div className="flex items-start gap-3 py-3">
-                    <MemberDot colorIndex={colorOf(r.actorId)} name={r.actorName ?? "?"} size={26} />
+                    <MemberDot colorIndex={colorOf(r.actorId)} name={displayName(r.actorId, r.actorName ?? "?")} size={26} />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-ink">
-                        <span className="font-medium">{r.actorName ?? t("system")}</span>{" "}
+                        <span className="font-medium">{displayName(r.actorId, r.actorName ?? t("system"))}</span>{" "}
                         <span className="text-ink-soft">{actionLabel(r.action)}</span>{" "}
                         <span className="text-ink">{entityLabel(r.entityType)}</span>
                       </p>

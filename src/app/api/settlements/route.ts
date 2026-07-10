@@ -45,8 +45,12 @@ export async function POST(request: Request) {
       entityType: 'SETTLEMENT',
       entityId: settlement.publicId,
       action: 'CREATE',
+      // `summary` is a name snapshot from THIS moment — if either person is later removed from
+      // the house or deletes their account (BL-16/BL-23), this stored string never updates.
+      // fromUserId/toUserId also go into `changes` so the Activity Summary feed can re-resolve
+      // the CURRENT display name (ex-member tag / anonymized) instead of showing the stale one.
       summary: `${settlement.fromUser.name} → ${settlement.toUser.name}`,
-      changes: { amount: String(settlement.amount) },
+      changes: { amount: String(settlement.amount), fromUserId: settlement.fromUserId, toUserId: settlement.toUserId },
     })
 
     return NextResponse.json({ settlement }, { status: 201 })

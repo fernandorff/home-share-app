@@ -359,7 +359,19 @@
     "houseCreated": "Casa criada",
     "createError": "Erro ao criar casa",
     "youJoined": "Você entrou na casa",
-    "joinError": "Erro ao entrar na casa"
+    "joinError": "Erro ao entrar na casa",
+    "exMembersTitle": "Ex-membros",
+    "exMemberLabel": "Ex-membro: {name}",
+    "leave": "Sair da casa",
+    "leaveConfirmTitle": "Sair desta casa?",
+    "leaveConfirmPrompt": "Suas despesas e saldos antigos continuam no histórico desta casa, mas você não vai poder adicionar novos. Se você tiver um saldo pendente, ele fica travado até um admin resolver manualmente.",
+    "leaveSuccess": "Você saiu da casa",
+    "leaveError": "Erro ao sair da casa",
+    "remove": "Remover",
+    "removeConfirmTitle": "Remover {name}?",
+    "removeConfirmPrompt": "As despesas e saldos antigos dessa pessoa continuam no histórico desta casa, mas ela não vai poder adicionar novos. Se ela tiver um saldo pendente, ele fica travado até um admin resolver manualmente.",
+    "removeSuccess": "{name} foi removido(a)",
+    "removeError": "Erro ao remover membro"
   },
   "Platforms": {
     "title": "Plataformas",
@@ -451,7 +463,10 @@
     "CURRENT_PASSWORD_INVALID": "Senha atual incorreta",
     "REAUTH_REQUIRED": "Faça login novamente para continuar",
     "NOT_EXPENSE_OWNER": "Só quem pagou a despesa (ou o admin da casa) pode fazer isso",
-    "STALE_EXPENSE": "Esta despesa foi alterada por outra pessoa. Recarregue a página para ver a versão mais recente."
+    "STALE_EXPENSE": "Esta despesa foi alterada por outra pessoa. Recarregue a página para ver a versão mais recente.",
+    "LAST_ADMIN": "Esta casa precisa de pelo menos um admin — promova outra pessoa antes.",
+    "MEMBER_NOT_FOUND": "Esta pessoa não é mais membro desta casa.",
+    "CANNOT_REMOVE_SELF": "Use \"Sair da casa\" para remover a si mesmo."
   },
   "Currency": {
     "title": "Moeda",
@@ -543,6 +558,16 @@
     "passwordDefined": "Senha definida. Agora você também pode entrar com usuário e senha.",
     "passwordError": "Erro ao atualizar a senha.",
     "saveButton": "Salvar senha",
-    "defineButton": "Definir senha"
+    "defineButton": "Definir senha",
+    "dangerZoneTitle": "Zona de risco",
+    "deleteAccountTitle": "Excluir conta",
+    "deleteAccountHint": "Isso anonimiza seu nome, e-mail e usuário. Suas despesas e saldos antigos continuam visíveis pros outros membros, mas você vai ser deslogado de tudo e não vai conseguir entrar de novo.",
+    "deleteAccountButton": "Excluir minha conta",
+    "deleteAccountConfirmTitle": "Excluir sua conta?",
+    "deleteAccountConfirmPrompt": "Isso não pode ser desfeito.",
+    "deleteAccountConfirmButton": "Excluir conta",
+    "deleteAccountSuccess": "Conta excluída",
+    "deleteAccountError": "Erro ao excluir a conta",
+    "deletedUserLabel": "Usuário excluído"
   }
 }
