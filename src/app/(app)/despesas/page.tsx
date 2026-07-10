@@ -692,7 +692,7 @@ export default function DespesasPage() {
                                 const ratio = splitRatio(e, members);
                                 return (
                                 <tr key={e.publicId} onClick={() => openView(e)} className="group cursor-pointer border-t border-dotted border-rule align-top transition-colors hover:bg-panel/30">
-                                  <td className="px-2 py-2 text-xs text-faint tnum" aria-hidden>{i + 1}</td>
+                                  <td className="px-2 py-2 text-xs leading-5 text-faint tnum" aria-hidden>{i + 1}</td>
                                   <td className="px-4 py-2 text-sm text-ink">
                                     <span className="break-words">{e.description}</span>
                                     <ExpenseTags expense={e} className="mt-1" />
@@ -1009,7 +1009,7 @@ const ExpenseRow = memo(function ExpenseRow({
         !selectionMode && "cursor-pointer"
       )}
     >
-      <td className="px-2 py-3 text-xs text-faint tnum" aria-hidden>{rowNumber}</td>
+      <td className="px-2 py-3 text-xs leading-5 text-faint tnum" aria-hidden>{rowNumber}</td>
       {selectionMode && (
         <td className="px-4 py-3">
           <RowCheckbox
