@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { Card } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
@@ -16,10 +17,34 @@ import { useToast } from "@/components/ui/Toast";
 import { formatDateLocale } from "@/lib/money";
 import type { ActivityResponse, RevisionsResponse, RevisionRecord, Money as MoneyValue } from "@/lib/types";
 
+// Reads/writes a single query param while preserving the rest — shared by the tab toggle
+// (here) and the entity-type filter (in DetailedFeed) so the Activity view/filter survive a
+// reload and can be deep-linked (BL-34).
+function useQueryParamSetter() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  return (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value);
+    else params.delete(key);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+}
+
 export default function AtividadePage() {
   const t = useTranslations("Activity");
   const { activeGroup } = useSession();
-  const [tab, setTab] = useState<"summary" | "detailed">("summary");
+  const searchParams = useSearchParams();
+  const setQueryParam = useQueryParamSetter();
+  const initialTab = searchParams.get("tab") === "detailed" ? "detailed" : "summary";
+  const [tab, setTabState] = useState<"summary" | "detailed">(initialTab);
+
+  function setTab(next: "summary" | "detailed") {
+    setTabState(next);
+    setQueryParam("tab", next === "detailed" ? "detailed" : "");
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -187,9 +212,20 @@ function DetailedFeed({ groupKey }: { groupKey: number | undefined }) {
   const { members } = useSession();
   const toast = useToast();
   const locale = useLocale();
+  const searchParams = useSearchParams();
+  const setQueryParam = useQueryParamSetter();
   const [revisions, setRevisions] = useState<RevisionRecord[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>(""); // "" = all
+  // "" = all. Seeded from the URL so a reload/deep-link keeps the same filter (BL-34).
+  const filterParam = searchParams.get("filter");
+  const [filter, setFilterState] = useState<string>(
+    filterParam && (ENTITY_TYPES as readonly string[]).includes(filterParam) ? filterParam : ""
+  );
+
+  function setFilter(next: string) {
+    setFilterState(next);
+    setQueryParam("filter", next);
+  }
 
   useEffect(() => {
     let alive = true;
