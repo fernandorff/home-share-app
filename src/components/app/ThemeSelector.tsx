@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Menu, MenuItem } from "@/components/ui/Menu";
 import { THEMES, DEFAULT_THEME, THEME_COOKIE, isTheme, type Theme } from "@/lib/theme";
+import { setClientCookie } from "@/lib/client-cookie";
 
 /** Applies the theme to the document outside React's reactive scope (DOM write + cookie). */
 function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
-  document.cookie = `${THEME_COOKIE}=${theme}; path=/; max-age=31536000; samesite=lax`;
+  setClientCookie(THEME_COOKIE, theme);
 }
 
 /** Header control to switch the visual theme. Applies instantly via the

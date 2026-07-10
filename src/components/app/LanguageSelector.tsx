@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Menu, MenuItem } from "@/components/ui/Menu";
+import { setClientCookie } from "@/lib/client-cookie";
 
 const LANGS = [
   { code: "en", label: "English" },
@@ -13,7 +14,7 @@ const LANGS = [
 
 /** Cookie write outside React's reactive scope (next-intl reads `locale` server-side). */
 function setLocaleCookie(code: string) {
-  document.cookie = `locale=${code}; path=/; max-age=31536000; samesite=lax`;
+  setClientCookie("locale", code);
 }
 
 export function LanguageSelector() {
