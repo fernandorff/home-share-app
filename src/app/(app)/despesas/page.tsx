@@ -4,7 +4,7 @@ import { createContext, memo, useCallback, useContext, useEffect, useMemo, useSt
 import { useFetch } from "@/lib/use-fetch";
 import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/Button";
-import { Card, SectionTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
 import { MemberDot } from "@/components/ui/Member";
 import { Tag } from "@/components/ui/Stamp";
@@ -400,38 +400,41 @@ export default function DespesasPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
-      <SectionTitle
-        right={
-          <div className="flex items-center gap-2">
-            <Menu
-              align="end"
-              trigger={
-                <button className="inline-flex items-center gap-1.5 rounded-md border border-ink bg-card px-3 py-2 text-[0.7rem] font-display font-bold uppercase tracking-wider text-ink transition-colors hover:bg-panel">
-                  CSV <span className="text-faint">▾</span>
-                </button>
-              }
-            >
-              <MenuItem onSelect={() => setImportOpen(true)}>{t("importCsv")}</MenuItem>
-              <MenuSeparator />
-              <MenuItem>
-                {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API download endpoint, not a page route */}
-                <a href="/api/expenses/export" className="flex w-full items-center">
-                  {t("exportCsv")}
-                </a>
-              </MenuItem>
-            </Menu>
-            <Button size="sm" onClick={openCreate}>
-              {t("newExpense")}
-            </Button>
-          </div>
-        }
-      >
-        {t("title")}{" "}
-        {!loading && (
-          <span className="font-normal text-faint">({filtersActive ? filtered.length : total})</span>
-        )}
-      </SectionTitle>
+      {/* Header — a real <h1> (was a SectionTitle/h2) so every page shares the same title tag
+          (U7/BL-33); kept at the same compact size since, unlike other pages, this row also
+          carries the CSV/New-expense actions and a 2xl title risks overflowing on mobile (the
+          same class of bug fixed in BL-12). */}
+      <div className="flex items-center gap-3">
+        <h1 className="font-display text-sm font-bold uppercase tracking-wider text-ink whitespace-nowrap">
+          {t("title")}{" "}
+          {!loading && (
+            <span className="font-normal text-faint">({filtersActive ? filtered.length : total})</span>
+          )}
+        </h1>
+        <span className="flex-1 border-t border-dashed border-rule" aria-hidden />
+        <div className="flex items-center gap-2">
+          <Menu
+            align="end"
+            trigger={
+              <button className="inline-flex items-center gap-1.5 rounded-md border border-ink bg-card px-3 py-2 text-[0.7rem] font-display font-bold uppercase tracking-wider text-ink transition-colors hover:bg-panel">
+                CSV <span className="text-faint">▾</span>
+              </button>
+            }
+          >
+            <MenuItem onSelect={() => setImportOpen(true)}>{t("importCsv")}</MenuItem>
+            <MenuSeparator />
+            <MenuItem>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API download endpoint, not a page route */}
+              <a href="/api/expenses/export" className="flex w-full items-center">
+                {t("exportCsv")}
+              </a>
+            </MenuItem>
+          </Menu>
+          <Button size="sm" onClick={openCreate}>
+            {t("newExpense")}
+          </Button>
+        </div>
+      </div>
 
       {/* View toggle + selection toggle */}
       <div className="flex items-center justify-between gap-2">

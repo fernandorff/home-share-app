@@ -33,6 +33,7 @@ const ROW_ACCENT: Record<TagTone, string> = {
  *  + the house's custom entries (create / delete). Used three times on the Catálogos page. */
 export function TagManager({
   label,
+  kind,
   apiBase,
   responseKey,
   defaultKeys,
@@ -40,6 +41,9 @@ export function TagManager({
   nameMax,
 }: {
   label: string;
+  /** Singular, lowercase form of `label` (e.g. "category", not "Categories") — used in the
+   *  Add/Delete dialog titles so they don't read "Add categories" for a single new row (U8/BL-33). */
+  kind: string;
   apiBase: string;
   responseKey: "categories" | "platforms" | "paymentMethods";
   defaultKeys: readonly string[];
@@ -158,7 +162,7 @@ export function TagManager({
       <Modal
         open={creating}
         onOpenChange={(o) => !o && !saving && setCreating(false)}
-        title={t("createTitle", { kind: label.toLowerCase() })}
+        title={t("createTitle", { kind })}
         footer={
           <>
             <Button variant="ghost" onClick={() => setCreating(false)} disabled={saving}>
@@ -188,7 +192,7 @@ export function TagManager({
       <Modal
         open={deleting !== null}
         onOpenChange={(o) => !o && !removing && setDeleting(null)}
-        title={t("deleteTitle")}
+        title={t("deleteTitle", { kind })}
         footer={
           <>
             <Button variant="ghost" onClick={() => setDeleting(null)} disabled={removing}>

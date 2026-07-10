@@ -344,7 +344,7 @@ export default function ComprasPage() {
               size="sm"
               onClick={() => confirmDelete && void remove(confirmDelete)}
             >
-              {tc("remove")}
+              {tc("delete")}
             </Button>
           </>
         }
@@ -456,7 +456,7 @@ function ItemRow({
         <MenuItem onSelect={onEdit}>{tc("edit")}</MenuItem>
         <MenuSeparator />
         <MenuItem danger onSelect={onDelete}>
-          {tc("remove")}
+          {tc("delete")}
         </MenuItem>
       </Menu>
     </div>

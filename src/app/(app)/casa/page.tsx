@@ -144,7 +144,8 @@ export default function CasaPage() {
     <div className="flex flex-col gap-8">
       {/* 1 — Header: active house + role */}
       <section className="flex flex-col gap-4">
-        <SectionTitle>{t("title")}</SectionTitle>
+        {/* h1 (was a SectionTitle/h2) so every page has the same title tag + hierarchy (U7/BL-33). */}
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink">{t("title")}</h1>
         <Card className="reveal flex items-center gap-3 p-4">
           <MemberDot
             colorIndex={activeGroup.colorIndex}
@@ -153,9 +154,11 @@ export default function CasaPage() {
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="truncate font-display text-lg font-bold text-ink">
+              {/* h2, not h1 — the page's h1 is the "House" title above; this is the active
+                  house's own name, one level below it (U7/BL-33: exactly one h1 per page). */}
+              <h2 className="truncate font-display text-lg font-bold text-ink">
                 {activeGroup.name}
-              </h1>
+              </h2>
               <Tag>{roleLabel(activeGroup.role)}</Tag>
             </div>
             <p className="label-mono mt-0.5">{t("activeHouse")}</p>

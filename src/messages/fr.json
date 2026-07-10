@@ -334,7 +334,7 @@
     "activeHouse": "Maison active",
     "admin": "Admin",
     "member": "Membre",
-    "joinCodeLabel": "Code d'accès — Réf.",
+    "joinCodeLabel": "Code d'accès",
     "shareCode": "Partagez ce code pour que quelqu'un rejoigne cette maison.",
     "regenerateCode": "Régénérer le code",
     "regenerateConfirmPrompt": "Cela invalide le code actuel — toute personne avec une invitation en attente ne pourra plus rejoindre avec celui-ci. Continuer ?",
@@ -492,6 +492,9 @@
     "sectionCategories": "Catégories",
     "sectionPlatforms": "Plateformes",
     "sectionPayments": "Moyens de paiement",
+    "kindCategory": "catégorie",
+    "kindPlatform": "plateforme",
+    "kindPayment": "moyen de paiement",
     "systemTitle": "Par défaut",
     "customTitle": "Maison",
     "new": "Ajouter",
@@ -503,7 +506,7 @@
     "actionsFor": "Actions pour {name}",
     "expenseCount": "{count, plural, one {# dépense} other {# dépenses}}",
     "emptyHint": "Rien ici — ajoutez le premier.",
-    "deleteTitle": "Supprimer",
+    "deleteTitle": "Supprimer {kind}",
     "deleteExplanation": "Retirera « {name} » de {count, plural, one {# dépense} other {# dépenses}}.",
     "loadError": "Erreur de chargement",
     "saveError": "Erreur d’enregistrement",
@@ -512,7 +515,7 @@
     "deletedToast": "Supprimé !"
   },
   "Theme": {
-    "label": "Thème",
+    "label": "Apparence",
     "default": "Par défaut",
     "bolitas": "La Casa das Bolitas"
   },

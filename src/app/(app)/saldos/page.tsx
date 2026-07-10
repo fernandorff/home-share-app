@@ -134,7 +134,9 @@ export default function SaldosPage() {
               {t("title")}
             </h1>
           </div>
-          <Stamp tone="ink" className="mt-1 shrink-0">
+          {/* cursor-default: purely decorative label, not a control (U5/BL-33 — its bordered
+              "stamp" box read as clickable even though nothing was ever wired to it). */}
+          <Stamp tone="ink" className="mt-1 shrink-0 cursor-default">
             {t("account")}
           </Stamp>
         </div>
