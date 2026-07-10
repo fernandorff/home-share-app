@@ -51,6 +51,20 @@ export async function requireSession(): Promise<SessionCheck> {
       response: NextResponse.json({ error: 'Não autenticado', code: 'NOT_AUTHENTICATED' }, { status: 401 }),
     }
   }
+
+  // The token's sessionVersion must match the CURRENT DB value — logout / password-change bump
+  // the column, which is what actually revokes every previously issued (otherwise stateless) JWT.
+  const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { sessionVersion: true } })
+  if (!user || user.sessionVersion !== session.sessionVersion) {
+    // Clear the dead cookie here, not just on the client: middleware only checks JWT validity
+    // (never sessionVersion, to avoid a DB round-trip on every page nav), so a still-present but
+    // revoked cookie would make it treat the browser as "logged in" and bounce it straight back
+    // out of /auth/login — an infinite redirect loop instead of reaching the sign-in form.
+    const response = NextResponse.json({ error: 'Sessão expirada, faça login novamente', code: 'SESSION_REVOKED' }, { status: 401 })
+    response.cookies.delete(SESSION_COOKIE)
+    return { ok: false, response }
+  }
+
   // Best-effort: stamp the audit actor for writes in this request.
   setAuditContext({ actorId: session.userId })
   return { ok: true, session }

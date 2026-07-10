@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       userId: user.id,
       publicId: user.publicId,
       name: user.name,
+      sessionVersion: user.sessionVersion,
     });
 
     const res = NextResponse.redirect(new URL("/", origin));

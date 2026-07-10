@@ -36,9 +36,13 @@ export async function POST(request: Request) {
       userId: result.user.id,
       publicId: result.user.publicId,
       name: result.user.name,
+      sessionVersion: result.user.sessionVersion,
     })
 
-    const response = NextResponse.json({ user: result.user })
+    // sessionVersion is an internal revocation counter — only ever belongs in the signed JWT,
+    // never in a response body the client can read.
+    const { id, publicId, name } = result.user
+    const response = NextResponse.json({ user: { id, publicId, name } })
     response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions())
     return response
   } catch (error) {

@@ -37,6 +37,7 @@ export async function POST(request: Request) {
       userId: result.user.id,
       publicId: result.user.publicId,
       name: result.user.name,
+      sessionVersion: 0, // brand-new user row — always starts at the schema default
     })
 
     const response = NextResponse.json({ user: result.user }, { status: 201 })

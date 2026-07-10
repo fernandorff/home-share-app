@@ -32,7 +32,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (
       typeof window !== "undefined" &&
       !window.location.pathname.startsWith("/auth") &&
-      (!data?.code || data.code === "NOT_AUTHENTICATED")
+      (!data?.code || data.code === "NOT_AUTHENTICATED" || data.code === "SESSION_REVOKED")
     ) {
       window.location.href = "/auth/login";
     }

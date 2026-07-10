@@ -18,7 +18,7 @@ describe('password hashing', () => {
 })
 
 describe('session JWT', () => {
-  const payload = { userId: 1, publicId: 'abc-123', name: 'Fernando' }
+  const payload = { userId: 1, publicId: 'abc-123', name: 'Fernando', sessionVersion: 0 }
 
   it('signs and verifies round-trip', async () => {
     const token = await signSession(payload)
@@ -27,6 +27,24 @@ describe('session JWT', () => {
     // actions — not part of the signed payload, so check it separately from the rest.
     expect(session).toMatchObject(payload)
     expect(typeof session?.iat).toBe('number')
+  })
+
+  it('round-trips a non-zero sessionVersion (bumped by logout/password-change)', async () => {
+    const token = await signSession({ ...payload, sessionVersion: 3 })
+    const session = await verifySession(token)
+    expect(session?.sessionVersion).toBe(3)
+  })
+
+  it('defaults sessionVersion to 0 for a token signed before this field existed', async () => {
+    // Simulates an already-issued token from before this deploy — verifySession must not choke on
+    // a missing claim, so it falls back to 0 (matching a freshly migrated User.sessionVersion default).
+    const legacyToken = await new (await import('jose')).SignJWT({ userId: 1, publicId: 'abc-123', name: 'Fernando' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .sign(new TextEncoder().encode(process.env.JWT_SECRET || 'dev-only-insecure-secret'))
+    const session = await verifySession(legacyToken)
+    expect(session?.sessionVersion).toBe(0)
   })
 
   it('rejects tampered tokens', async () => {

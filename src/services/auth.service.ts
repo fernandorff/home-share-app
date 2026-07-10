@@ -15,7 +15,7 @@ const COMMON_PASSWORDS = new Set([
 ])
 
 export type LoginResult =
-  | { status: 'ok'; user: { id: number; publicId: string; name: string } }
+  | { status: 'ok'; user: { id: number; publicId: string; name: string; sessionVersion: number } }
   | { status: 'use_google' }
   | { status: 'invalid' }
 
@@ -24,7 +24,7 @@ export type UpdateProfileResult =
   | { error: string; code: string }
 
 export type ChangePasswordResult =
-  | { ok: true }
+  | { ok: true; sessionVersion: number }
   | { error: string; code: string }
 
 class AuthService {
@@ -80,7 +80,7 @@ class AuthService {
     const user = await prisma.user.findUnique({ where: { username } })
     if (!user) return { status: 'invalid' }
 
-    const publicUser = { id: user.id, publicId: user.publicId, name: user.name }
+    const publicUser = { id: user.id, publicId: user.publicId, name: user.name, sessionVersion: user.sessionVersion }
 
     if (user.password === null) {
       // Google accounts are passwordless by design — they log in via Google.
@@ -155,7 +155,18 @@ class AuthService {
       })
     }
 
-    return { id: user.id, publicId: user.publicId, name: user.name }
+    return { id: user.id, publicId: user.publicId, name: user.name, sessionVersion: user.sessionVersion }
+  }
+
+  /** Bumps a user's session version, immediately invalidating every previously issued JWT
+   *  (they carry the old version and requireSession() will reject them on their next request). */
+  async bumpSessionVersion(userId: number): Promise<number> {
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { sessionVersion: { increment: 1 } },
+      select: { sessionVersion: true },
+    })
+    return updated.sessionVersion
   }
 
   async getUserWithGroups(userId: number) {
@@ -286,11 +297,15 @@ class AuthService {
       }
     }
 
-    await prisma.user.update({
+    // Bumping sessionVersion here kills every OTHER device's token immediately (standard practice
+    // on password change). The route re-signs a fresh token for the CURRENT device so this one
+    // doesn't also get logged out by its own action.
+    const updated = await prisma.user.update({
       where: { id: userId },
-      data: { password: await hashPassword(newPassword) },
+      data: { password: await hashPassword(newPassword), sessionVersion: { increment: 1 } },
+      select: { sessionVersion: true },
     })
-    return { ok: true }
+    return { ok: true, sessionVersion: updated.sessionVersion }
   }
 }
 

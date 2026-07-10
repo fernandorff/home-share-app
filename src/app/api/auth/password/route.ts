@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { authService } from '@/services/auth.service'
 import { handleApiError, requireSession } from '@/lib/api-helpers'
 import { rateLimit } from '@/lib/rate-limit'
+import { signSession, sessionCookieOptions, SESSION_COOKIE } from '@/lib/auth'
 
 export async function POST(request: Request) {
   try {
@@ -28,7 +29,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error, code: result.code }, { status })
     }
 
-    return NextResponse.json({ ok: true })
+    // changePassword bumped sessionVersion, which would also log THIS device out on its next
+    // request — re-sign a fresh token for it right away so only every OTHER device is affected.
+    const token = await signSession({
+      userId: check.session.userId,
+      publicId: check.session.publicId,
+      name: check.session.name,
+      sessionVersion: result.sessionVersion,
+    })
+    const response = NextResponse.json({ ok: true })
+    response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions())
+    return response
   } catch (error) {
     return handleApiError(error, 'Erro ao atualizar a senha')
   }

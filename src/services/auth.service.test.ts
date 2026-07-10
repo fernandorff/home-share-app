@@ -18,7 +18,7 @@ beforeEach(() => {
   vi.resetAllMocks()
 })
 
-function baseUser(overrides: Partial<{ id: number; password: string | null; email: string | null; username: string; googleId: string | null; emailVerified: boolean }> = {}) {
+function baseUser(overrides: Partial<{ id: number; password: string | null; email: string | null; username: string; googleId: string | null; emailVerified: boolean; sessionVersion: number }> = {}) {
   return {
     id: 1,
     publicId: 'pub-1',
@@ -28,6 +28,7 @@ function baseUser(overrides: Partial<{ id: number; password: string | null; emai
     password: 'hash-of-something',
     googleId: null,
     emailVerified: false,
+    sessionVersion: 0,
     ...overrides,
   }
 }
@@ -182,26 +183,27 @@ describe('changePassword', () => {
     expect(mockPrisma.user.update).not.toHaveBeenCalled()
   })
 
-  it('changes the password when the current one is correct', async () => {
+  it('changes the password when the current one is correct, bumping sessionVersion to revoke other devices', async () => {
     const hash = await hashPassword('correct-pw')
     mockPrisma.user.findUnique.mockResolvedValue(baseUser({ password: hash }))
-    mockPrisma.user.update.mockResolvedValue(baseUser())
+    mockPrisma.user.update.mockResolvedValue({ sessionVersion: 1 })
 
     const result = await authService.changePassword(1, 'correct-pw', 'new-password-123', now())
 
-    expect(result).toEqual({ ok: true })
+    expect(result).toEqual({ ok: true, sessionVersion: 1 })
     const data = mockPrisma.user.update.mock.calls.at(-1)![0].data
     expect(data.password).not.toBe(hash)
     expect(typeof data.password).toBe('string')
+    expect(data.sessionVersion).toEqual({ increment: 1 })
   })
 
   it('lets a Google-only account define a password with no current-password check, given a fresh session', async () => {
     mockPrisma.user.findUnique.mockResolvedValue(baseUser({ password: null }))
-    mockPrisma.user.update.mockResolvedValue(baseUser())
+    mockPrisma.user.update.mockResolvedValue({ sessionVersion: 1 })
 
     const result = await authService.changePassword(1, undefined, 'new-password-123', now() - 60) // logged in 1 min ago
 
-    expect(result).toEqual({ ok: true })
+    expect(result).toEqual({ ok: true, sessionVersion: 1 })
     expect(mockPrisma.user.update).toHaveBeenCalled()
   })
 
@@ -214,6 +216,32 @@ describe('changePassword', () => {
 
     expect(result).toMatchObject({ code: 'REAUTH_REQUIRED' })
     expect(mockPrisma.user.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('login — carries sessionVersion into the caller-signed JWT (BL-13)', () => {
+  it('returns the user\'s current sessionVersion on success', async () => {
+    const hash = await hashPassword('correct-pw')
+    mockPrisma.user.findUnique.mockResolvedValue(baseUser({ password: hash, sessionVersion: 4 }))
+
+    const result = await authService.login('fernando', 'correct-pw')
+
+    expect(result).toMatchObject({ status: 'ok', user: { sessionVersion: 4 } })
+  })
+})
+
+describe('bumpSessionVersion — revokes every previously issued JWT for a user (BL-13)', () => {
+  it('increments and returns the new version', async () => {
+    mockPrisma.user.update.mockResolvedValue({ sessionVersion: 5 })
+
+    const result = await authService.bumpSessionVersion(1)
+
+    expect(result).toBe(5)
+    expect(mockPrisma.user.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { sessionVersion: { increment: 1 } },
+      select: { sessionVersion: true },
+    })
   })
 })
 

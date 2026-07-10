@@ -18,6 +18,10 @@ model User {
   // a plain self-service PATCH — the OAuth auto-link-by-email flow refuses to trust an unverified one.
   emailVerified Boolean @default(false) @map("email_verificado")
   googleId  String?  @unique @map("google_id")
+  // Bumped on logout and on password change to invalidate every previously issued JWT for this
+  // user at once (JWTs are otherwise stateless and would keep working until they expire on their
+  // own) — the token carries the version it was signed with; a mismatch means it was revoked.
+  sessionVersion Int @default(0) @map("versao_sessao")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

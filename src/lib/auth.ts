@@ -3,12 +3,18 @@ import { SignJWT, jwtVerify } from 'jose'
 
 export const SESSION_COOKIE = 'bolitas_session'
 export const GROUP_COOKIE = 'bolitas_group'
-export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days
+// Shortened from 30 days — bounds how long a leaked/stolen token stays usable. Real revocation
+// (logout / password change) now also happens immediately via sessionVersion, below.
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7 // 7 days
 
 export interface SessionPayload {
   userId: number
   publicId: string
   name: string
+  // The User.sessionVersion this token was signed with. requireSession() compares it against the
+  // CURRENT DB value — a mismatch means the token was revoked (logout / password change bump the
+  // column), which a plain stateless JWT could otherwise never express before it expires on its own.
+  sessionVersion: number
 }
 
 // verifySession's return also carries the JWT's issued-at time (unix seconds) so callers can
@@ -55,6 +61,7 @@ export async function verifySession(token: string): Promise<VerifiedSession | nu
       userId: payload.userId,
       publicId: payload.publicId,
       name: typeof payload.name === 'string' ? payload.name : '',
+      sessionVersion: typeof payload.sessionVersion === 'number' ? payload.sessionVersion : 0,
       iat: typeof payload.iat === 'number' ? payload.iat : 0,
     }
   } catch {
