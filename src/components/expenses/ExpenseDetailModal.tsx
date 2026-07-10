@@ -30,7 +30,6 @@ export function ExpenseDetailModal({
 }) {
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
-  const locale = useLocale();
   const { members } = useSession();
   const memberById = new Map(members.map((m) => [m.id, m]));
 
@@ -69,7 +68,7 @@ export function ExpenseDetailModal({
               </span>
             </Detail>
             <Detail label={t("date")}>
-              <span className="tnum">{formatDateLocale(expense.date, locale)}</span>
+              <span className="tnum">{formatDateLocale(expense.date)}</span>
             </Detail>
           </dl>
 
@@ -175,7 +174,7 @@ function ExpenseHistory({ expense }: { expense: Expense }) {
       case "amount":
         return <Money value={value as MoneyValue} />;
       case "date":
-        return <span className="tnum">{formatDateLocale(String(value), locale)}</span>;
+        return <span className="tnum">{formatDateLocale(String(value))}</span>;
       case "payerId":
         return <span>{memberById.get(Number(value))?.name ?? `#${value}`}</span>;
       case "categories":
@@ -191,8 +190,10 @@ function ExpenseHistory({ expense }: { expense: Expense }) {
 
   const when = (iso: string) => {
     const d = new Date(iso);
+    // Date part fixed DD/MM regardless of UI language (same reasoning as lib/money's
+    // formatDateLocale, BL-18/B3) — only the time part follows the viewer's locale.
     return (
-      d.toLocaleDateString(locale, { day: "2-digit", month: "2-digit" }) +
+      d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" }) +
       " " +
       d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
     );

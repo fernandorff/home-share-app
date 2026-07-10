@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatMoney, formatMoneySigned } from '@/lib/money'
+import { formatMoney, formatMoneySigned, formatDateLocale } from '@/lib/money'
 import { maskAmountInput, parseAmountInput } from '@/lib/format'
 
 // ICU inserts NBSP / narrow-NBSP around symbols; normalize so assertions are readable.
@@ -46,5 +46,15 @@ describe('maskAmountInput — caps input at the server\'s AMOUNT_TOO_HIGH ceilin
     const parsed = parseAmountInput(masked, 'pt')
     expect(parsed).toBeCloseTo(99999999.99, 2)
     expect(parsed).toBeLessThan(Number.MAX_SAFE_INTEGER)
+  })
+})
+
+describe('formatDateLocale — always DD/MM/YYYY, independent of the UI language (BL-18/B3)', () => {
+  it('formats as DD/MM/YYYY (previously flipped to MM/DD under an English UI, diverging from CSV export)', () => {
+    expect(formatDateLocale('2026-07-08T12:00:00.000Z')).toBe('08/07/2026')
+  })
+
+  it('returns an em dash for an unparseable date', () => {
+    expect(formatDateLocale('not-a-date')).toBe('—')
   })
 })

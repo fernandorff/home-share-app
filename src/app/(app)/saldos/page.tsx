@@ -251,7 +251,7 @@ export default function SaldosPage() {
                     <MemberChip colorIndex={colorOf(p.fromUser.id)} name={p.fromUser.name} />
                     <span className="px-0.5 text-faint" aria-hidden>→</span>
                     <MemberChip colorIndex={colorOf(p.toUser.id)} name={p.toUser.name} />
-                    <span className="ml-1 text-xs text-faint">{formatDateLocale(p.date, locale)}</span>
+                    <span className="ml-1 text-xs text-faint">{formatDateLocale(p.date)}</span>
                     {p.note && <span className="w-full truncate text-xs text-ink-soft sm:w-auto">· {p.note}</span>}
                   </span>
                   <Money value={p.amount} className="font-display text-sm font-bold" />

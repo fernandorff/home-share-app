@@ -27,22 +27,26 @@ export function formatMoneySigned(value: Money, currency: string, locale: string
   return `${sign}${formatMoney(Math.abs(n), currency, locale)}`;
 }
 
-/** Locale-aware short date (dates are stored at local noon). */
-// Same rationale as the currency cache: `toLocaleDateString(locale, opts)` rebuilds an
-// Intl.DateTimeFormat on every call — brutal when formatting hundreds of rows. Cache per locale.
+// DD/MM/YYYY everywhere, regardless of the viewer's UI language — same rationale as the house's
+// currency (lib/currency) not following the viewer's locale: this app's dates, CSV export and
+// filter chips already assumed DD/MM, so an English UI silently flipping the on-screen table to
+// MM/DD (Intl's default English order) created a real inconsistency (BL-18/B3) — e.g. editing an
+// exported CSV in Excel with the wrong day/month order. `en-GB` is just a stable way to ask Intl
+// for day-month-year without hand-rolling the string; it has nothing to do with the UI language.
 const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
 
-function dateFormatter(locale: string): Intl.DateTimeFormat {
-  let fmt = dateFormatterCache.get(locale);
+function dateFormatter(): Intl.DateTimeFormat {
+  const key = "dd-mm-yyyy";
+  let fmt = dateFormatterCache.get(key);
   if (!fmt) {
-    fmt = new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" });
-    dateFormatterCache.set(locale, fmt);
+    fmt = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+    dateFormatterCache.set(key, fmt);
   }
   return fmt;
 }
 
-export function formatDateLocale(iso: string, locale: string): string {
+export function formatDateLocale(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return dateFormatter(locale).format(d);
+  return dateFormatter().format(d);
 }

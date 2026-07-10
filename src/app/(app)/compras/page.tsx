@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { useSession } from "@/lib/session";
@@ -399,7 +399,6 @@ function ItemRow({
 }) {
   const t = useTranslations("Shopping");
   const tc = useTranslations("Common");
-  const locale = useLocale();
   return (
     <div className={cn("flex items-center gap-3 px-4 py-3", busy && "opacity-60")}>
       {/* Checkbox-style toggle — [ ] / [x] in mono */}
@@ -431,13 +430,13 @@ function ItemRow({
           {item.addedBy && <Tag>{t("addedBy", { name: item.addedBy.name })}</Tag>}
           {/* Desktop shows the date in its own right-aligned column; surface it here on mobile. */}
           <span className="text-xs text-faint tnum sm:hidden">
-            {formatDateLocale(item.createdAt, locale)}
+            {formatDateLocale(item.createdAt)}
           </span>
         </div>
       </div>
 
       <span className="hidden shrink-0 text-xs text-faint tnum sm:inline">
-        {formatDateLocale(item.createdAt, locale)}
+        {formatDateLocale(item.createdAt)}
       </span>
 
       <Menu

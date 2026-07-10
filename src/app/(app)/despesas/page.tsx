@@ -352,16 +352,16 @@ export default function DespesasPage() {
   const desktopRows = useMemo(
     () => listItems.map((e) => (
       <ExpenseRow key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
-        locale={locale} members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
+        members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
     )),
-    [listItems, colorByPayer, locale, members, selectionMode, openView, openEdit]
+    [listItems, colorByPayer, members, selectionMode, openView, openEdit]
   );
   const mobileCards = useMemo(
     () => listItems.map((e) => (
       <ExpenseCard key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
-        locale={locale} members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} onToggle={toggleRow} />
+        members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} onToggle={toggleRow} />
     )),
-    [listItems, colorByPayer, locale, members, selectionMode, openView, openEdit, toggleRow]
+    [listItems, colorByPayer, members, selectionMode, openView, openEdit, toggleRow]
   );
 
   async function confirmDeleteOne() {
@@ -668,7 +668,7 @@ export default function DespesasPage() {
                                     <ExpenseTags expense={e} className="mt-1" />
                                   </td>
                                   <td className="whitespace-nowrap px-2 py-2 text-xs text-ink-soft">
-                                    {formatDateLocale(e.date, locale)}
+                                    {formatDateLocale(e.date)}
                                   </td>
                                   <td className="relative whitespace-nowrap px-2 py-2 text-right max-md:pr-12 pointer-coarse:pr-12">
                                     <Money value={e.amount} />
@@ -690,7 +690,6 @@ export default function DespesasPage() {
                                 key={e.publicId}
                                 expense={e}
                                 colorIndex={person.colorIndex}
-                                locale={locale}
                                 members={members}
                                 selectionMode={false}
                                 onView={openView}
@@ -928,7 +927,6 @@ function splitRatio(e: Expense, members: Member[]): string | null {
 interface ExpenseRowProps {
   expense: Expense;
   colorIndex: number;
-  locale: string;
   members: Member[];
   selectionMode: boolean;
   onView: (expense: Expense) => void;
@@ -940,7 +938,7 @@ interface ExpenseRowProps {
 
 /** Desktop ledger row — memoized so toggling one checkbox re-renders only that row. */
 const ExpenseRow = memo(function ExpenseRow({
-  expense: e, colorIndex, locale, members, selectionMode, onView, onEdit, onDelete,
+  expense: e, colorIndex, members, selectionMode, onView, onEdit, onDelete,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
   const handleView = useCallback(() => onView(e), [onView, e]);
@@ -988,7 +986,7 @@ const ExpenseRow = memo(function ExpenseRow({
         {ratio && <span className="mt-0.5 block text-xs text-faint tnum" title={t("customSplit")}>⊟ {ratio}</span>}
       </td>
       <td className="whitespace-nowrap px-4 py-3 text-sm text-ink-soft">
-        {formatDateLocale(e.date, locale)}
+        {formatDateLocale(e.date)}
       </td>
       <td className="px-4 py-3 text-right" onClick={(ev) => ev.stopPropagation()}>
         <RowMenu onEdit={handleEdit} onDelete={handleDelete} />
@@ -999,7 +997,7 @@ const ExpenseRow = memo(function ExpenseRow({
 
 /** Mobile stacked card — memoized (same rationale as ExpenseRow). */
 const ExpenseCard = memo(function ExpenseCard({
-  expense: e, colorIndex, locale, members, selectionMode, onView, onEdit, onDelete, onToggle, hidePayer,
+  expense: e, colorIndex, members, selectionMode, onView, onEdit, onDelete, onToggle, hidePayer,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
   const handleView = useCallback(() => onView(e), [onView, e]);
@@ -1045,7 +1043,7 @@ const ExpenseCard = memo(function ExpenseCard({
               <span aria-hidden>·</span>
             </>
           )}
-          <span className="shrink-0 tnum">{formatDateLocale(e.date, locale)}</span>
+          <span className="shrink-0 tnum">{formatDateLocale(e.date)}</span>
         </div>
         <ExpenseTags expense={e} className="mt-1.5" />
       </div>

@@ -222,7 +222,7 @@ function DetailedFeed({ groupKey }: { groupKey: number | undefined }) {
   const renderValue = (field: string, value: unknown): ReactNode => {
     if (value === null || value === undefined || (Array.isArray(value) && value.length === 0)) return "—";
     if (field === "amount") return <Money value={value as MoneyValue} />;
-    if (field === "date") return formatDateLocale(String(value), locale);
+    if (field === "date") return formatDateLocale(String(value));
     if (typeof value === "boolean") return value ? t("yes") : t("no");
     if (field === "userId" || field.endsWith("UserId") || field === "payerId" || field === "addedById") return memberName(value);
     if (field === "role") return t.has(`roleValue.${value}`) ? t(`roleValue.${value}`) : String(value);
@@ -327,8 +327,10 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 
 function formatWhen(iso: string, locale: string): string {
   const d = new Date(iso);
+  // Date part fixed DD/MM regardless of UI language (same reasoning as lib/money's
+  // formatDateLocale, BL-18/B3) — only the time part follows the viewer's locale.
   return (
-    d.toLocaleDateString(locale, { day: "2-digit", month: "2-digit" }) +
+    d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" }) +
     " " +
     d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
   );
