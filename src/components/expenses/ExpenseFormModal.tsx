@@ -494,14 +494,21 @@ export function ExpenseFormModal({
                         <MemberDot colorIndex={m.colorIndex} name={m.name} size={22} />
                         <span className="truncate text-sm text-ink">{m.name}</span>
                       </span>
-                      <Input
-                        inputMode="numeric"
-                        aria-label={t("amountOf", { name: m.name })}
-                        value={custom[m.id] ?? ""}
-                        placeholder={zeroPlaceholder}
-                        className="w-28 text-right tnum tabular-nums"
-                        onChange={(e) => setCustomAmount(m.id, e.target.value)}
-                      />
+                      {/* Input's own base class already sets w-full — putting a narrower width
+                          directly on it just adds a competing class (cn() doesn't dedupe/merge
+                          conflicting Tailwind utilities), so the width has to be constrained on a
+                          wrapper instead. Without this, the input was winning 100% of the row's
+                          width and clipping the avatar+name to a sliver. */}
+                      <span className="w-28 shrink-0">
+                        <Input
+                          inputMode="numeric"
+                          aria-label={t("amountOf", { name: m.name })}
+                          value={custom[m.id] ?? ""}
+                          placeholder={zeroPlaceholder}
+                          className="text-right tnum tabular-nums"
+                          onChange={(e) => setCustomAmount(m.id, e.target.value)}
+                        />
+                      </span>
                     </li>
                   ))}
                 </ul>

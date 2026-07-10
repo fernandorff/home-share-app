@@ -6,8 +6,11 @@ import type {
   ReactNode,
 } from "react";
 
+// 16px on mobile (text-base) — iOS Safari auto-zooms the page on focus for any input under 16px
+// and doesn't zoom back out, breaking every form on the app. Back to the original 14px (text-sm)
+// from `sm:` up, where zoom-on-focus isn't a factor and the denser desktop look is unaffected.
 const fieldBase =
-  "w-full bg-card text-ink rounded-md border border-rule px-3 py-2.5 text-sm " +
+  "w-full bg-card text-ink rounded-md border border-rule px-3 py-2.5 text-base sm:text-sm " +
   "placeholder:text-faint outline-none transition-colors " +
   "focus:border-ink focus:ring-1 focus:ring-ink disabled:opacity-60";
 

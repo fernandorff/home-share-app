@@ -84,7 +84,7 @@ function CasaSelector() {
     <Menu
       align="start"
       trigger={
-        <button className="inline-flex max-w-[42vw] items-center gap-1.5 rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink transition-colors hover:bg-panel">
+        <button className="inline-flex max-w-[42vw] items-center gap-1.5 rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper">
           <MemberDot colorIndex={activeGroup.colorIndex} name={activeGroup.name} size={18} />
           <span className="truncate font-medium">{activeGroup.name}</span>
           <span className="text-xs text-faint">▾</span>
@@ -171,6 +171,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                 href={href}
                 className={cn(
                   "flex items-center gap-2.5 rounded-md border px-3 py-2 text-sm transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper",
                   isActive(href)
                     ? "border-ink bg-ink text-paper"
                     : "border-transparent text-ink-soft hover:bg-panel hover:text-ink"
