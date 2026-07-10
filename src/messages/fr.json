@@ -244,6 +244,7 @@
     "toastCreated": "Dépense créée",
     "toastUpdated": "Dépense mise à jour",
     "loadError": "Erreur lors du chargement des dépenses",
+    "loadingMore": "Chargement…",
     "deleteError": "Erreur lors de la suppression de la dépense",
     "bulkDeleteError": "Erreur lors de la suppression des dépenses",
     "saveError": "Erreur lors de l'enregistrement de la dépense",

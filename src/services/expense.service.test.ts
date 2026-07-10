@@ -9,6 +9,7 @@ const { mockPrisma } = vi.hoisted(() => ({
       findFirst: vi.fn(),
       findMany: vi.fn(),
       count: vi.fn(),
+      aggregate: vi.fn(),
       delete: vi.fn(),
     },
     expenseParticipant: { deleteMany: vi.fn() },
@@ -221,6 +222,79 @@ describe("ExpenseService.delete — tenant isolation + ownership (C1) + single-r
     );
     await expenseService.delete(1, 999, 2, true);
     expect(del).toHaveBeenCalledWith({ where: { id: 999 } });
+  });
+});
+
+describe("ExpenseService.list — server-side filters (BL-20/P3)", () => {
+  const baseParams = { page: 1, pageSize: 50, sortField: "date", sortDirection: "desc" as const };
+
+  beforeEach(() => {
+    mockPrisma.expense.findMany.mockResolvedValue([]);
+    mockPrisma.expense.count.mockResolvedValue(0);
+    mockPrisma.expense.aggregate.mockResolvedValue({ _sum: { amount: null } });
+  });
+
+  const whereOfLastFindMany = () => mockPrisma.expense.findMany.mock.calls.at(-1)![0].where;
+
+  it("scopes to groupId alone when no filters are given", async () => {
+    await expenseService.list(7, baseParams);
+    expect(whereOfLastFindMany()).toEqual({ groupId: 7 });
+    // Same where clause reused for count + aggregate, so the total/totalAmount stay consistent.
+    expect(mockPrisma.expense.count.mock.calls.at(-1)![0].where).toEqual({ groupId: 7 });
+    expect(mockPrisma.expense.aggregate.mock.calls.at(-1)![0].where).toEqual({ groupId: 7 });
+  });
+
+  it("builds an `in` filter for payerIds", async () => {
+    await expenseService.list(1, { ...baseParams, filters: { payerIds: [3, 5] } });
+    expect(whereOfLastFindMany().payerId).toEqual({ in: [3, 5] });
+  });
+
+  it("builds `hasSome` filters for platforms/categories/paymentMethods", async () => {
+    await expenseService.list(1, {
+      ...baseParams,
+      filters: { platforms: ["ifood"], categories: ["groceries"], paymentMethods: ["pix"] },
+    });
+    const where = whereOfLastFindMany();
+    expect(where.platforms).toEqual({ hasSome: ["ifood"] });
+    expect(where.categories).toEqual({ hasSome: ["groceries"] });
+    expect(where.paymentMethods).toEqual({ hasSome: ["pix"] });
+  });
+
+  it("builds a gte/lte date range only from the bounds that were provided", async () => {
+    const fromDate = new Date("2026-01-01T00:00:00");
+    await expenseService.list(1, { ...baseParams, filters: { fromDate } });
+    expect(whereOfLastFindMany().date).toEqual({ gte: fromDate });
+  });
+
+  it("builds a case-insensitive OR search across description/notes/payer name", async () => {
+    await expenseService.list(1, { ...baseParams, filters: { query: "uber" } });
+    expect(whereOfLastFindMany().OR).toEqual([
+      { description: { contains: "uber", mode: "insensitive" } },
+      { notes: { contains: "uber", mode: "insensitive" } },
+      { payer: { name: { contains: "uber", mode: "insensitive" } } },
+    ]);
+  });
+
+  it("tiebreaks the sort on `id` so equal-value rows keep a stable order across pages", async () => {
+    await expenseService.list(1, { ...baseParams, sortField: "amount", sortDirection: "asc" });
+    expect(mockPrisma.expense.findMany.mock.calls.at(-1)![0].orderBy).toEqual([
+      { amount: "asc" },
+      { id: "asc" },
+    ]);
+  });
+
+  it("sorts by payer name via the relation, still tiebreaking on id", async () => {
+    await expenseService.list(1, { ...baseParams, sortField: "payer", sortDirection: "desc" });
+    expect(mockPrisma.expense.findMany.mock.calls.at(-1)![0].orderBy).toEqual([
+      { payer: { name: "desc" } },
+      { id: "desc" },
+    ]);
+  });
+
+  it("returns totalAmount as the aggregate sum, defaulting to 0 when there are no matching rows", async () => {
+    mockPrisma.expense.aggregate.mockResolvedValueOnce({ _sum: { amount: null } });
+    const result = await expenseService.list(1, baseParams);
+    expect(result.pagination.totalAmount).toBe("0");
   });
 });
 

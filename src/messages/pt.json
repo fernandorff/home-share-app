@@ -244,6 +244,7 @@
     "toastCreated": "Despesa criada",
     "toastUpdated": "Despesa atualizada",
     "loadError": "Erro ao carregar despesas",
+    "loadingMore": "Carregando mais…",
     "deleteError": "Erro ao excluir despesa",
     "bulkDeleteError": "Erro ao excluir despesas",
     "saveError": "Erro ao salvar despesa",

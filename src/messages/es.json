@@ -244,6 +244,7 @@
     "toastCreated": "Gasto creado",
     "toastUpdated": "Gasto actualizado",
     "loadError": "Error al cargar los gastos",
+    "loadingMore": "Cargando más…",
     "deleteError": "Error al eliminar el gasto",
     "bulkDeleteError": "Error al eliminar los gastos",
     "saveError": "Error al guardar el gasto",

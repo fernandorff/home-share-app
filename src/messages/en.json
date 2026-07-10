@@ -244,6 +244,7 @@
     "toastCreated": "Expense created",
     "toastUpdated": "Expense updated",
     "loadError": "Error loading expenses",
+    "loadingMore": "Loading more…",
     "deleteError": "Error deleting expense",
     "bulkDeleteError": "Error deleting expenses",
     "saveError": "Error saving expense",

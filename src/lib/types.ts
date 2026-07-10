@@ -95,6 +95,9 @@ export interface Pagination {
   pageSize: number;
   total: number;
   totalPages: number;
+  // Sum of `amount` across every row matching the current filters (not just the loaded page) —
+  // lets the filtered-total widget stay correct while infinite scroll has only loaded some pages.
+  totalAmount: Money;
 }
 
 export interface ExpenseListResponse {

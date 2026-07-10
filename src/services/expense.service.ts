@@ -3,6 +3,7 @@ import { uuidv7 } from '@/lib/uuid'
 import { parseCSVDetailed, ExpenseRow, InvalidRow } from '@/lib/csv-parser'
 import { toCents, fromCents, splitCents } from '@/lib/currency'
 import { ApiError } from '@/lib/errors'
+import type { Prisma } from '@/generated/prisma/client'
 
 // A cell starting with =, +, -, @ (or tab/CR) is parsed as a live formula by Excel/Sheets/LibreOffice
 // when the exported CSV is later opened — free-text fields here (description, notes, names, tags) are
@@ -55,11 +56,25 @@ export interface ImportExpenseResult {
 
 export const VALID_SORT_FIELDS = ['date', 'amount', 'description', 'payer', 'createdAt'] as const
 
+// Server-side counterpart of the expense list's filter bar (BL-20/P3) — lets the List view do
+// real infinite scroll instead of loading every expense up front, since filtering can no longer
+// happen client-side once rows are fetched a page at a time.
+export interface ExpenseFilterParams {
+  query?: string
+  payerIds?: number[]
+  platforms?: string[]
+  categories?: string[]
+  paymentMethods?: string[]
+  fromDate?: Date
+  toDate?: Date
+}
+
 export interface PaginationParams {
   page: number
   pageSize: number
   sortField: string
   sortDirection: 'asc' | 'desc'
+  filters?: ExpenseFilterParams
 }
 
 // Equal split in integer cents — parts always sum to the exact total.
@@ -93,25 +108,48 @@ const legacyOmit = { category: true, platformId: true, platformIds: true } as co
 
 export class ExpenseService {
   async list(groupId: number, params: PaginationParams) {
-    const { page, pageSize, sortField, sortDirection } = params
+    const { page, pageSize, sortField, sortDirection, filters } = params
 
-    let orderBy: Record<string, 'asc' | 'desc'> | { payer: { name: 'asc' | 'desc' } }
-    if (sortField === 'payer') {
-      orderBy = { payer: { name: sortDirection } }
-    } else {
-      orderBy = { [sortField]: sortDirection }
+    const where: Prisma.ExpenseWhereInput = { groupId }
+    if (filters?.payerIds?.length) where.payerId = { in: filters.payerIds }
+    if (filters?.platforms?.length) where.platforms = { hasSome: filters.platforms }
+    if (filters?.categories?.length) where.categories = { hasSome: filters.categories }
+    if (filters?.paymentMethods?.length) where.paymentMethods = { hasSome: filters.paymentMethods }
+    if (filters?.fromDate || filters?.toDate) {
+      where.date = {
+        ...(filters.fromDate && { gte: filters.fromDate }),
+        ...(filters.toDate && { lte: filters.toDate })
+      }
+    }
+    if (filters?.query) {
+      // Tag filters (platform/category/payment) are exact-value chips from the filter modal —
+      // only the free-text search box needs a substring match, over the two free-text fields
+      // plus the payer's name (matches the old client-side search's most common use).
+      where.OR = [
+        { description: { contains: filters.query, mode: 'insensitive' } },
+        { notes: { contains: filters.query, mode: 'insensitive' } },
+        { payer: { name: { contains: filters.query, mode: 'insensitive' } } }
+      ]
     }
 
-    const [expenses, total] = await Promise.all([
+    // Tiebreak on `id` (unique, monotonic) so rows that tie on the sorted field (e.g. same date
+    // or same amount) still land in a stable order — without it, offset pagination could show a
+    // row twice or skip it entirely across two page fetches.
+    const orderBy: Prisma.ExpenseOrderByWithRelationInput[] = sortField === 'payer'
+      ? [{ payer: { name: sortDirection } }, { id: sortDirection }]
+      : [{ [sortField]: sortDirection }, { id: sortDirection }]
+
+    const [expenses, total, totalSum] = await Promise.all([
       prisma.expense.findMany({
-        where: { groupId },
+        where,
         omit: legacyOmit,
         include: expenseListInclude,
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize
       }),
-      prisma.expense.count({ where: { groupId } })
+      prisma.expense.count({ where }),
+      prisma.expense.aggregate({ where, _sum: { amount: true } })
     ])
 
     return {
@@ -120,7 +158,10 @@ export class ExpenseService {
         page,
         pageSize,
         total,
-        totalPages: Math.ceil(total / pageSize)
+        totalPages: Math.ceil(total / pageSize),
+        // Sum across EVERY row matching the current filters, not just this page — lets the UI
+        // show a correct running total for the filtered set while only some pages are loaded.
+        totalAmount: (totalSum._sum.amount ?? 0).toString()
       }
     }
   }

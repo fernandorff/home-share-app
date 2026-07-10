@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { expenseService, VALID_SORT_FIELDS } from '@/services/expense.service'
+import { expenseService, VALID_SORT_FIELDS, type ExpenseFilterParams } from '@/services/expense.service'
 import { groupService } from '@/services/group.service'
+import { LIMITS } from '@/lib/constants'
 import {
   validateExpenseInput,
   validateExpenseTags,
@@ -9,6 +10,45 @@ import {
   allActiveGroupMembers,
   recordActivity,
 } from '@/lib/api-helpers'
+
+// Defensive cap on how many chip values a single filter dimension can carry — a house never
+// has anywhere near this many payers/tags, so this only guards against an abusive query string.
+const MAX_FILTER_VALUES = 50
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Parses the expense list's filter bar (BL-20/P3) off the query string. Malformed values are
+ *  dropped silently (same forgiving style as page/pageSize below) rather than 400ing — a stale
+ *  filter chip should never break the whole list. Returns undefined when nothing was set, so
+ *  `expenseService.list` can skip building a `where` clause entirely for the common case. */
+function parseExpenseFilters(searchParams: URLSearchParams): ExpenseFilterParams | undefined {
+  const query = (searchParams.get('query') || '').trim().slice(0, LIMITS.DESCRIPTION)
+  const payerIds = searchParams.getAll('payerIds')
+    .map(v => parseInt(v, 10))
+    .filter(n => Number.isFinite(n))
+    .slice(0, MAX_FILTER_VALUES)
+  const platforms = searchParams.getAll('platforms').slice(0, MAX_FILTER_VALUES)
+  const categories = searchParams.getAll('categories').slice(0, MAX_FILTER_VALUES)
+  const paymentMethods = searchParams.getAll('paymentMethods').slice(0, MAX_FILTER_VALUES)
+  const fromDateRaw = searchParams.get('fromDate')
+  const toDateRaw = searchParams.get('toDate')
+  // Local-day bounds (not noon, unlike the write path) so the range covers the WHOLE calendar
+  // day regardless of what time-of-day an individual expense's date carries.
+  const fromDate = fromDateRaw && ISO_DATE.test(fromDateRaw) ? new Date(`${fromDateRaw}T00:00:00`) : undefined
+  const toDate = toDateRaw && ISO_DATE.test(toDateRaw) ? new Date(`${toDateRaw}T23:59:59`) : undefined
+
+  if (!query && !payerIds.length && !platforms.length && !categories.length && !paymentMethods.length && !fromDate && !toDate) {
+    return undefined
+  }
+  return {
+    ...(query && { query }),
+    ...(payerIds.length && { payerIds }),
+    ...(platforms.length && { platforms }),
+    ...(categories.length && { categories }),
+    ...(paymentMethods.length && { paymentMethods }),
+    ...(fromDate && { fromDate }),
+    ...(toDate && { toDate }),
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -28,7 +68,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: `Campo de ordenação inválido: ${sortField}` }, { status: 400 })
     }
 
-    const result = await expenseService.list(check.groupId, { page, pageSize, sortField, sortDirection })
+    const filters = parseExpenseFilters(searchParams)
+    const result = await expenseService.list(check.groupId, { page, pageSize, sortField, sortDirection, filters })
     return NextResponse.json(result)
   } catch (error) {
     return handleApiError(error, 'Erro ao listar despesas')

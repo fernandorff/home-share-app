@@ -513,3 +513,93 @@ describe("account deletion (integration, real pglite DB)", () => {
     expect(membership!.leftAt).not.toBeNull();
   });
 });
+
+// Real-Postgres-only behaviors (BL-20/P3 — expense list's server-side filters, needed for the
+// List view's infinite scroll): `hasSome` on array columns and `mode: 'insensitive'` are Postgres/
+// Prisma feature interactions a mocked unit test can't actually verify.
+describe("expense list filters + totalAmount aggregate (integration, real pglite DB)", () => {
+  beforeEach(reset);
+
+  async function seedHouseWithVariedExpenses() {
+    const ana = await prisma.user.create({ data: { publicId: randomUUID(), name: "Ana", username: "ana" } });
+    const bob = await prisma.user.create({ data: { publicId: randomUUID(), name: "Bob", username: "bob" } });
+    const house = await prisma.group.create({ data: { publicId: randomUUID(), name: "House" } });
+    await prisma.groupMember.createMany({
+      data: [
+        { userId: ana.id, groupId: house.id, role: "ADMIN", colorIndex: 0 },
+        { userId: bob.id, groupId: house.id, role: "MEMBER", colorIndex: 1 },
+      ],
+    });
+
+    await expenseService.create(house.id, [ana.id, bob.id], {
+      payerId: ana.id, description: "Uber ride", amount: 30, platforms: ["uber"], date: new Date("2026-01-05T12:00:00"), splitEqually: true,
+    });
+    await expenseService.create(house.id, [ana.id, bob.id], {
+      payerId: bob.id, description: "Groceries", amount: 70, categories: ["groceries"], paymentMethods: ["pix"], date: new Date("2026-02-10T12:00:00"), splitEqually: true,
+    });
+    await expenseService.create(house.id, [ana.id, bob.id], {
+      payerId: ana.id, description: "Netflix", notes: "monthly subscription", amount: 40, date: new Date("2026-02-20T12:00:00"), splitEqually: true,
+    });
+
+    return { ana, bob, house };
+  }
+
+  it("filters by payerId (`in`)", async () => {
+    const { ana, house } = await seedHouseWithVariedExpenses();
+    const result = await expenseService.list(house.id, { ...listParams, filters: { payerIds: [ana.id] } });
+    expect(result.expenses.map(e => e.description).sort()).toEqual(["Netflix", "Uber ride"]);
+    expect(result.pagination.total).toBe(2);
+  });
+
+  it("filters by platform tag (`hasSome` on the array column)", async () => {
+    const { house } = await seedHouseWithVariedExpenses();
+    const result = await expenseService.list(house.id, { ...listParams, filters: { platforms: ["uber"] } });
+    expect(result.expenses).toHaveLength(1);
+    expect(result.expenses[0].description).toBe("Uber ride");
+  });
+
+  it("free-text query matches description OR notes OR payer name, case-insensitively", async () => {
+    const { house } = await seedHouseWithVariedExpenses();
+    const byDescription = await expenseService.list(house.id, { ...listParams, filters: { query: "NETFLIX" } });
+    expect(byDescription.expenses.map(e => e.description)).toEqual(["Netflix"]);
+
+    const byNotes = await expenseService.list(house.id, { ...listParams, filters: { query: "subscription" } });
+    expect(byNotes.expenses.map(e => e.description)).toEqual(["Netflix"]);
+
+    const byPayerName = await expenseService.list(house.id, { ...listParams, filters: { query: "bob" } });
+    expect(byPayerName.expenses.map(e => e.description)).toEqual(["Groceries"]);
+  });
+
+  it("filters by date range (gte/lte, inclusive of the whole day)", async () => {
+    const { house } = await seedHouseWithVariedExpenses();
+    const result = await expenseService.list(house.id, {
+      ...listParams,
+      filters: { fromDate: new Date("2026-02-01T00:00:00"), toDate: new Date("2026-02-28T23:59:59") },
+    });
+    expect(result.expenses.map(e => e.description).sort()).toEqual(["Groceries", "Netflix"]);
+  });
+
+  it("combines two filter dimensions with AND semantics", async () => {
+    const { bob, house } = await seedHouseWithVariedExpenses();
+    const result = await expenseService.list(house.id, {
+      ...listParams,
+      filters: { payerIds: [bob.id], paymentMethods: ["pix"] },
+    });
+    expect(result.expenses.map(e => e.description)).toEqual(["Groceries"]);
+  });
+
+  it("totalAmount sums every matching row, not just the current page", async () => {
+    const { house } = await seedHouseWithVariedExpenses();
+    const onePerPage = await expenseService.list(house.id, { page: 1, pageSize: 1, sortField: "date", sortDirection: "desc" });
+    expect(onePerPage.expenses).toHaveLength(1); // only one row on this page...
+    expect(Number(onePerPage.pagination.totalAmount)).toBeCloseTo(140); // ...but the sum covers all 3 (30+70+40)
+  });
+
+  it("stable id-tiebreak means paging through 2 rows at a time never repeats or skips a row", async () => {
+    const { house } = await seedHouseWithVariedExpenses();
+    const page1 = await expenseService.list(house.id, { page: 1, pageSize: 2, sortField: "amount", sortDirection: "asc" });
+    const page2 = await expenseService.list(house.id, { page: 2, pageSize: 2, sortField: "amount", sortDirection: "asc" });
+    const seenIds = [...page1.expenses, ...page2.expenses].map(e => e.id);
+    expect(new Set(seenIds).size).toBe(3);
+  });
+});

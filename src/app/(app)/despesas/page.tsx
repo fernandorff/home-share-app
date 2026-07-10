@@ -1,7 +1,9 @@
 "use client";
 
-import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useFetch } from "@/lib/use-fetch";
+import { useInfiniteExpenses } from "@/lib/use-infinite-expenses";
+import { buildExpenseQuery } from "@/lib/expense-query";
 import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -27,10 +29,25 @@ import type { Expense, ExpenseListResponse, ExpenseSortField, Platform, Category
 import { ExpenseFormModal } from "@/components/expenses/ExpenseFormModal";
 import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
 import { ImportCsvModal } from "@/components/expenses/ImportCsvModal";
-import { ExpenseFiltersModal, type ExpenseFilters } from "@/components/expenses/ExpenseFiltersModal";
+import { ExpenseFiltersModal, EMPTY_FILTERS, type ExpenseFilters } from "@/components/expenses/ExpenseFiltersModal";
 
 type SortDirection = "asc" | "desc";
 type ViewMode = "list" | "byPayer";
+
+// List view: true infinite scroll (BL-20/P3). By-person still needs the FULL matching set to
+// group/total correctly, so it keeps the old "load everything" cap — just server-filtered now,
+// and only fetched once that tab is actually opened.
+const LIST_PAGE_SIZE = 50;
+const BY_PERSON_PAGE_SIZE = 100_000;
+
+// Stable "empty" references (module scope, never mutated) — clearFilters() below resets to
+// THESE instead of fresh `[]` literals, so clearing already-empty filters (e.g. on mount, or on
+// every house switch via the reset effect) is a true no-op React can bail out of. Without this,
+// each `[]` literal is a new reference, so `appliedFilters`'s useMemo sees "changed" deps and
+// recomputes, cascading into an extra, unnecessary refetch (the exact "unstable callback → refetch
+// loop" footgun already documented elsewhere in this file's history).
+const EMPTY_IDS: number[] = [];
+const EMPTY_STRINGS: string[] = [];
 
 interface SortableCol {
   field: ExpenseSortField;
@@ -64,32 +81,6 @@ function monthLabel(d: Date, locale: string): string {
   return `${m.charAt(0).toUpperCase()}${m.slice(1)} / ${d.getFullYear()}`;
 }
 
-function compareExpenses(
-  a: Expense,
-  b: Expense,
-  field: ExpenseSortField,
-  locale: string
-): number {
-  let cmp = 0;
-  switch (field) {
-    case "amount":
-      cmp = money(a.amount) - money(b.amount);
-      break;
-    case "description":
-      cmp = a.description.localeCompare(b.description, locale);
-      break;
-    case "payer":
-      cmp = a.payer.name.localeCompare(b.payer.name, locale);
-      break;
-    case "createdAt":
-      cmp = a.createdAt.localeCompare(b.createdAt);
-      break;
-    default:
-      cmp = a.date.localeCompare(b.date);
-  }
-  return cmp !== 0 ? cmp : a.date.localeCompare(b.date);
-}
-
 function SortIndicator({
   active,
   direction,
@@ -109,12 +100,6 @@ export default function DespesasPage() {
   const apiErr = useApiError();
   const locale = useLocale();
 
-  // Everything is loaded once and scrolled (no pagination). useFetch keys on the active
-  // house and reloads after mutations; reqId/ref guards avoid the old refetch-loop footgun.
-  const { data: allData, loading, reload } = useFetch<ExpenseListResponse>(
-    "/api/expenses?page=1&pageSize=100000&sortField=date&sortDirection=desc",
-    { onError: (err) => toast(apiErr(err, t("loadError")), "error") }
-  );
   const [sortField, setSortField] = useState<ExpenseSortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [view, setView] = useState<ViewMode>("list");
@@ -123,12 +108,13 @@ export default function DespesasPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
 
-  // Filters (client-side; fit the load-all model). Tag filters hold one default-key-or-custom-name.
+  // Filters are applied server-side (BL-20/P3) so infinite scroll only fetches what matches.
+  // Tag filters hold one default-key-or-custom-name.
   const [query, setQuery] = useState("");
-  const [payerFilters, setPayerFilters] = useState<number[]>([]);
-  const [platformFilters, setPlatformFilters] = useState<string[]>([]);
-  const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
-  const [paymentFilters, setPaymentFilters] = useState<string[]>([]);
+  const [payerFilters, setPayerFilters] = useState<number[]>(EMPTY_IDS);
+  const [platformFilters, setPlatformFilters] = useState<string[]>(EMPTY_STRINGS);
+  const [categoryFilters, setCategoryFilters] = useState<string[]>(EMPTY_STRINGS);
+  const [paymentFilters, setPaymentFilters] = useState<string[]>(EMPTY_STRINGS);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -174,27 +160,6 @@ export default function DespesasPage() {
     setSelectionMode(false);
   }, [activeGroup?.id]);
 
-  const all = useMemo(() => allData?.expenses ?? [], [allData]);
-
-  // Filters applied BEFORE sort & grouping, so List and By-person see the same set.
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return all.filter((e) => {
-      if (payerFilters.length && !payerFilters.includes(e.payerId)) return false;
-      if (platformFilters.length && !platformFilters.some((p) => e.platforms.includes(p))) return false;
-      if (categoryFilters.length && !categoryFilters.some((c) => e.categories.includes(c))) return false;
-      if (paymentFilters.length && !paymentFilters.some((p) => e.paymentMethods.includes(p))) return false;
-      const day = e.date.slice(0, 10);
-      if (fromDate && day < fromDate) return false;
-      if (toDate && day > toDate) return false;
-      if (q) {
-        const hay = `${e.description} ${e.notes ?? ""} ${e.payer.name} ${e.platforms.join(" ")} ${e.paymentMethods.join(" ")} ${e.categories.join(" ")}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [all, query, payerFilters, platformFilters, categoryFilters, paymentFilters, fromDate, toDate]);
-
   const activeFilterCount =
     (query.trim() !== "" ? 1 : 0) +
     payerFilters.length +
@@ -204,14 +169,13 @@ export default function DespesasPage() {
     (fromDate !== "" ? 1 : 0) +
     (toDate !== "" ? 1 : 0);
   const filtersActive = activeFilterCount > 0;
-  const filteredTotal = useMemo(() => filtered.reduce((s, e) => s + money(e.amount), 0), [filtered]);
 
   function clearFilters() {
     setQuery("");
-    setPayerFilters([]);
-    setPlatformFilters([]);
-    setCategoryFilters([]);
-    setPaymentFilters([]);
+    setPayerFilters(EMPTY_IDS);
+    setPlatformFilters(EMPTY_STRINGS);
+    setCategoryFilters(EMPTY_STRINGS);
+    setPaymentFilters(EMPTY_STRINGS);
     setFromDate("");
     setToDate("");
   }
@@ -241,6 +205,71 @@ export default function DespesasPage() {
     setToDate(f.toDate);
   }
 
+  // ===== List view: true infinite scroll, server-sorted/filtered (BL-20/P3). =====
+  const buildListUrl = useCallback(
+    (page: number) => buildExpenseQuery({ page, pageSize: LIST_PAGE_SIZE, sortField, sortDirection, filters: appliedFilters }),
+    [sortField, sortDirection, appliedFilters]
+  );
+  const listState = useInfiniteExpenses(buildListUrl, {
+    onError: (err) => toast(apiErr(err, t("loadError")), "error"),
+  });
+
+  // ===== By-person view: needs the full matching set to group/total correctly, so it loads
+  // everything (like the old model) — but only once the tab is actually opened, and it respects
+  // the same server-side filters as the list. =====
+  const [byPersonRequested, setByPersonRequested] = useState(false);
+  useEffect(() => {
+    if (view === "byPayer") setByPersonRequested(true);
+  }, [view]);
+  const byPersonUrl = useMemo(
+    () => buildExpenseQuery({ page: 1, pageSize: BY_PERSON_PAGE_SIZE, sortField: "date", sortDirection: "desc", filters: appliedFilters }),
+    [appliedFilters]
+  );
+  const { data: byPersonData, loading: byPersonLoading, reload: reloadByPerson } = useFetch<ExpenseListResponse>(
+    byPersonUrl,
+    { enabled: byPersonRequested, onError: (err) => toast(apiErr(err, t("loadError")), "error") }
+  );
+
+  // True house total, completely independent of the active filters — used only to tell "no
+  // expenses at all" apart from "no results for this filter" below. A dedicated, always-current
+  // fetch (pageSize=1 — only `pagination.total` is read) rather than reusing `listState` filtered:
+  // reusing it would go stale the moment a mutation runs while a filter is active (e.g. the user
+  // bulk-deletes the last few rows matching a filter — `listState.total` correctly drops to 0 for
+  // THAT filter, but says nothing about whether the house is now genuinely empty).
+  const houseTotalUrl = useMemo(
+    () => buildExpenseQuery({ page: 1, pageSize: 1, sortField: "date", sortDirection: "desc", filters: EMPTY_FILTERS }),
+    []
+  );
+  const { data: houseTotalData, reload: reloadHouseTotal } = useFetch<ExpenseListResponse>(houseTotalUrl);
+  const unfilteredTotal = houseTotalData?.pagination.total ?? null;
+
+  function reloadAll() {
+    listState.reload();
+    if (byPersonRequested) reloadByPerson();
+    reloadHouseTotal();
+  }
+
+  // Infinite-scroll sentinel — loads the next page once it enters the viewport. A callback ref
+  // (not useRef+useEffect) because the sentinel <div> only exists in the DOM while `hasMore` is
+  // true — React invokes this exactly when that div mounts/unmounts, so the observer is always
+  // attached to the CURRENT element. (An effect keyed on `loadMore`'s — now stable — identity
+  // would only run once at the initial mount, when `hasMore` still starts false and the div
+  // isn't there yet, and would never reattach once it actually appears.)
+  const sentinelObserverRef = useRef<IntersectionObserver | null>(null);
+  const sentinelRef = useCallback((el: HTMLDivElement | null) => {
+    sentinelObserverRef.current?.disconnect();
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) listState.loadMore();
+      },
+      { rootMargin: "400px" }
+    );
+    observer.observe(el);
+    sentinelObserverRef.current = observer;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only `loadMore` (stable); re-runs per DOM mount/unmount, not per render
+  }, [listState.loadMore]);
+
   // Built-in tag keys translate; custom names render as-is.
   const tagLabel = (ns: string, v: string) => (t.has(`${ns}.${v}`) ? t(`${ns}.${v}`) : v);
   const brDate = (iso: string) => iso.split("-").reverse().join("/");
@@ -262,18 +291,14 @@ export default function DespesasPage() {
   if (fromDate) filterChips.push({ key: "from", label: t("filterFrom"), value: brDate(fromDate), remove: () => setFromDate("") });
   if (toDate) filterChips.push({ key: "to", label: t("filterTo"), value: brDate(toDate), remove: () => setToDate("") });
 
-  // List view: client-side sorted (all rows, infinite scroll).
-  const listItems = useMemo(() => {
-    const dir = sortDirection === "asc" ? 1 : -1;
-    return [...filtered].sort((a, b) => compareExpenses(a, b, sortField, locale) * dir);
-  }, [filtered, sortField, sortDirection, locale]);
+  const byPersonExpenses = useMemo(() => byPersonData?.expenses ?? [], [byPersonData]);
 
   // By person → grouped by month (newest first).
   const byPerson = useMemo<PersonGroup[]>(() => {
     return members.map((m) => {
       const monthsMap = new Map<string, MonthGroup>();
       let total = 0;
-      for (const e of filtered) {
+      for (const e of byPersonExpenses) {
         if (e.payerId !== m.id) continue;
         const amt = money(e.amount);
         total += amt;
@@ -292,7 +317,7 @@ export default function DespesasPage() {
       );
       return { payerId: m.id, name: m.name, colorIndex: m.colorIndex, total, months: monthsArr };
     });
-  }, [filtered, members, locale]);
+  }, [byPersonExpenses, members, locale]);
 
   const byPersonEmpty = byPerson.every((p) => p.months.length === 0);
   // Mobile by-person shows one person at a time (desktop keeps both columns).
@@ -301,7 +326,7 @@ export default function DespesasPage() {
   const selectedPersonId =
     personTab ?? (members.some((m) => m.id === meId) ? meId : members[0]?.id) ?? null;
   const selectedCount = selected.size;
-  const allSelected = listItems.length > 0 && listItems.every((e) => selected.has(e.publicId));
+  const allSelected = listState.items.length > 0 && listState.items.every((e) => selected.has(e.publicId));
 
   function toggleSort(field: ExpenseSortField) {
     if (field === sortField) setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
@@ -323,7 +348,7 @@ export default function DespesasPage() {
   }, []);
 
   function toggleSelectAll() {
-    setSelected(allSelected ? new Set() : new Set(listItems.map((e) => e.publicId)));
+    setSelected(allSelected ? new Set() : new Set(listState.items.map((e) => e.publicId)));
   }
 
   function openCreate() {
@@ -350,18 +375,18 @@ export default function DespesasPage() {
   // selection doesn't even re-create/diff 300 elements; React bails out of the row subtree and
   // only the context-subscribed checkboxes update.
   const desktopRows = useMemo(
-    () => listItems.map((e) => (
+    () => listState.items.map((e) => (
       <ExpenseRow key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
         members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
     )),
-    [listItems, colorByPayer, members, selectionMode, openView, openEdit]
+    [listState.items, colorByPayer, members, selectionMode, openView, openEdit]
   );
   const mobileCards = useMemo(
-    () => listItems.map((e) => (
+    () => listState.items.map((e) => (
       <ExpenseCard key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
         members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} onToggle={toggleRow} />
     )),
-    [listItems, colorByPayer, members, selectionMode, openView, openEdit, toggleRow]
+    [listState.items, colorByPayer, members, selectionMode, openView, openEdit, toggleRow]
   );
 
   async function confirmDeleteOne() {
@@ -371,7 +396,7 @@ export default function DespesasPage() {
       await api.del(`/api/expenses/${deleteTarget.publicId}`);
       toast(t("toastDeleted"), "success");
       setDeleteTarget(null);
-      reload();
+      reloadAll();
     } catch (err) {
       toast(apiErr(err, t("deleteError")), "error");
     } finally {
@@ -388,7 +413,7 @@ export default function DespesasPage() {
       toast(t("toastBulkDeleted", { count: res.deleted }), "success");
       setBulkConfirm(false);
       setSelected(new Set());
-      reload();
+      reloadAll();
     } catch (err) {
       toast(apiErr(err, t("bulkDeleteError")), "error");
     } finally {
@@ -396,7 +421,7 @@ export default function DespesasPage() {
     }
   }
 
-  const total = allData?.pagination.total ?? listItems.length;
+  const total = listState.total;
 
   return (
     <div className="flex flex-col gap-5">
@@ -407,8 +432,8 @@ export default function DespesasPage() {
       <div className="flex items-center gap-3">
         <h1 className="font-display text-sm font-bold uppercase tracking-wider text-ink whitespace-nowrap">
           {t("title")}{" "}
-          {!loading && (
-            <span className="font-normal text-faint">({filtersActive ? filtered.length : total})</span>
+          {!listState.initialLoading && (
+            <span className="font-normal text-faint">({total})</span>
           )}
         </h1>
         <span className="flex-1 border-t border-dashed border-rule" aria-hidden />
@@ -485,7 +510,7 @@ export default function DespesasPage() {
       </div>
 
       {/* Filter toolbar — opens the modal; applied filters show as removable chips. */}
-      {!loading && total > 0 && (
+      {!listState.initialLoading && total > 0 && (
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => setFilterModalOpen(true)}>
@@ -521,10 +546,10 @@ export default function DespesasPage() {
           </div>
           {filtersActive && (
             <div className="flex items-center justify-between gap-3 rounded-md border border-dotted border-rule bg-panel/40 px-3 py-1.5">
-              <span className="label-mono">{t("filteredCount", { count: filtered.length })}</span>
+              <span className="label-mono">{t("filteredCount", { count: total })}</span>
               <span className="flex items-baseline gap-1.5">
                 <span className="label-mono text-faint">{t("filteredTotal")}</span>
-                <Money value={filteredTotal} className="font-display text-sm font-bold" />
+                <Money value={listState.totalAmount} className="font-display text-sm font-bold" />
               </span>
             </div>
           )}
@@ -556,7 +581,7 @@ export default function DespesasPage() {
         </div>
       )}
 
-      {loading || allData === null ? (
+      {(view === "byPayer" ? byPersonData === null || byPersonLoading : listState.initialLoading) ? (
         view === "byPayer" ? (
           <div className="grid gap-5 lg:grid-cols-2">
             <Card className="p-2"><SkeletonRows rows={6} /></Card>
@@ -565,7 +590,7 @@ export default function DespesasPage() {
         ) : (
           <Card className="overflow-hidden"><SkeletonRows rows={8} inset /></Card>
         )
-      ) : total === 0 ? (
+      ) : unfilteredTotal === 0 ? (
         <Card>
           <EmptyState
             title={t("emptyTitle")}
@@ -574,7 +599,7 @@ export default function DespesasPage() {
             action={<Button onClick={openCreate}>{t("newExpense")}</Button>}
           />
         </Card>
-      ) : filtersActive && filtered.length === 0 ? (
+      ) : filtersActive && total === 0 ? (
         <Card>
           <EmptyState
             title={t("noResultsTitle")}
@@ -781,6 +806,12 @@ export default function DespesasPage() {
             </ul>
           </div>
         </Card>
+        {/* Infinite-scroll sentinel (BL-20/P3) — loads the next page once it's in view. */}
+        {listState.hasMore && (
+          <div ref={sentinelRef} className="flex items-center justify-center py-4">
+            {listState.loadingMore && <span className="label-mono text-faint">{t("loadingMore")}</span>}
+          </div>
+        )}
         </SelectionContext.Provider>
       )}
 
@@ -792,7 +823,7 @@ export default function DespesasPage() {
         platforms={platforms}
         categories={categories}
         paymentMethods={paymentMethods}
-        onSaved={reload}
+        onSaved={reloadAll}
       />
 
       {/* Read-only detail view (click a row) with Edit / Delete actions. */}
@@ -812,7 +843,7 @@ export default function DespesasPage() {
       />
 
       {/* Import modal */}
-      <ImportCsvModal open={importOpen} onOpenChange={setImportOpen} platforms={platforms} onImported={reload} />
+      <ImportCsvModal open={importOpen} onOpenChange={setImportOpen} platforms={platforms} onImported={reloadAll} />
 
       <ExpenseFiltersModal
         open={filterModalOpen}
