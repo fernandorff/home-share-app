@@ -68,7 +68,7 @@ function ChipMultiSelect({
 }) {
   if (options.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-2">
       {options.map((o) => {
         const on = selected.has(o.value);
         return (
@@ -78,7 +78,8 @@ function ChipMultiSelect({
             onClick={() => onToggle(o.value)}
             aria-pressed={on}
             className={cn(
-              "rounded-md border px-2.5 py-1 text-[0.72rem] font-medium transition-colors",
+              // Was px-2.5 py-1 (~27px tall) — D3/BL-21 flagged chips as an undersized touch target.
+              "rounded-md border px-3 py-2 text-[0.72rem] font-medium transition-colors",
               on ? CHIP_ON_TONES[tone] : "border-rule bg-card text-ink-soft hover:bg-panel"
             )}
           >

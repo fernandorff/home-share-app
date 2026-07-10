@@ -13,7 +13,9 @@ const VARIANTS: Record<Variant, string> = {
 };
 
 const SIZES: Record<Size, string> = {
-  sm: "text-[0.7rem] px-3 py-1.5 gap-1.5",
+  // min-h-11 floors mobile touch height at 44px (D3/D8/BL-21 — was ~30px); sm:min-h-0 lets it
+  // shrink back to its natural compact height at the sm breakpoint (mouse input, no touch concern).
+  sm: "text-[0.7rem] px-3 py-1.5 gap-1.5 min-h-11 sm:min-h-0",
   md: "text-[0.8rem] px-4 py-2.5 gap-2",
 };
 

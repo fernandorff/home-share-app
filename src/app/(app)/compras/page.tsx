@@ -409,7 +409,9 @@ function ItemRow({
         aria-pressed={item.isPurchased}
         aria-label={item.isPurchased ? t("markNotPurchased") : t("markPurchased")}
         className={cn(
-          "shrink-0 select-none font-mono text-base leading-none transition-colors",
+          // -m-4 cancels the p-4 for layout purposes, so the glyph stays visually put while the
+          // actual hit area grows to ~44x44+ (D8/BL-21 — was 29x16px).
+          "-m-4 shrink-0 select-none p-4 font-mono text-base leading-none transition-colors",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-card rounded-sm",
           item.isPurchased ? "text-stamp" : "text-ink-soft hover:text-ink"
         )}

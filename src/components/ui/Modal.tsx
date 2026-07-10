@@ -53,7 +53,9 @@ export function Modal({
             </div>
             <Dialog.Close
               aria-label={tc("close")}
-              className="shrink-0 text-lg leading-none text-faint transition-colors hover:text-ink"
+              /* -m-4 cancels the p-4 for layout purposes, so the glyph stays visually put while
+                 the actual hit area grows to ~44x44+ (D3/BL-21 — was 15x18px). */
+              className="-m-4 shrink-0 p-4 text-lg leading-none text-faint transition-colors hover:text-ink"
             >
               ✕
             </Dialog.Close>

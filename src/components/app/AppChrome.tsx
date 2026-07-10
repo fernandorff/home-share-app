@@ -84,7 +84,11 @@ function CasaSelector() {
     <Menu
       align="start"
       trigger={
-        <button className="inline-flex min-w-0 max-w-[34vw] items-center gap-1.5 rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper sm:max-w-[42vw]">
+        <button
+          // min-h-11: 44px floor on mobile touch (D3/BL-21 — was h34); sm:min-h-0 restores the
+          // compact desktop size (mouse input).
+          className="inline-flex min-h-11 min-w-0 max-w-[34vw] items-center gap-1.5 rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper sm:min-h-0 sm:max-w-[42vw]"
+        >
           <MemberDot colorIndex={activeGroup.colorIndex} name={activeGroup.name} size={18} />
           <span className="min-w-0 flex-1 truncate font-medium">{activeGroup.name}</span>
           <span className="text-xs text-faint">▾</span>
@@ -123,7 +127,11 @@ function UserMenu() {
     <Menu
       align="end"
       trigger={
-        <button className="inline-flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-panel">
+        <button
+          // min-h-11 min-w-11: 44px floor on mobile touch (D3/BL-21 — was h34); sm:min-h-0/min-w-0
+          // restores the compact desktop size (mouse input).
+          className="inline-flex min-h-11 min-w-11 items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-panel sm:min-h-0 sm:min-w-0"
+        >
           <MemberDot colorIndex={activeGroup?.colorIndex ?? 0} name={me.user.name} size={26} />
           <span className="hidden max-w-28 truncate text-sm text-ink sm:inline">{me.user.name}</span>
         </button>
