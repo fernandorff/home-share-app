@@ -249,6 +249,7 @@
     "description": "Descrição",
     "descriptionPlaceholder": "Ex.: Mercado da semana",
     "amountLabel": "Valor ({symbol})",
+    "amountHint": "Digite só números — os centavos preenchem da direita pra esquerda.",
     "date": "Data",
     "notes": "Observação",
     "notesPlaceholder": "Opcional",

@@ -249,6 +249,7 @@
     "description": "Description",
     "descriptionPlaceholder": "Ex. : Courses de la semaine",
     "amountLabel": "Montant ({symbol})",
+    "amountHint": "Saisissez uniquement des chiffres — les centimes se remplissent de droite à gauche.",
     "date": "Date",
     "notes": "Remarque",
     "notesPlaceholder": "Facultatif",

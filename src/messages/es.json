@@ -249,6 +249,7 @@
     "description": "Descripción",
     "descriptionPlaceholder": "Ej.: Compra de la semana",
     "amountLabel": "Importe ({symbol})",
+    "amountHint": "Escribe solo números — los centavos se completan de derecha a izquierda.",
     "date": "Fecha",
     "notes": "Observación",
     "notesPlaceholder": "Opcional",

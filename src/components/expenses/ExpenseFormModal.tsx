@@ -385,7 +385,11 @@ export function ExpenseFormModal({
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("amountLabel", { symbol: currencySymbol })} htmlFor="exp-amount">
+          <Field
+            label={t("amountLabel", { symbol: currencySymbol })}
+            htmlFor="exp-amount"
+            hint={t("amountHint")}
+          >
             <Input
               id="exp-amount"
               inputMode="numeric"

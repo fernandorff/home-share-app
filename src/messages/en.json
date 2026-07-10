@@ -249,6 +249,7 @@
     "description": "Description",
     "descriptionPlaceholder": "e.g. Weekly groceries",
     "amountLabel": "Amount ({symbol})",
+    "amountHint": "Type digits only — cents fill in from the right.",
     "date": "Date",
     "notes": "Notes",
     "notesPlaceholder": "Optional",

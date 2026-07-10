@@ -57,9 +57,13 @@ function localeSeparators(locale: string): { group: string; decimal: string } {
   };
 }
 
+// 10 raw digits = max 9,999,999,999 cents = R$99,999,999.99 — matches the server's
+// AMOUNT_TOO_HIGH ceiling (toCents(amount) > 9_999_999_999 is rejected) exactly.
+const MAX_AMOUNT_DIGITS = 10;
+
 /** Currency input mask working in cents, formatted for `locale`. "12345" → "123.45"/"123,45". */
 export function maskAmountInput(raw: string, locale = "pt-BR"): string {
-  const digits = raw.replace(/\D/g, "");
+  const digits = raw.replace(/\D/g, "").slice(0, MAX_AMOUNT_DIGITS);
   if (!digits) return "";
   const cents = parseInt(digits, 10);
   return (cents / 100).toLocaleString(locale, {

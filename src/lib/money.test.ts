@@ -35,3 +35,16 @@ describe('amount mask ↔ parse round-trip (no silent corruption of typed amount
     })
   }
 })
+
+describe('maskAmountInput — caps input at the server\'s AMOUNT_TOO_HIGH ceiling (F1)', () => {
+  it('accepts exactly the maximum (99,999,999.99 — 10 raw digits)', () => {
+    expect(parseAmountInput(maskAmountInput('9999999999', 'pt'), 'pt')).toBeCloseTo(99999999.99, 2)
+  })
+
+  it('silently truncates extra digits instead of overflowing (18 nines from F1s repro)', () => {
+    const masked = maskAmountInput('999999999999999999', 'pt')
+    const parsed = parseAmountInput(masked, 'pt')
+    expect(parsed).toBeCloseTo(99999999.99, 2)
+    expect(parsed).toBeLessThan(Number.MAX_SAFE_INTEGER)
+  })
+})
