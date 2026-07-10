@@ -423,7 +423,8 @@
     "CURRENT_PASSWORD_REQUIRED": "Enter your current password",
     "CURRENT_PASSWORD_INVALID": "Current password is incorrect",
     "REAUTH_REQUIRED": "Please log in again to do this",
-    "NOT_EXPENSE_OWNER": "Only the person who paid (or the house admin) can do this"
+    "NOT_EXPENSE_OWNER": "Only the person who paid (or the house admin) can do this",
+    "STALE_EXPENSE": "This expense was changed by someone else. Reload the page to see the latest version."
   },
   "Currency": {
     "title": "Currency",

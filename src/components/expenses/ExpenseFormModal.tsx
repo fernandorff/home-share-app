@@ -297,7 +297,9 @@ export function ExpenseFormModal({
 
     try {
       if (isEdit && expense) {
-        await api.put(`/api/expenses/${expense.publicId}`, body);
+        // Optimistic-lock token: the server rejects with 409 STALE_EXPENSE if someone else saved
+        // this expense since this form opened, instead of silently overwriting their edit.
+        await api.put(`/api/expenses/${expense.publicId}`, { ...body, expectedUpdatedAt: expense.updatedAt });
         toast(t("toastUpdated"), "success");
       } else {
         await api.post("/api/expenses", body);

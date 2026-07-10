@@ -167,8 +167,15 @@ export class ExpenseService {
    * `actingUserId`/`isAdmin` enforce that only the expense's payer or a house admin can edit it —
    * a plain member never gets to rewrite an expense they didn't pay for (money-critical: that
    * would let anyone shift the shared balance in their own favor).
+   *
+   * `expectedUpdatedAt` is an optimistic-lock guard against the lost-update race: two housemates
+   * editing the same expense around the same time used to silently last-write-wins, discarding
+   * whichever save landed first with zero warning. When provided (the client always sends the
+   * `updatedAt` it had when the edit form opened), a mismatch means someone else saved in the
+   * meantime — reject with 409 instead of overwriting their change. Omitted → check skipped
+   * (backward compatible with any caller that doesn't track it).
    */
-  async update(groupId: number, expenseId: number, actingUserId: number, isAdmin: boolean, memberIds: number[], input: UpdateExpenseInput) {
+  async update(groupId: number, expenseId: number, actingUserId: number, isAdmin: boolean, memberIds: number[], input: UpdateExpenseInput, expectedUpdatedAt?: string) {
     const { payerId, platforms, paymentMethods, description, notes, categories, amount, date, participants, splitEqually } = input
 
     let participantData: { userId: number; amount: number }[] | undefined
@@ -183,13 +190,16 @@ export class ExpenseService {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.expense.findFirst({
         where: { id: expenseId, groupId },
-        select: { id: true, payerId: true }
+        select: { id: true, payerId: true, updatedAt: true }
       })
       if (!existing) {
         throw new ApiError('Despesa não encontrada nesta casa', 404)
       }
       if (!isAdmin && existing.payerId !== actingUserId) {
         throw new ApiError('Você só pode editar despesas que você pagou (ou ser admin da casa)', 403, 'NOT_EXPENSE_OWNER')
+      }
+      if (expectedUpdatedAt && existing.updatedAt.toISOString() !== expectedUpdatedAt) {
+        throw new ApiError('Esta despesa foi alterada por outra pessoa. Recarregue para ver a versão mais recente.', 409, 'STALE_EXPENSE')
       }
 
       if (participantData) {

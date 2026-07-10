@@ -141,6 +141,55 @@ describe("ExpenseService.update — tenant isolation + ownership (C1)", () => {
   });
 });
 
+describe("ExpenseService.update — lost-update guard (concurrent-edit race, BL-05)", () => {
+  const FIRST_SAVE_AT = new Date("2026-01-01T10:00:00.000Z");
+
+  it("throws 409 STALE_EXPENSE when expectedUpdatedAt doesn't match the current row (someone else saved first)", async () => {
+    mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+      cb({
+        expense: {
+          findFirst: vi.fn().mockResolvedValue({ id: 999, payerId: 1, updatedAt: FIRST_SAVE_AT }),
+          update: vi.fn(),
+        },
+        expenseParticipant: { deleteMany: vi.fn() },
+      })
+    );
+    await expect(
+      expenseService.update(1, 999, 1, false, [1, 2], { description: "x", amount: 10 }, "2025-01-01T00:00:00.000Z")
+    ).rejects.toMatchObject({ status: 409, code: "STALE_EXPENSE" });
+  });
+
+  it("succeeds when expectedUpdatedAt matches the current row's updatedAt", async () => {
+    const update = vi.fn().mockResolvedValue({ id: 999, description: "x" });
+    mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+      cb({
+        expense: {
+          findFirst: vi.fn().mockResolvedValue({ id: 999, payerId: 1, updatedAt: FIRST_SAVE_AT }),
+          update,
+        },
+        expenseParticipant: { deleteMany: vi.fn() },
+      })
+    );
+    await expenseService.update(1, 999, 1, false, [1, 2], { description: "x", amount: 10 }, FIRST_SAVE_AT.toISOString());
+    expect(update).toHaveBeenCalled();
+  });
+
+  it("skips the check entirely when expectedUpdatedAt is not provided (backward compatible)", async () => {
+    const update = vi.fn().mockResolvedValue({ id: 999, description: "x" });
+    mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+      cb({
+        expense: {
+          findFirst: vi.fn().mockResolvedValue({ id: 999, payerId: 1, updatedAt: FIRST_SAVE_AT }),
+          update,
+        },
+        expenseParticipant: { deleteMany: vi.fn() },
+      })
+    );
+    await expenseService.update(1, 999, 1, false, [1, 2], { description: "x", amount: 10 });
+    expect(update).toHaveBeenCalled();
+  });
+});
+
 describe("ExpenseService.delete — tenant isolation + ownership (C1) + single-row audit trail (A2)", () => {
   it("throws ApiError 404 when the expense is not in the active group", async () => {
     mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>

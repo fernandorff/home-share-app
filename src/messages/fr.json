@@ -423,7 +423,8 @@
     "CURRENT_PASSWORD_REQUIRED": "Indiquez votre mot de passe actuel",
     "CURRENT_PASSWORD_INVALID": "Mot de passe actuel incorrect",
     "REAUTH_REQUIRED": "Veuillez vous reconnecter pour continuer",
-    "NOT_EXPENSE_OWNER": "Seule la personne qui a payé (ou l'admin de la maison) peut faire ça"
+    "NOT_EXPENSE_OWNER": "Seule la personne qui a payé (ou l'admin de la maison) peut faire ça",
+    "STALE_EXPENSE": "Cette dépense a été modifiée par quelqu’un d’autre. Rechargez la page pour voir la dernière version."
   },
   "Currency": {
     "title": "Devise",

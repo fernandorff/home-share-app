@@ -35,6 +35,10 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const validation = validateExpenseInput(body)
     if (!validation.valid) return validation.response
 
+    // Optimistic-lock token: the client sends back the `updatedAt` it had when the edit form
+    // opened. A mismatch means someone else saved this expense in the meantime (see expense.service.ts).
+    const expectedUpdatedAt = typeof body.expectedUpdatedAt === 'string' ? body.expectedUpdatedAt : undefined
+
     const { payerId, participants } = validation.data
     const involvedIds = [payerId, ...participants.map(p => p.userId)]
     if (!(await allGroupMembers(check.groupId, involvedIds))) {
@@ -53,7 +57,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       check.session.userId,
       check.role === 'ADMIN',
       memberIds,
-      validation.data
+      validation.data,
+      expectedUpdatedAt
     )
 
     // Field-level diff for the activity history (only what actually changed).

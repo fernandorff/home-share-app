@@ -56,12 +56,16 @@ function ProfileSection({ me, onSaved }: { me: Me; onSaved: () => Promise<void> 
     e.preventDefault();
     setSaving(true);
     try {
-      await api.patch("/api/auth/me", {
-        name: name.trim(),
-        email: email.trim(),
-        username: username.trim(),
-        ...(needsCurrentPassword ? { currentPassword } : {}),
-      });
+      // Only send fields that actually changed. A name-only edit must never touch email/username —
+      // sending the untouched, possibly-empty email back would (a) trip the field's own validation
+      // and (b) make the server treat it as a real change requiring re-auth.
+      const body: { name?: string; email?: string; username?: string; currentPassword?: string } = {};
+      if (name.trim() !== original.name) body.name = name.trim();
+      if (email.trim().toLowerCase() !== original.email.toLowerCase()) body.email = email.trim();
+      if (username.trim().toLowerCase() !== original.username) body.username = username.trim();
+      if (needsCurrentPassword) body.currentPassword = currentPassword;
+
+      await api.patch("/api/auth/me", body);
       setCurrentPassword("");
       await onSaved();
       toast(t("profileSaved"), "success");
@@ -87,13 +91,15 @@ function ProfileSection({ me, onSaved }: { me: Me; onSaved: () => Promise<void> 
             />
           </Field>
           <Field label={t("email")} htmlFor="account-email">
+            {/* Not required: email is optional (nullable in the DB — self-registered accounts
+                have none until they set it here or link Google). A required-but-empty field would
+                silently block the browser's native form submit even for an unrelated name-only edit. */}
             <Input
               id="account-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               maxLength={254}
-              required
             />
           </Field>
           <Field label={t("username")} htmlFor="account-username">
