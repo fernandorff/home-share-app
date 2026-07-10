@@ -157,7 +157,13 @@
       "isPurchased": "comprado",
       "fromUserId": "de",
       "toUserId": "para",
-      "note": "nota"
+      "note": "nota",
+      "userId": "miembro",
+      "role": "rol"
+    },
+    "roleValue": {
+      "ADMIN": "Admin",
+      "MEMBER": "Miembro"
     },
     "tabs": {
       "summary": "Resumen",
@@ -174,7 +180,8 @@
       "ShoppingItem": "Artículo de compra",
       "Category": "Categoría",
       "Platform": "Plataforma",
-      "PaymentMethod": "Forma de pago"
+      "PaymentMethod": "Forma de pago",
+      "GroupMember": "Membresía"
     },
     "action": {
       "CREATE": "creó",

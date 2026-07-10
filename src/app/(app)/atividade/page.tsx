@@ -168,11 +168,13 @@ const SNAPSHOT_FIELDS: Record<string, string[]> = {
   Category: ["name"],
   Platform: ["name"],
   PaymentMethod: ["name"],
+  // colorIndex deliberately excluded — pure internal styling detail, no user-facing meaning (BL-19).
+  GroupMember: ["userId", "role"],
 };
 const HIDDEN_FIELDS = new Set([
   "id", "publicId", "groupId", "createdAt", "updatedAt", "category", "platformId", "platformIds", "password",
 ]);
-const ENTITY_TYPES = ["Expense", "Settlement", "ShoppingItem", "Category", "Platform", "PaymentMethod"] as const;
+const ENTITY_TYPES = ["Expense", "Settlement", "ShoppingItem", "Category", "Platform", "PaymentMethod", "GroupMember"] as const;
 // Categories/platforms/payment methods store a system i18n key ("groceries") or a house custom
 // name ("Streaming") with no marker distinguishing them — same fallback pattern as saldos/page.tsx.
 const TAG_FIELD_NS: Record<string, string> = { categories: "category", platforms: "platform", paymentMethods: "payment" };
@@ -222,7 +224,8 @@ function DetailedFeed({ groupKey }: { groupKey: number | undefined }) {
     if (field === "amount") return <Money value={value as MoneyValue} />;
     if (field === "date") return formatDateLocale(String(value), locale);
     if (typeof value === "boolean") return value ? t("yes") : t("no");
-    if (field.endsWith("UserId") || field === "payerId" || field === "addedById") return memberName(value);
+    if (field === "userId" || field.endsWith("UserId") || field === "payerId" || field === "addedById") return memberName(value);
+    if (field === "role") return t.has(`roleValue.${value}`) ? t(`roleValue.${value}`) : String(value);
     if (Array.isArray(value)) {
       const ns = TAG_FIELD_NS[field];
       if (!ns) return value.join(", ");
