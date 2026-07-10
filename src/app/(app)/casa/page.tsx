@@ -33,6 +33,7 @@ export default function CasaPage() {
 
   // Regenerate code (ADMIN)
   const [regenerating, setRegenerating] = useState(false);
+  const [regenerateConfirmOpen, setRegenerateConfirmOpen] = useState(false);
 
   // Switch house
   const [switchingId, setSwitchingId] = useState<number | null>(null);
@@ -77,6 +78,7 @@ export default function CasaPage() {
       );
     } finally {
       setRegenerating(false);
+      setRegenerateConfirmOpen(false);
     }
   }
 
@@ -189,7 +191,7 @@ export default function CasaPage() {
                   variant="ghost"
                   size="sm"
                   loading={regenerating}
-                  onClick={regenerateCode}
+                  onClick={() => setRegenerateConfirmOpen(true)}
                 >
                   {t("regenerateCode")}
                 </Button>
@@ -386,6 +388,25 @@ export default function CasaPage() {
             />
           </Field>
         </form>
+      </Modal>
+
+      {/* Regenerate join code confirm */}
+      <Modal
+        open={regenerateConfirmOpen}
+        onOpenChange={setRegenerateConfirmOpen}
+        title={t("regenerateCode")}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRegenerateConfirmOpen(false)}>
+              {tc("cancel")}
+            </Button>
+            <Button variant="danger" loading={regenerating} onClick={regenerateCode}>
+              {t("regenerateCode")}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink">{t("regenerateConfirmPrompt")}</p>
       </Modal>
     </div>
   );

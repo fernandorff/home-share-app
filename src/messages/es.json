@@ -322,6 +322,7 @@
     "joinCodeLabel": "Código de acceso — Ref.",
     "shareCode": "Comparte este código para que alguien se una a esta casa.",
     "regenerateCode": "Regenerar código",
+    "regenerateConfirmPrompt": "Esto invalida el código actual — quien tenga una invitación pendiente ya no podrá unirse con él. ¿Continuar?",
     "adminOnlyNote": "Solo los administradores gestionan el código de acceso de esta casa.",
     "noMembers": "No se encontraron miembros.",
     "activeMark": "✓ activa",

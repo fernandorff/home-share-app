@@ -428,7 +428,9 @@ export default function DespesasPage() {
         }
       >
         {t("title")}{" "}
-        {!loading && <span className="font-normal text-faint">({total})</span>}
+        {!loading && (
+          <span className="font-normal text-faint">({filtersActive ? filtered.length : total})</span>
+        )}
       </SectionTitle>
 
       {/* View toggle + selection toggle */}

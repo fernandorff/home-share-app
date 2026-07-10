@@ -86,7 +86,7 @@ function CasaSelector() {
       trigger={
         <button className="inline-flex max-w-[42vw] items-center gap-1.5 rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper">
           <MemberDot colorIndex={activeGroup.colorIndex} name={activeGroup.name} size={18} />
-          <span className="truncate font-medium">{activeGroup.name}</span>
+          <span className="min-w-0 flex-1 truncate font-medium">{activeGroup.name}</span>
           <span className="text-xs text-faint">▾</span>
         </button>
       }
@@ -95,7 +95,7 @@ function CasaSelector() {
       {me.user.groups.map((g) => (
         <MenuItem key={g.id} onSelect={() => g.id !== activeGroup.id && void switchGroup(g.id)}>
           <MemberDot colorIndex={g.colorIndex} name={g.name} size={18} />
-          <span className="flex-1 truncate">{g.name}</span>
+          <span className="min-w-0 flex-1 truncate">{g.name}</span>
           {g.id === activeGroup.id && <span className="text-stamp">✓</span>}
         </MenuItem>
       ))}

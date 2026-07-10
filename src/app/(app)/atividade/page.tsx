@@ -173,10 +173,14 @@ const HIDDEN_FIELDS = new Set([
   "id", "publicId", "groupId", "createdAt", "updatedAt", "category", "platformId", "platformIds", "password",
 ]);
 const ENTITY_TYPES = ["Expense", "Settlement", "ShoppingItem", "Category", "Platform", "PaymentMethod"] as const;
+// Categories/platforms/payment methods store a system i18n key ("groceries") or a house custom
+// name ("Streaming") with no marker distinguishing them — same fallback pattern as saldos/page.tsx.
+const TAG_FIELD_NS: Record<string, string> = { categories: "category", platforms: "platform", paymentMethods: "payment" };
 
 /** The detailed audit trail (raw EntityRevision snapshots across all entities). */
 function DetailedFeed({ groupKey }: { groupKey: number | undefined }) {
   const t = useTranslations("Activity");
+  const tExp = useTranslations("Expenses");
   const apiErr = useApiError();
   const { members } = useSession();
   const toast = useToast();
@@ -219,7 +223,13 @@ function DetailedFeed({ groupKey }: { groupKey: number | undefined }) {
     if (field === "date") return formatDateLocale(String(value), locale);
     if (typeof value === "boolean") return value ? t("yes") : t("no");
     if (field.endsWith("UserId") || field === "payerId" || field === "addedById") return memberName(value);
-    if (Array.isArray(value)) return value.join(", ");
+    if (Array.isArray(value)) {
+      const ns = TAG_FIELD_NS[field];
+      if (!ns) return value.join(", ");
+      return (value as string[])
+        .map((v) => (tExp.has(`${ns}.${v}`) ? tExp(`${ns}.${v}`) : v))
+        .join(", ");
+    }
     return String(value);
   };
 

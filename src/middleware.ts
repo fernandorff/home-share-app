@@ -7,14 +7,22 @@ const PUBLIC_API_PREFIXES = ['/api/auth', '/api/health']
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  const isPublicPage = PUBLIC_PAGE_PREFIXES.some(p => pathname.startsWith(p))
   const isPublicApi = PUBLIC_API_PREFIXES.some(p => pathname.startsWith(p))
-  if (isPublicPage || isPublicApi) {
+  if (isPublicApi) {
     return NextResponse.next()
   }
 
   const token = request.cookies.get(SESSION_COOKIE)?.value
   const session = token ? await verifySession(token) : null
+
+  const isPublicPage = PUBLIC_PAGE_PREFIXES.some(p => pathname.startsWith(p))
+  if (isPublicPage) {
+    // Already signed in — /auth/login and /auth/register are dead ends otherwise.
+    if (session) {
+      return NextResponse.redirect(new URL('/despesas', request.url))
+    }
+    return NextResponse.next()
+  }
 
   if (!session) {
     if (pathname.startsWith('/api')) {

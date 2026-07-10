@@ -1,4 +1,4 @@
-import { toCents, fromCents } from '@/lib/currency'
+import { toCents, fromCents, splitCents } from '@/lib/currency'
 
 export interface CategorySpend {
   category: string // "" = uncategorized
@@ -33,12 +33,13 @@ export function aggregateSpend(expenses: SpendInput[]): {
 
   for (const e of expenses) {
     const cents = toCents(e.amount)
-    // Multi-category: the amount counts toward EACH tagged category (so the breakdown can exceed the
-    // total — expected for tags). Uncategorized ("") gets it once.
+    // Multi-category: split the amount evenly across its tags so the breakdown sums back to the
+    // real total (100%) instead of double-counting. Uncategorized ("") gets the full amount.
     const cats = e.categories && e.categories.length > 0 ? e.categories : ['']
-    for (const c of cats) {
-      cat.set(c, (cat.get(c) ?? 0) + cents)
-    }
+    const shares = cats.length > 1 ? splitCents(cents, cats.length) : [cents]
+    cats.forEach((c, i) => {
+      cat.set(c, (cat.get(c) ?? 0) + shares[i])
+    })
     const m = monthKey(e.date)
     mon.set(m, (mon.get(m) ?? 0) + cents)
   }

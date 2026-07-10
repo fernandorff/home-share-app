@@ -322,6 +322,7 @@
     "joinCodeLabel": "Join code — Ref.",
     "shareCode": "Share this code so someone can join this house.",
     "regenerateCode": "Regenerate code",
+    "regenerateConfirmPrompt": "This invalidates the current code — anyone with a pending invite won't be able to join with it anymore. Continue?",
     "adminOnlyNote": "Only administrators manage this house's join code.",
     "noMembers": "No members found.",
     "activeMark": "✓ active",
