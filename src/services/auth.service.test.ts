@@ -32,6 +32,32 @@ function baseUser(overrides: Partial<{ id: number; password: string | null; emai
   }
 }
 
+describe('validatePassword', () => {
+  it('accepts a reasonable password', () => {
+    expect(authService.validatePassword('correcthorse9')).toBeNull()
+  })
+
+  it('rejects short passwords', () => {
+    expect(authService.validatePassword('abc123')?.code).toBe('INVALID_PASSWORD')
+  })
+
+  it('rejects overly long passwords (bcrypt truncates past 72)', () => {
+    expect(authService.validatePassword('a1'.repeat(40))?.code).toBe('INVALID_PASSWORD')
+  })
+
+  it('rejects common/breached passwords regardless of case', () => {
+    expect(authService.validatePassword('password')?.code).toBe('PASSWORD_TOO_COMMON')
+    expect(authService.validatePassword('PASSWORD')?.code).toBe('PASSWORD_TOO_COMMON')
+    expect(authService.validatePassword('12345678')?.code).toBe('PASSWORD_TOO_COMMON')
+    expect(authService.validatePassword('qwerty123')?.code).toBe('PASSWORD_TOO_COMMON')
+  })
+
+  it('rejects passwords with a single repeated/sequential character class (no letter+digit mix)', () => {
+    expect(authService.validatePassword('aaaaaaaa')?.code).toBe('PASSWORD_NO_COMPLEXITY')
+    expect(authService.validatePassword('abcdefgh')?.code).toBe('PASSWORD_NO_COMPLEXITY')
+  })
+})
+
 describe('validateEmail', () => {
   it('accepts a well-formed address', () => {
     expect(authService.validateEmail('a@b.com')).toBeNull()

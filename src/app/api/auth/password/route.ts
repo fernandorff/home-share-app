@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     const passwordError = authService.validatePassword(newPassword)
     if (passwordError) {
-      return NextResponse.json({ error: passwordError, code: 'INVALID_PASSWORD' }, { status: 400 })
+      return NextResponse.json({ error: passwordError.error, code: passwordError.code }, { status: 400 })
     }
 
     const result = await authService.changePassword(check.session.userId, currentPassword, newPassword, check.session.iat)

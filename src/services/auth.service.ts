@@ -6,6 +6,14 @@ const USERNAME_REGEX = /^[a-z0-9._-]{3,30}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const REAUTH_WINDOW_SECONDS = 15 * 60
 
+// Top of most-breached-password lists (e.g. Have I Been Pwned) — a length check alone lets
+// "password"/"12345678" through, which is a real account-takeover risk on a money ledger.
+const COMMON_PASSWORDS = new Set([
+  'password', 'password1', 'password123', '12345678', '123456789', '1234567890',
+  'qwerty123', 'qwertyuiop', '11111111', '00000000', 'iloveyou', 'admin123',
+  'welcome1', 'letmein1', 'abc123456', 'senha123', 'senha1234', 'brasil123',
+])
+
 export type LoginResult =
   | { status: 'ok'; user: { id: number; publicId: string; name: string } }
   | { status: 'use_google' }
@@ -27,12 +35,18 @@ class AuthService {
     return null
   }
 
-  validatePassword(password: string): string | null {
+  validatePassword(password: string): { error: string; code: string } | null {
     if (typeof password !== 'string' || password.length < 8) {
-      return 'Senha deve ter pelo menos 8 caracteres'
+      return { error: 'Senha deve ter pelo menos 8 caracteres', code: 'INVALID_PASSWORD' }
     }
     if (password.length > 72) {
-      return 'Senha deve ter no máximo 72 caracteres'
+      return { error: 'Senha deve ter no máximo 72 caracteres', code: 'INVALID_PASSWORD' }
+    }
+    if (COMMON_PASSWORDS.has(password.toLowerCase())) {
+      return { error: 'Essa senha é muito comum. Escolha uma senha mais difícil de adivinhar', code: 'PASSWORD_TOO_COMMON' }
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return { error: 'Senha deve conter letras e números', code: 'PASSWORD_NO_COMPLEXITY' }
     }
     return null
   }
