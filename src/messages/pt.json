@@ -289,6 +289,8 @@
     "importButton": "Importar",
     "csvFile": "Arquivo CSV",
     "csvFileHint": "Apenas .csv (máx. 1MB / 1000 linhas)",
+    "csvColumnsHelp": "Colunas obrigatórias: descricao, valor. Opcionais: data, plataforma, observacao.",
+    "downloadTemplate": "Baixar CSV de exemplo",
     "payerImportHint": "Opcional — padrão: você",
     "splitEquallyMembers": "Dividir igualmente entre os membros",
     "toastImported": "{count, plural, one {# despesa importada} other {# despesas importadas}}",

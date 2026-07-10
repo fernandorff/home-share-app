@@ -106,7 +106,9 @@ function ProfileSection({ me, onSaved }: { me: Me; onSaved: () => Promise<void> 
             <Input
               id="account-username"
               value={username}
-              onChange={(e) => setUsername(e.target.value.toLowerCase())}
+              // Scrubs to the server's own rule (lowercase letters, digits, . - _) as the user
+              // types (BL-30/U2) — invalid chars just never appear, instead of a round-trip 400.
+              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
               maxLength={30}
               autoCapitalize="none"
               required

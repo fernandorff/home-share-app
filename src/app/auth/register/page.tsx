@@ -33,6 +33,10 @@ export default function RegisterPage() {
       setError(t("fieldsRequired"));
       return;
     }
+    if (username.trim().length < 3) {
+      setError(t("usernameHint"));
+      return;
+    }
     if (password.length < 8) {
       setError(t("passwordHint"));
       return;
@@ -81,7 +85,11 @@ export default function RegisterPage() {
           <Input
             id="username"
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            // Scrubs to the server's own rule (lowercase letters, digits, . - _, max 30) as the
+            // user types (BL-30/U2) — invalid chars just never appear, instead of a round-trip 400.
+            onChange={(e) =>
+              setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 30))
+            }
             autoComplete="username"
             autoCapitalize="none"
             required
