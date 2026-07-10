@@ -26,7 +26,8 @@
     "logout": "Se déconnecter",
     "categories": "Catégories",
     "catalogs": "Catalogues",
-    "myAccount": "Mon compte"
+    "myAccount": "Mon compte",
+    "settings": "Paramètres"
   },
   "Auth": {
     "brandTagline": "comptes du foyer · grand livre",

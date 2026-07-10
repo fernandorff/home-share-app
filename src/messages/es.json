@@ -26,7 +26,8 @@
     "logout": "Salir",
     "categories": "Categorías",
     "catalogs": "Catálogos",
-    "myAccount": "Mi cuenta"
+    "myAccount": "Mi cuenta",
+    "settings": "Configuración"
   },
   "Auth": {
     "brandTagline": "cuentas de la casa · extracto",

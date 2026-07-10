@@ -26,7 +26,8 @@
     "logout": "Sair",
     "categories": "Categorias",
     "catalogs": "Catálogos",
-    "myAccount": "Minha conta"
+    "myAccount": "Minha conta",
+    "settings": "Configurações"
   },
   "Auth": {
     "brandTagline": "contas da casa · extrato",
