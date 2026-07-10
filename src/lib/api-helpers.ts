@@ -191,11 +191,17 @@ export function validateExpenseInput(
   const fail = (error: string, code: string) =>
     ({ valid: false as const, response: NextResponse.json({ error, code }, { status: 400 }) })
 
-  if (!description || description.trim() === '') {
+  // Wrong JSON field types (e.g. description sent as a number) bypass TS at runtime — guard
+  // with typeof before calling string/array methods so a malformed body 400s instead of
+  // crashing into a generic 500 (handleApiError's catch-all).
+  if (typeof description !== 'string' || description.trim() === '') {
     return fail('Descrição é obrigatória', 'DESCRIPTION_REQUIRED')
   }
   if (description.length > LIMITS.DESCRIPTION) {
     return fail(`Descrição muito longa (máx. ${LIMITS.DESCRIPTION} caracteres)`, 'DESCRIPTION_TOO_LONG')
+  }
+  if (notes !== undefined && notes !== null && typeof notes !== 'string') {
+    return fail('Observação inválida', 'NOTES_INVALID')
   }
   if (notes && notes.length > LIMITS.NOTES) {
     return fail(`Observação muito longa (máx. ${LIMITS.NOTES} caracteres)`, 'NOTES_TOO_LONG')
@@ -217,6 +223,10 @@ export function validateExpenseInput(
   // Membership of payer/participants is validated by the route via allGroupMembers().
   if (payerRequired && !payerId) {
     return fail('Pagador é obrigatório', 'PAYER_REQUIRED')
+  }
+
+  if (!Array.isArray(participants)) {
+    return fail('Lista de participantes inválida', 'PARTICIPANTS_INVALID')
   }
 
   // Custom split: every share must be a real, non-negative number, with no duplicate
@@ -245,6 +255,15 @@ export function validateExpenseInput(
     }
   }
 
+  let parsedDate: Date | undefined
+  if (date) {
+    const raw = typeof date === 'string' ? date : String(date)
+    parsedDate = new Date(raw + (/^\d{4}-\d{2}-\d{2}$/.test(raw) ? 'T12:00:00' : ''))
+    if (Number.isNaN(parsedDate.getTime())) {
+      return fail('Data inválida', 'DATE_INVALID')
+    }
+  }
+
   return {
     valid: true,
     data: {
@@ -254,7 +273,7 @@ export function validateExpenseInput(
       platforms,
       paymentMethods,
       amount,
-      date: date ? new Date(date + (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? 'T12:00:00' : '')) : undefined,
+      date: parsedDate,
       payerId: payerId!,
       splitEqually,
       participants,

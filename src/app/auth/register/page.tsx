@@ -24,8 +24,21 @@ export default function RegisterPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+
+    // Validated here (not via required/minLength) so the message is a styled inline error in
+    // the UI's chosen language, not the browser's native validation bubble (which renders in
+    // the browser/OS locale regardless of the app's language — a jarring mismatch, U1).
+    if (!name.trim() || !username.trim() || !password) {
+      setError(t("fieldsRequired"));
+      return;
+    }
+    if (password.length < 8) {
+      setError(t("passwordHint"));
+      return;
+    }
+
+    setLoading(true);
     try {
       await api.post("/api/auth/register", {
         name: name.trim(),
@@ -41,7 +54,7 @@ export default function RegisterPage() {
 
   return (
     <Card className="p-5">
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <h2 className="font-display text-lg font-bold uppercase tracking-wide text-ink">
           {t("registerTitle")}
         </h2>

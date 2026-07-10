@@ -22,8 +22,11 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const name = typeof body.name === 'string' ? body.name.trim() : ''
-    if (!name || name.length > 80) {
-      return NextResponse.json({ error: 'Nome da casa é obrigatório (máx. 80 caracteres)' }, { status: 400 })
+    if (!name) {
+      return NextResponse.json({ error: 'Nome da casa é obrigatório', code: 'NAME_REQUIRED' }, { status: 400 })
+    }
+    if (name.length > 80) {
+      return NextResponse.json({ error: 'Nome da casa muito longo (máx. 80 caracteres)', code: 'NAME_TOO_LONG' }, { status: 400 })
     }
 
     const group = await groupService.create(check.session.userId, name)

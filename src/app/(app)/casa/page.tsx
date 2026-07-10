@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/components/ui/cn";
@@ -72,10 +72,7 @@ export default function CasaPage() {
       await refresh();
       toast(t("codeGenerated"), "success");
     } catch (err) {
-      toast(
-        err instanceof ApiError ? err.message : t("codeGenerateError"),
-        "error"
-      );
+      toast(apiErr(err, t("codeGenerateError")), "error");
     } finally {
       setRegenerating(false);
       setRegenerateConfirmOpen(false);
@@ -89,7 +86,7 @@ export default function CasaPage() {
       await switchGroup(groupId);
       toast(t("activeHouseChanged"), "success");
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : t("switchError"), "error");
+      toast(apiErr(err, t("switchError")), "error");
     } finally {
       setSwitchingId(null);
     }
@@ -107,7 +104,7 @@ export default function CasaPage() {
       setCreateOpen(false);
       toast(t("houseCreated"), "success");
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : t("createError"), "error");
+      toast(apiErr(err, t("createError")), "error");
     } finally {
       setCreating(false);
     }
@@ -124,7 +121,7 @@ export default function CasaPage() {
       setJoinCode("");
       toast(t("youJoined"), "success");
     } catch (err) {
-      toast(err instanceof ApiError ? err.message : t("joinError"), "error");
+      toast(apiErr(err, t("joinError")), "error");
     } finally {
       setJoining(false);
     }

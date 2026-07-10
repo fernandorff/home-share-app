@@ -86,3 +86,27 @@ describe('validateExpenseInput — cents precision (review fixes)', () => {
     expect(validateExpenseInput({ ...base, amount: 26.55 }).valid).toBe(true)
   })
 })
+
+describe('validateExpenseInput — malformed field types return 400, not a 500 crash (BL-10/S9)', () => {
+  it('rejects a non-string description instead of throwing on .trim()', () => {
+    const r = validateExpenseInput({ ...base, description: 123 as unknown as string })
+    expect(r.valid).toBe(false)
+  })
+
+  it('rejects a non-string notes instead of throwing on .length', () => {
+    const r = validateExpenseInput({ ...base, notes: 456 as unknown as string })
+    expect(r.valid).toBe(false)
+  })
+
+  it('rejects a non-array participants instead of throwing on .map/.some', () => {
+    const r = validateExpenseInput({
+      ...base, splitEqually: false, participants: 'not-an-array' as unknown as { userId: number; amount: number }[],
+    })
+    expect(r.valid).toBe(false)
+  })
+
+  it('rejects an unparseable date instead of producing an Invalid Date', () => {
+    const r = validateExpenseInput({ ...base, date: 'not-a-date' })
+    expect(r.valid).toBe(false)
+  })
+})

@@ -35,9 +35,18 @@ export default function LoginPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     const u = username.trim().toLowerCase();
+
+    // Validated here (not via `required`) so the message is a styled inline error in the UI's
+    // chosen language, not the browser's native validation bubble (renders in the browser/OS
+    // locale regardless of the app's language — U1).
+    if (!u || !password) {
+      setError(t("fieldsRequired"));
+      return;
+    }
+
+    setLoading(true);
     try {
       await api.post("/api/auth/login", { username: u, password });
       router.replace("/");
@@ -49,7 +58,7 @@ export default function LoginPage() {
 
   return (
     <Card className="p-5">
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <h2 className="font-display text-lg font-bold uppercase tracking-wide text-ink">
           {t("loginTitle")}
         </h2>

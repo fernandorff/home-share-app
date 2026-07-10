@@ -61,12 +61,12 @@ export function makeTagService(opts: {
     async create(groupId: number, name: string) {
       const trimmed = name.trim()
       const existing = await delegate.findFirst({ where: { groupId, name: trimmed } })
-      if (existing) throw new ApiError(duplicate, 409)
+      if (existing) throw new ApiError(duplicate, 409, 'DUPLICATE_NAME')
       try {
         return await delegate.create({ data: { publicId: uuidv7(), groupId, name: trimmed } })
       } catch (e) {
         if (e && typeof e === 'object' && 'code' in e && (e as { code?: string }).code === 'P2002') {
-          throw new ApiError(duplicate, 409)
+          throw new ApiError(duplicate, 409, 'DUPLICATE_NAME')
         }
         throw e
       }
