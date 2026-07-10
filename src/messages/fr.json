@@ -109,6 +109,7 @@
     "note": "Note",
     "notePlaceholder": "Facultatif — ex. : PIX, espèces",
     "sameError": "Le payeur et le bénéficiaire doivent être différents.",
+    "overpayWarning": "C'est plus que le montant dû — le solde va s'inverser. Montant dû :",
     "save": "Enregistrer",
     "saved": "Paiement enregistré",
     "saveError": "Impossible d'enregistrer le paiement",
@@ -238,6 +239,10 @@
     "deleteError": "Erreur lors de la suppression de la dépense",
     "bulkDeleteError": "Erreur lors de la suppression des dépenses",
     "saveError": "Erreur lors de l'enregistrement de la dépense",
+    "discardTitle": "Abandonner les modifications ?",
+    "discardPrompt": "Vous avez des modifications non enregistrées. Si vous fermez maintenant, elles seront perdues.",
+    "keepEditing": "Continuer la modification",
+    "discardChanges": "Abandonner les modifications",
     "payer": "Payeur",
     "platform": {
       "amazon": "Amazon",
@@ -388,6 +393,7 @@
     "emptyTitle": "Liste vide",
     "emptyHint": "Ajoutez le premier article.",
     "cleared": "{count, plural, one {# article supprimé.} other {# articles supprimés.}}",
+    "clearConfirm": "{count, plural, one {Retirer # article acheté de la liste ?} other {Retirer les # articles achetés de la liste ?}}",
     "genericError": "Une erreur s'est produite. Veuillez réessayer."
   },
   "ApiErrors": {

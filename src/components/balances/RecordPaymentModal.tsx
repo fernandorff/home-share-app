@@ -11,6 +11,8 @@ import { api } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { maskAmountInput, parseAmountInput, todayInputValue } from "@/lib/format";
 import { CURRENCY_META, DEFAULT_CURRENCY, isCurrency } from "@/lib/currencies";
+import { Money } from "@/components/ui/Money";
+import type { Settlement } from "@/lib/types";
 
 export interface PaymentPrefill {
   fromUserId?: number;
@@ -22,10 +24,13 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   prefill?: PaymentPrefill | null;
+  /** The current suggested optimal transfers — used to warn when the entered amount overshoots
+   *  the actual debt for the selected pair (BL-14/B12). */
+  settlements: Settlement[];
   onSaved: () => void;
 }
 
-export function RecordPaymentModal({ open, onOpenChange, prefill, onSaved }: Props) {
+export function RecordPaymentModal({ open, onOpenChange, prefill, settlements, onSaved }: Props) {
   const { members, activeGroup } = useSession();
   const t = useTranslations("Settlements");
   const tc = useTranslations("Common");
@@ -54,6 +59,11 @@ export function RecordPaymentModal({ open, onOpenChange, prefill, onSaved }: Pro
 
   const parsedAmount = parseAmountInput(amount, locale);
   const valid = fromId !== "" && toId !== "" && fromId !== toId && parsedAmount > 0;
+
+  // The real debt owed for the currently selected pair (from the optimal-transfer suggestions),
+  // used to warn before a payment larger than what's actually owed flips who owes whom (BL-14/B12).
+  const owed = settlements.find((s) => s.from.id === fromId && s.to.id === toId)?.amount ?? 0;
+  const isOverpaying = owed > 0 && parsedAmount > owed;
 
   async function submit() {
     if (!valid) return;
@@ -126,6 +136,12 @@ export function RecordPaymentModal({ open, onOpenChange, prefill, onSaved }: Pro
             placeholder={maskAmountInput("0", locale)}
           />
         </Field>
+
+        {isOverpaying && (
+          <p className="text-xs text-debt">
+            {t("overpayWarning")} <Money value={owed} className="font-semibold" />
+          </p>
+        )}
 
         <Field label={t("date")} htmlFor="pay-date">
           <Input id="pay-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />

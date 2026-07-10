@@ -109,6 +109,7 @@
     "note": "Note",
     "notePlaceholder": "Optional — e.g. PIX, cash",
     "sameError": "Payer and receiver must be different.",
+    "overpayWarning": "This is more than what's owed — the balance will flip direction. Amount owed:",
     "save": "Record",
     "saved": "Payment recorded",
     "saveError": "Couldn't record the payment",
@@ -238,6 +239,10 @@
     "deleteError": "Error deleting expense",
     "bulkDeleteError": "Error deleting expenses",
     "saveError": "Error saving expense",
+    "discardTitle": "Discard changes?",
+    "discardPrompt": "You have unsaved changes. If you close now, they'll be lost.",
+    "keepEditing": "Keep editing",
+    "discardChanges": "Discard changes",
     "payer": "Payer",
     "platform": {
       "amazon": "Amazon",
@@ -388,6 +393,7 @@
     "emptyTitle": "Empty list",
     "emptyHint": "Add the first item.",
     "cleared": "{count, plural, one {# item removed.} other {# items removed.}}",
+    "clearConfirm": "{count, plural, one {Remove # purchased item from the list?} other {Remove all # purchased items from the list?}}",
     "genericError": "Something went wrong. Please try again."
   },
   "ApiErrors": {

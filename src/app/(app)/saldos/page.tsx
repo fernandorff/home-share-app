@@ -327,7 +327,13 @@ export default function SaldosPage() {
         </Card>
       )}
 
-      <RecordPaymentModal open={payOpen} onOpenChange={setPayOpen} prefill={payPrefill} onSaved={load} />
+      <RecordPaymentModal
+        open={payOpen}
+        onOpenChange={setPayOpen}
+        prefill={payPrefill}
+        settlements={data?.settlements ?? []}
+        onSaved={load}
+      />
 
       <Modal
         open={deleteTarget !== null}

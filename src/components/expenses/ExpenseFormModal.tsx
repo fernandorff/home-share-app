@@ -130,6 +130,14 @@ export function ExpenseFormModal({
   const submittingRef = useRef(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Unsaved-changes guard (BL-14/U9): tracks whether any field differs from what the reset effect
+  // just populated. `isResettingRef` lets the dirty-tracking effect below tell "the reset effect
+  // just repopulated every field" apart from "the user actually edited something" — both fire the
+  // same state setters, so a plain effect on these fields alone can't tell them apart.
+  const [dirty, setDirty] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const isResettingRef = useRef(false);
+
   function seedPercentEqual() {
     const eq = equalPercents(members.length);
     const next: Record<number, number> = {};
@@ -161,6 +169,7 @@ export function ExpenseFormModal({
 
   useEffect(() => {
     if (!open) return;
+    isResettingRef.current = true;
     setCustomMode("valor");
     if (expense) {
       setPayerId(String(expense.payerId));
@@ -208,7 +217,20 @@ export function ExpenseFormModal({
     }
     setPercent(seeded);
     setFormError(null);
+    setDirty(false);
   }, [open, expense, members, me, locale]);
+
+  // Marks the form dirty on any field change that ISN'T the reset effect above repopulating them.
+  useEffect(() => {
+    if (isResettingRef.current) {
+      isResettingRef.current = false;
+      return;
+    }
+    setDirty(true);
+  }, [
+    payerId, selCategories, selPlatforms, selPayments, description, notes,
+    amountMasked, date, splitEqually, custom, percent, customMode,
+  ]);
 
   const totalCents = toCents(parseAmountInput(amountMasked, locale));
 
@@ -317,6 +339,17 @@ export function ExpenseFormModal({
     }
   }
 
+  // Any close attempt (✕, overlay click, Escape, Cancel button) — ask first if something would
+  // be lost, instead of silently discarding an edit (BL-14/U9).
+  function requestClose() {
+    if (dirty) setConfirmDiscard(true);
+    else onOpenChange(false);
+  }
+  function discardAndClose() {
+    setConfirmDiscard(false);
+    onOpenChange(false);
+  }
+
   const subToggle = (mode: CustomMode, label: string) => (
     <button
       type="button"
@@ -333,13 +366,14 @@ export function ExpenseFormModal({
   );
 
   return (
+    <>
     <Modal
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(o) => !o && requestClose()}
       title={isEdit ? t("editExpense") : t("newExpense")}
       footer={
         <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" onClick={requestClose}>
             {tc("cancel")}
           </Button>
           <Button onClick={handleSubmit} disabled={!canSubmit} loading={submitting}>
@@ -613,5 +647,25 @@ export function ExpenseFormModal({
         {formError && <p role="alert" className="text-sm text-debt">{formError}</p>}
       </div>
     </Modal>
+
+    {/* Unsaved-changes guard (BL-14/U9) — a sibling, not nested inside the modal above */}
+    <Modal
+      open={confirmDiscard}
+      onOpenChange={(o) => !o && setConfirmDiscard(false)}
+      title={t("discardTitle")}
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => setConfirmDiscard(false)}>
+            {t("keepEditing")}
+          </Button>
+          <Button variant="danger" onClick={discardAndClose}>
+            {t("discardChanges")}
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-ink">{t("discardPrompt")}</p>
+    </Modal>
+    </>
   );
 }

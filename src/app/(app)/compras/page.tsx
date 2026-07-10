@@ -50,6 +50,7 @@ export default function ComprasPage() {
   // delete confirm (publicId pending confirmation)
   const [confirmDelete, setConfirmDelete] = useState<ShoppingItem | null>(null);
   const [clearingPurchased, setClearingPurchased] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const errMsg = (e: unknown) => apiErr(e, t("genericError"));
 
@@ -180,6 +181,7 @@ export default function ComprasPage() {
       toast(errMsg(e), "error");
     } finally {
       setClearingPurchased(false);
+      setConfirmClear(false);
     }
   };
 
@@ -260,7 +262,7 @@ export default function ComprasPage() {
                     variant="ghost"
                     size="sm"
                     loading={clearingPurchased}
-                    onClick={clearPurchased}
+                    onClick={() => setConfirmClear(true)}
                   >
                     {t("clearPurchased")}
                   </Button>
@@ -353,6 +355,30 @@ export default function ComprasPage() {
             strong: (chunks) => <span className="font-semibold">{chunks}</span>,
           })}
         </p>
+      </Modal>
+
+      {/* Clear purchased confirm — bulk, irreversible (BL-14/B4) */}
+      <Modal
+        open={confirmClear}
+        onOpenChange={(o) => !o && setConfirmClear(false)}
+        title={t("clearPurchased")}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setConfirmClear(false)}>
+              {tc("cancel")}
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              loading={clearingPurchased}
+              onClick={() => void clearPurchased()}
+            >
+              {t("clearPurchased")}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink">{t("clearConfirm", { count: purchased.length })}</p>
       </Modal>
     </div>
   );

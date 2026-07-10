@@ -109,6 +109,7 @@
     "note": "Observação",
     "notePlaceholder": "Opcional — ex.: PIX, dinheiro",
     "sameError": "Pagador e recebedor devem ser diferentes.",
+    "overpayWarning": "Isso é mais do que o valor devido — o saldo vai inverter de direção. Valor devido:",
     "save": "Registrar",
     "saved": "Pagamento registrado",
     "saveError": "Não foi possível registrar o pagamento",
@@ -238,6 +239,10 @@
     "deleteError": "Erro ao excluir despesa",
     "bulkDeleteError": "Erro ao excluir despesas",
     "saveError": "Erro ao salvar despesa",
+    "discardTitle": "Descartar alterações?",
+    "discardPrompt": "Você tem alterações não salvas. Se fechar agora, elas serão perdidas.",
+    "keepEditing": "Continuar editando",
+    "discardChanges": "Descartar alterações",
     "payer": "Pagador",
     "platform": {
       "amazon": "Amazon",
@@ -388,6 +393,7 @@
     "emptyTitle": "Lista vazia",
     "emptyHint": "Adicione o primeiro item.",
     "cleared": "{count, plural, one {# item removido.} other {# itens removidos.}}",
+    "clearConfirm": "{count, plural, one {Remover # item comprado da lista?} other {Remover todos os # itens comprados da lista?}}",
     "genericError": "Algo deu errado. Tente novamente."
   },
   "ApiErrors": {
