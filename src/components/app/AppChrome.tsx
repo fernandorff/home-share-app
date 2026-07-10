@@ -140,6 +140,8 @@ function UserMenu() {
       <MenuItem onSelect={() => router.push("/conta")}>{t("myAccount")}</MenuItem>
       <MenuItem onSelect={() => router.push("/casa")}>{t("houseAndMembers")}</MenuItem>
       <MenuSeparator />
+      <SettingsMenu />
+      <MenuSeparator />
       <MenuItem danger onSelect={logout}>
         {t("logout")}
       </MenuItem>
@@ -161,7 +163,6 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           <span className="hidden text-faint sm:inline" aria-hidden>·</span>
           <CasaSelector />
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <SettingsMenu />
             <UserMenu />
           </div>
         </div>

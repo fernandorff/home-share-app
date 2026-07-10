@@ -62,3 +62,30 @@ export function MenuLabel({ children }: { children: ReactNode }) {
 export function MenuSeparator() {
   return <DropdownMenu.Separator className="my-1 border-t border-dashed border-rule" />;
 }
+
+/** A menu item that expands into its own nested menu (e.g. "Settings" inside the user menu),
+ *  instead of being a standalone top-level trigger. Must be rendered inside a <Menu>. */
+export function MenuSub({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <DropdownMenu.Sub>
+      <DropdownMenu.SubTrigger
+        className={cn(
+          "flex cursor-pointer items-center justify-between gap-2 rounded-sm px-3 py-2 text-sm text-ink outline-none",
+          "data-[highlighted]:bg-panel data-[state=open]:bg-panel"
+        )}
+      >
+        <span>{label}</span>
+        <span className="text-faint" aria-hidden>▸</span>
+      </DropdownMenu.SubTrigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.SubContent
+          sideOffset={4}
+          alignOffset={-4}
+          className="anim-pop z-50 min-w-48 rounded-md border border-ink bg-card p-1 shadow-[3px_3px_0_rgba(22,20,15,0.14)]"
+        >
+          {children}
+        </DropdownMenu.SubContent>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Sub>
+  );
+}
