@@ -375,8 +375,8 @@ export default function DespesasPage() {
   // selection doesn't even re-create/diff 300 elements; React bails out of the row subtree and
   // only the context-subscribed checkboxes update.
   const desktopRows = useMemo(
-    () => listState.items.map((e) => (
-      <ExpenseRow key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
+    () => listState.items.map((e, i) => (
+      <ExpenseRow key={e.publicId} expense={e} rowNumber={i + 1} colorIndex={colorByPayer.get(e.payerId) ?? 0}
         members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
     )),
     [listState.items, colorByPayer, members, selectionMode, openView, openEdit]
@@ -681,16 +681,18 @@ export default function DespesasPage() {
                           <table className="hidden w-full table-fixed md:table">
                             <thead>
                               <tr className="border-t border-dotted border-rule">
+                                <th className="w-6 px-2 py-1.5" aria-hidden />
                                 <th className="label-mono px-4 py-1.5 text-left">{t("colDescription")}</th>
                                 <th className="label-mono w-[86px] px-2 py-1.5 text-left">{t("colDate")}</th>
                                 <th className="label-mono w-[116px] px-2 py-1.5 text-right max-md:w-36">{t("colAmount")}</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {mg.items.map((e) => {
+                              {mg.items.map((e, i) => {
                                 const ratio = splitRatio(e, members);
                                 return (
                                 <tr key={e.publicId} onClick={() => openView(e)} className="group cursor-pointer border-t border-dotted border-rule align-top transition-colors hover:bg-panel/30">
+                                  <td className="px-2 py-2 text-xs text-faint tnum" aria-hidden>{i + 1}</td>
                                   <td className="px-4 py-2 text-sm text-ink">
                                     <span className="break-words">{e.description}</span>
                                     <ExpenseTags expense={e} className="mt-1" />
@@ -745,6 +747,7 @@ export default function DespesasPage() {
           <table className="hidden w-full md:table">
             <thead className="bg-card">
               <tr className="border-b border-dashed border-rule text-left">
+                <th className="w-8 px-2 py-2.5" aria-hidden />
                 {selectionMode && (
                   <th className="w-10 px-4 py-2.5">
                     <input
@@ -960,6 +963,7 @@ function splitRatio(e: Expense, members: Member[]): string | null {
 
 interface ExpenseRowProps {
   expense: Expense;
+  rowNumber?: number; // display-only position in the current (sorted/filtered) list — not an id
   colorIndex: number;
   members: Member[];
   selectionMode: boolean;
@@ -972,7 +976,7 @@ interface ExpenseRowProps {
 
 /** Desktop ledger row — memoized so toggling one checkbox re-renders only that row. */
 const ExpenseRow = memo(function ExpenseRow({
-  expense: e, colorIndex, members, selectionMode, onView, onEdit, onDelete,
+  expense: e, rowNumber, colorIndex, members, selectionMode, onView, onEdit, onDelete,
 }: ExpenseRowProps) {
   const t = useTranslations("Expenses");
   const thh = useTranslations("Household");
@@ -1005,6 +1009,7 @@ const ExpenseRow = memo(function ExpenseRow({
         !selectionMode && "cursor-pointer"
       )}
     >
+      <td className="px-2 py-3 text-xs text-faint tnum" aria-hidden>{rowNumber}</td>
       {selectionMode && (
         <td className="px-4 py-3">
           <RowCheckbox
