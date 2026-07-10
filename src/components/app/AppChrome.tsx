@@ -84,7 +84,7 @@ function CasaSelector() {
     <Menu
       align="start"
       trigger={
-        <button className="inline-flex max-w-[42vw] items-center gap-1.5 rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper">
+        <button className="inline-flex min-w-0 max-w-[34vw] items-center gap-1.5 rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper sm:max-w-[42vw]">
           <MemberDot colorIndex={activeGroup.colorIndex} name={activeGroup.name} size={18} />
           <span className="min-w-0 flex-1 truncate font-medium">{activeGroup.name}</span>
           <span className="text-xs text-faint">▾</span>
@@ -148,12 +148,12 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
     <div className="paper-grain min-h-dvh">
       <header className="sticky top-0 z-30 border-b border-rule bg-paper/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
-          <Link href="/despesas" className="font-display text-base font-bold tracking-tight text-ink">
+          <Link href="/despesas" className="shrink-0 font-display text-base font-bold tracking-tight text-ink">
             HOME<span className="text-stamp">SHARE</span>
           </Link>
           <span className="hidden text-faint sm:inline" aria-hidden>·</span>
           <CasaSelector />
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             <ThemeSelector />
             <LanguageSelector />
             <UserMenu />
