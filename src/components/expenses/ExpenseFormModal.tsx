@@ -355,7 +355,7 @@ export function ExpenseFormModal({
       type="button"
       onClick={() => setCustomMode(mode)}
       className={cn(
-        "w-full rounded-md border px-3 py-1.5 text-center text-[0.68rem] font-display font-bold uppercase tracking-wide transition-colors",
+        "w-full rounded-md border px-3 py-1.5 text-center text-xs font-display font-bold uppercase tracking-wide transition-colors",
         customMode === mode
           ? "border-ink bg-ink text-paper"
           : "border-rule bg-card text-ink-soft hover:bg-panel"

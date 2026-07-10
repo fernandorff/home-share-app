@@ -16,7 +16,9 @@
   --color-panel: #e9e4d6;
   --color-ink: #16140f;
   --color-ink-soft: #54503f;
-  --color-faint: #908a78;
+  /* Darkened from #908a78 — that value read as low as 2.71:1 against --color-panel, well under
+     the 4.5:1 WCAG AA floor for normal text (BL-22/D5). ~5:1 against paper/card/panel now. */
+  --color-faint: #655f4f;
   --color-rule: #cbc4b1;
 
   /* Single stamp accent + semantic money colors */
@@ -56,7 +58,9 @@ html[data-theme="bolitas"] {
   --color-panel: #f0e4cc;
   --color-ink: #4a3520;
   --color-ink-soft: #6a563a;
-  --color-faint: #a08a66;
+  /* Darkened from #a08a66 — that value read as low as 2.64:1 against --color-panel, well under
+     the 4.5:1 WCAG AA floor for normal text (BL-22/D5). ~5:1 against paper/card/panel now. */
+  --color-faint: #6a5c45;
   --color-rule: #d8c4a3;
 
   /* Terracotta accent + cozy money colors */
@@ -176,7 +180,8 @@ html[data-theme="bolitas"] .skeleton {
 
   /* Uppercase tracked label, like a column header on a receipt */
   .label-mono {
-    font-size: 0.68rem;
+    /* Was 0.68rem (10.88px) — under the 12px floor for metadata/label text (BL-22/D6). */
+    font-size: 0.75rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     /* ink-soft (not faint) so small uppercase labels/column headers clear WCAG AA */

@@ -196,7 +196,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             key={href}
             href={href}
             className={cn(
-              "flex min-w-0 flex-col items-center gap-1 px-0.5 py-2 text-[0.55rem] uppercase tracking-tight transition-colors",
+              "flex min-w-0 flex-col items-center gap-1 px-0.5 py-2 text-[0.75rem] uppercase tracking-tight transition-colors",
               isActive(href) ? "text-stamp" : "text-ink-soft"
             )}
           >
