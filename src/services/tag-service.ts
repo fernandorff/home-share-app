@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@/generated/prisma/client'
 import { uuidv7 } from '@/lib/uuid'
 import { ApiError } from '@/lib/errors'
+import { isSystemDefaultName, type TagKind } from '@/lib/system-defaults'
 
 /** A house's custom tag entry (category / platform / payment method). The three models are
  *  structurally identical (id/publicId/groupId/name/createdAt), so one factory drives all three. */
@@ -30,10 +31,12 @@ export function makeTagService(opts: {
   delegate: TagDelegate
   model: TagModel
   column: TagColumn
+  kind: TagKind
   notFound: string
   duplicate: string
+  systemCollision: string
 }) {
-  const { delegate, model, column, notFound, duplicate } = opts
+  const { delegate, model, column, kind, notFound, duplicate, systemCollision } = opts
   // `column`/`model` are compile-time-constant unions (never user input) — safe to inject as raw SQL.
   const col = Prisma.raw(`"${column}"`)
 
@@ -60,6 +63,9 @@ export function makeTagService(opts: {
 
     async create(groupId: number, name: string) {
       const trimmed = name.trim()
+      if (isSystemDefaultName(kind, trimmed)) {
+        throw new ApiError(systemCollision, 409, 'SYSTEM_DEFAULT_COLLISION')
+      }
       const existing = await delegate.findFirst({ where: { groupId, name: trimmed } })
       if (existing) throw new ApiError(duplicate, 409, 'DUPLICATE_NAME')
       try {

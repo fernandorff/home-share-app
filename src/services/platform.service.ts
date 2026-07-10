@@ -7,6 +7,8 @@ export const platformService = makeTagService({
   delegate: prisma.platform,
   model: 'platform',
   column: 'plataformas',
+  kind: 'platform',
   notFound: 'Plataforma não encontrada',
   duplicate: 'Já existe uma plataforma com esse nome',
+  systemCollision: 'Essa plataforma já existe como padrão do sistema',
 })

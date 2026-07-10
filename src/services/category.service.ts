@@ -7,6 +7,8 @@ export const categoryService = makeTagService({
   delegate: prisma.category,
   model: 'category',
   column: 'categorias',
+  kind: 'category',
   notFound: 'Categoria não encontrada',
   duplicate: 'Já existe uma categoria com esse nome',
+  systemCollision: 'Essa categoria já existe como padrão do sistema',
 })

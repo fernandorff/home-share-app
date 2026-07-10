@@ -395,6 +395,7 @@
     "NAME_REQUIRED": "El nombre es obligatorio.",
     "NAME_TOO_LONG": "Este nombre es demasiado largo.",
     "DUPLICATE_NAME": "Ya existe este nombre en esta casa.",
+    "SYSTEM_DEFAULT_COLLISION": "Esto ya existe como predeterminado del sistema.",
     "INVALID_USERNAME": "Usuario inválido (3–30 caracteres: minúsculas, números, . - _).",
     "INVALID_PASSWORD": "La contraseña debe tener al menos 8 caracteres.",
     "PASSWORD_TOO_COMMON": "Esta contraseña es muy común. Elige una más difícil de adivinar.",
