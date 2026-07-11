@@ -43,13 +43,17 @@ describe('parseCSVDetailed', () => {
     expect(invalidRows).toEqual([{ line: 3, reason: expect.stringContaining('valor muito alto') }])
   })
 
-  it('throws when required columns are missing', () => {
+  // These are user-upload errors — must carry ApiError status 400 so the route returns a helpful
+  // 400, not a generic 500 (regression from QA #38/#39).
+  it('throws a 400 ApiError when required columns are missing', () => {
     expect(() => parseCSVDetailed('foo,bar\n1,2')).toThrow(/descricao/)
+    expect(() => parseCSVDetailed('foo,bar\n1,2')).toThrow(expect.objectContaining({ status: 400 }))
   })
 
-  it('enforces the line limit', () => {
+  it('enforces the line limit with a 400 ApiError', () => {
     const big = 'description,amount\n' + Array.from({ length: CSV_MAX_LINES + 1 }, (_, i) => `Item ${i},1.00`).join('\n')
     expect(() => parseCSVDetailed(big)).toThrow(/linhas demais/)
+    expect(() => parseCSVDetailed(big)).toThrow(expect.objectContaining({ status: 400 }))
   })
 })
 

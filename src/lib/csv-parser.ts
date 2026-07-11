@@ -1,5 +1,6 @@
 import { LIMITS } from '@/lib/constants'
 import { toCents } from '@/lib/currency'
+import { ApiError } from '@/lib/errors'
 
 // Same ceiling the JSON expense API enforces (validateExpenseInput) — the Decimal(10,2) column
 // tops out at 8 integer digits. Without this, an oversized CSV row reaches the DB write and
@@ -32,14 +33,17 @@ export const CSV_MAX_BYTES = 1024 * 1024 // 1MB
  * dropped; each one comes back with its 1-based line number and a reason.
  */
 export function parseCSVDetailed(csvText: string): ParsedCSV {
+  // These are user-input errors (the caller uploaded a malformed file), so they carry a 400 —
+  // a plain Error would bubble up as a generic 500 (found in QA: header/size/line-count issues
+  // returned 500 instead of a helpful 400).
   if (new TextEncoder().encode(csvText).length > CSV_MAX_BYTES) {
-    throw new Error('Arquivo muito grande (máx. 1MB)')
+    throw new ApiError('Arquivo muito grande (máx. 1MB)', 400)
   }
 
   const lines = csvText.trim().split('\n')
   if (lines.length < 2) return { expenses: [], invalidRows: [] }
   if (lines.length - 1 > CSV_MAX_LINES) {
-    throw new Error(`CSV com linhas demais (máx. ${CSV_MAX_LINES})`)
+    throw new ApiError(`CSV com linhas demais (máx. ${CSV_MAX_LINES})`, 400)
   }
 
   // Detectar separador (vírgula ou ponto-e-vírgula)
@@ -55,7 +59,7 @@ export function parseCSVDetailed(csvText: string): ParsedCSV {
   const plataformaIndex = headers.findIndex(h => h === 'plataforma' || h === 'platform')
 
   if (descricaoIndex === -1 || valorIndex === -1) {
-    throw new Error('CSV deve conter colunas "descricao" e "valor"')
+    throw new ApiError('CSV deve conter colunas "descricao" e "valor"', 400)
   }
 
   const expenses: ExpenseRow[] = []

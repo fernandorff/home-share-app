@@ -189,6 +189,23 @@ describe("ExpenseService.update — lost-update guard (concurrent-edit race, BL-
     await expenseService.update(1, 999, 1, false, [1, 2], { description: "x", amount: 10 });
     expect(update).toHaveBeenCalled();
   });
+
+  // #37: the SIMULTANEOUS race — two saves both pass the updatedAt check, then collide on
+  // ExpenseParticipant's unique constraint (P2002) or a write-conflict (P2034). Must surface the
+  // same 409 STALE_EXPENSE as the slow race, not a raw 500.
+  it.each(["P2002", "P2034"])("maps Prisma %s (concurrent write conflict) to 409 STALE_EXPENSE", async (code) => {
+    mockPrisma.$transaction.mockRejectedValue(Object.assign(new Error("write conflict"), { code }));
+    await expect(
+      expenseService.update(1, 999, 1, false, [1, 2], { description: "x", amount: 10 }, FIRST_SAVE_AT.toISOString())
+    ).rejects.toMatchObject({ status: 409, code: "STALE_EXPENSE" });
+  });
+
+  it("re-throws non-concurrency Prisma errors unchanged (not masked as 409)", async () => {
+    mockPrisma.$transaction.mockRejectedValue(Object.assign(new Error("boom"), { code: "P2000" }));
+    await expect(
+      expenseService.update(1, 999, 1, false, [1, 2], { description: "x", amount: 10 })
+    ).rejects.toMatchObject({ code: "P2000" });
+  });
 });
 
 describe("ExpenseService.delete — tenant isolation + ownership (C1) + single-row audit trail (A2)", () => {

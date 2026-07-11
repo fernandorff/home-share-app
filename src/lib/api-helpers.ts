@@ -204,6 +204,10 @@ function cleanTags(values: unknown, maxLen: number): string[] {
   return out
 }
 
+// C0 control chars except tab (\x09), newline (\x0a) and carriage return (\x0d) — NUL in
+// particular is unstorable in a Postgres text column and would crash the write into a 500.
+const CONTROL_CHARS = /[\x00-\x08\x0b\x0c\x0e-\x1f]/
+
 export function validateExpenseInput(
   body: ExpenseInputRaw,
   options: { payerRequired?: boolean } = {}
@@ -228,11 +232,19 @@ export function validateExpenseInput(
   if (description.length > LIMITS.DESCRIPTION) {
     return fail(`Descrição muito longa (máx. ${LIMITS.DESCRIPTION} caracteres)`, 'DESCRIPTION_TOO_LONG')
   }
+  // Postgres text columns can't hold a NUL byte — it reaches the DB write and crashes into a
+  // generic 500 (found in QA). Reject it (and any C0 control char except tab/newline) as 400.
+  if (CONTROL_CHARS.test(description)) {
+    return fail('Descrição contém caracteres inválidos', 'DESCRIPTION_INVALID')
+  }
   if (notes !== undefined && notes !== null && typeof notes !== 'string') {
     return fail('Observação inválida', 'NOTES_INVALID')
   }
   if (notes && notes.length > LIMITS.NOTES) {
     return fail(`Observação muito longa (máx. ${LIMITS.NOTES} caracteres)`, 'NOTES_TOO_LONG')
+  }
+  if (notes && CONTROL_CHARS.test(notes)) {
+    return fail('Observação contém caracteres inválidos', 'NOTES_INVALID')
   }
   if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
     return fail('Valor deve ser maior que zero', 'AMOUNT_INVALID')

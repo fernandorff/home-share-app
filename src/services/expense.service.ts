@@ -228,42 +228,56 @@ export class ExpenseService {
       }
     }
 
-    return prisma.$transaction(async (tx) => {
-      const existing = await tx.expense.findFirst({
-        where: { id: expenseId, groupId },
-        select: { id: true, payerId: true, updatedAt: true }
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const existing = await tx.expense.findFirst({
+          where: { id: expenseId, groupId },
+          select: { id: true, payerId: true, updatedAt: true }
+        })
+        if (!existing) {
+          throw new ApiError('Despesa não encontrada nesta casa', 404)
+        }
+        if (!isAdmin && existing.payerId !== actingUserId) {
+          throw new ApiError('Você só pode editar despesas que você pagou (ou ser admin da casa)', 403, 'NOT_EXPENSE_OWNER')
+        }
+        if (expectedUpdatedAt && existing.updatedAt.toISOString() !== expectedUpdatedAt) {
+          throw new ApiError('Esta despesa foi alterada por outra pessoa. Recarregue para ver a versão mais recente.', 409, 'STALE_EXPENSE')
+        }
+
+        if (participantData) {
+          await tx.expenseParticipant.deleteMany({ where: { expenseId } })
+        }
+
+        return tx.expense.update({
+          where: { id: expenseId },
+          data: {
+            ...(payerId !== undefined && { payerId }),
+            ...(platforms !== undefined && { platforms }),
+            ...(paymentMethods !== undefined && { paymentMethods }),
+            ...(description && { description: description.trim() }),
+            ...(notes !== undefined && { notes: notes?.trim() || null }),
+            ...(categories !== undefined && { categories }),
+            ...(amount !== undefined && { amount }),
+            ...(date && { date }),
+            ...(participantData && { participants: { create: participantData } })
+          },
+          omit: legacyOmit,
+          include: expenseInclude
+        })
       })
-      if (!existing) {
-        throw new ApiError('Despesa não encontrada nesta casa', 404)
-      }
-      if (!isAdmin && existing.payerId !== actingUserId) {
-        throw new ApiError('Você só pode editar despesas que você pagou (ou ser admin da casa)', 403, 'NOT_EXPENSE_OWNER')
-      }
-      if (expectedUpdatedAt && existing.updatedAt.toISOString() !== expectedUpdatedAt) {
+    } catch (e) {
+      // The `expectedUpdatedAt` check catches the SLOW race (form opened, someone else saved, you
+      // save later). It can't catch the SIMULTANEOUS race: two saves that both read the same
+      // `updatedAt` pass the check, then both deleteMany+recreate participants and the second
+      // collides on ExpenseParticipant's @@unique([expenseId, userId]) → Prisma P2002 (or P2034 on
+      // a write-conflict/deadlock). Same user-facing meaning as a stale write, so surface the same
+      // 409 instead of a raw 500 — the client already knows how to prompt "reload".
+      const code = e && typeof e === 'object' && 'code' in e ? (e as { code?: string }).code : undefined
+      if (code === 'P2002' || code === 'P2034') {
         throw new ApiError('Esta despesa foi alterada por outra pessoa. Recarregue para ver a versão mais recente.', 409, 'STALE_EXPENSE')
       }
-
-      if (participantData) {
-        await tx.expenseParticipant.deleteMany({ where: { expenseId } })
-      }
-
-      return tx.expense.update({
-        where: { id: expenseId },
-        data: {
-          ...(payerId !== undefined && { payerId }),
-          ...(platforms !== undefined && { platforms }),
-          ...(paymentMethods !== undefined && { paymentMethods }),
-          ...(description && { description: description.trim() }),
-          ...(notes !== undefined && { notes: notes?.trim() || null }),
-          ...(categories !== undefined && { categories }),
-          ...(amount !== undefined && { amount }),
-          ...(date && { date }),
-          ...(participantData && { participants: { create: participantData } })
-        },
-        omit: legacyOmit,
-        include: expenseInclude
-      })
-    })
+      throw e
+    }
   }
 
   /**
