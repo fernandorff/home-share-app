@@ -48,3 +48,5 @@ prisma/                   # schema (User tem email/googleId p/ Google), prisma.c
 - Validações de input nas rotas (limites: descrição 200, notas 1000, CSV 1000 linhas/1MB).
 - `npm run test` (vitest) é gate. `npm run build` = `prisma db push && prisma generate && next build` (SEM `--accept-data-loss`).
 - Datas: convenção `T12:00:00` local na escrita; formata em UTC no export.
+- **Porquês de arquitetura** (auth, casa ativa, dinheiro — com alternativas rejeitadas):
+  `docs/decisions/` (ADRs, MADR, append-only). Consultar antes de mexer nessas áreas.
