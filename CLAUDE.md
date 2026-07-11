@@ -8,12 +8,14 @@
 **Home Share** (ex-"La Casa das Bolitas") — app de **despesas compartilhadas** de uma casa.
 **Monólito Next.js** (App Router): o frontend e a API vivem no mesmo app, **same-origin**.
 
-- **Código**: inglês (vars, props, comentários). **Mensagens de erro / UI**: pt-BR.
-- **Auth**: **cookie httpOnly** `bolitas_session` (JWT HS256, jose) — **NÃO** Bearer. Login/
+- **Inglês em TUDO**: código, comentários, mensagens de erro, banco (schema sem `@map`) e URLs
+  de página. Texto de UI só via i18n (`src/messages/`, EN/PT/ES/FR); erros de API carregam
+  `code` que o client traduz (namespaces `ApiErrors`/`CsvErrors`, hook `useApiError`).
+- **Auth**: **cookie httpOnly** `homeshare_session` (JWT HS256, jose) — **NÃO** Bearer. Login/
   register/set-password setam o cookie e retornam só `{ user }` (token vai no cookie).
   Existe `POST /api/auth/logout`. **Login com Google** (OAuth) em `/api/auth/google[/callback]`,
   guarded por `GOOGLE_CLIENT_ID/SECRET` (reusa `signSession` + mesmo cookie).
-- **Casa ativa**: cookie httpOnly `bolitas_group` (preferência; a membership no banco é a
+- **Casa ativa**: cookie httpOnly `homeshare_group` (preferência; a membership no banco é a
   autoridade). Trocar de casa = `POST /api/groups/active` `{ groupId }`. **Sem header X-Group-Id.**
   Helpers em `lib/api-helpers` (`requireSession`, `requireActiveGroup`, `allGroupMembers`).
   `groupId` NUNCA vem do body.
@@ -29,7 +31,7 @@ src/
 ├── app/
 │   ├── api/**            # route handlers (auth[+google], groups, expenses, balances, platforms, shopping-items, health)
 │   ├── auth/**           # páginas públicas (login, register, set-password)
-│   ├── (app)/**          # área logada (despesas, saldos, compras, plataformas, casa) + layout/shell
+│   ├── (app)/**          # área logada (expenses, balances, shopping, catalogs, activity, house, account)
 │   ├── layout.tsx, page.tsx, globals.css, icon.svg
 ├── components/
 │   ├── ui/               # design system retro-mono (Button, Field, Card, Money, Modal, Menu, Toast, Skeleton, …)

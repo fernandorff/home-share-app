@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-07-11 (backfilled — decision predates this record)
 
-**Decision:** the httpOnly cookie `bolitas_group` is only a *preference*;
+**Decision:** the httpOnly cookie `homeshare_group` is only a *preference*;
 `requireActiveGroup()` verifies membership in the DB on every request. **`groupId` never
 comes from a request body or header** for data operations — the one endpoint that accepts
 it is the membership-checked switch, `POST /api/groups/active`.

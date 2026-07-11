@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-07-11 (backfilled — decision predates this record)
 
-**Decision:** the session is a JWT (HS256, `jose`) in the httpOnly cookie `bolitas_session`;
+**Decision:** the session is a JWT (HS256, `jose`) in the httpOnly cookie `homeshare_session`;
 tokens never appear in a response body, and revocation is a `sessionVersion` claim checked
 against `User.sessionVersion` on every request.
 
