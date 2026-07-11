@@ -22,7 +22,7 @@ type TagDelegate = {
 }
 
 /** The Expense array column that holds this dimension's tags (used in the count/detach raw SQL). */
-type TagColumn = 'categorias' | 'plataformas' | 'formas_pagamento'
+type TagColumn = 'categories' | 'platforms' | 'paymentMethods'
 
 /** Prisma client key for the model (used to run the delete inside the transaction). */
 type TagModel = 'category' | 'platform' | 'paymentMethod'

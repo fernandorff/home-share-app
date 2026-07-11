@@ -61,7 +61,7 @@ export class ShoppingItemService {
     // writing back its negation — the read-modify-write version loses updates when two people
     // tap the same checkbox at once (found in QA). The NOT is evaluated atomically under the
     // row lock, so N concurrent toggles land on the correct final state.
-    await prisma.$executeRaw`UPDATE "item_compra" SET "comprado" = NOT "comprado" WHERE id = ${item.id}`
+    await prisma.$executeRaw`UPDATE "ShoppingItem" SET "isPurchased" = NOT "isPurchased" WHERE id = ${item.id}`
 
     return prisma.shoppingItem.findFirstOrThrow({
       where: { id: item.id },

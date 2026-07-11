@@ -6,7 +6,7 @@ import { makeTagService } from './tag-service'
 export const platformService = makeTagService({
   delegate: prisma.platform,
   model: 'platform',
-  column: 'plataformas',
+  column: 'platforms',
   kind: 'platform',
   notFound: 'Platform not found',
   duplicate: 'A platform with that name already exists',

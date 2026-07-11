@@ -19,7 +19,7 @@ async function reset() {
   // previous test can't land after the TRUNCATE and leak into the next one.
   await flushAudit();
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "User","Group","membro_grupo","plataforma","categoria_casa","forma_pagamento_casa","Expense","ExpenseParticipant","acerto","registro_auditoria","revisao_entidade" RESTART IDENTITY CASCADE`
+    `TRUNCATE "User","Group","GroupMember","Platform","Category","PaymentMethod","Expense","ExpenseParticipant","Settlement","AuditLog","EntityRevision" RESTART IDENTITY CASCADE`
   );
 }
 

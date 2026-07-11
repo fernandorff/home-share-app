@@ -6,7 +6,7 @@ import { makeTagService } from './tag-service'
 export const paymentMethodService = makeTagService({
   delegate: prisma.paymentMethod,
   model: 'paymentMethod',
-  column: 'formas_pagamento',
+  column: 'paymentMethods',
   kind: 'payment',
   notFound: 'Payment method not found',
   duplicate: 'A payment method with that name already exists',
