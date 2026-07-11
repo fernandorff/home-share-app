@@ -103,8 +103,10 @@ export function TagManager({
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-rule bg-panel/40 px-4 py-3">
-        <span className="font-display text-sm font-bold uppercase tracking-wide text-ink">{label}</span>
-        <Button size="sm" onClick={() => { setName(""); setCreating(true); }}>
+        {/* Real <h2> per section (was a <span>) + a section-scoped accessible name on the add
+            button, so a screen reader doesn't read three identical "Adicionar" buttons (a11y). */}
+        <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink">{label}</h2>
+        <Button size="sm" onClick={() => { setName(""); setCreating(true); }} aria-label={`${t("new")} — ${label}`}>
           {t("new")}
         </Button>
       </div>
