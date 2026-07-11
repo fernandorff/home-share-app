@@ -9,6 +9,7 @@ import {
   requireActiveGroup,
   allActiveGroupMembers,
   recordActivity,
+  assertExpectedGroup,
 } from '@/lib/api-helpers'
 
 interface RouteParams {
@@ -32,6 +33,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json()
+    const staleGroup = assertExpectedGroup(check.groupId, body.expectedGroupId)
+    if (staleGroup) return staleGroup
+
     const validation = validateExpenseInput(body)
     if (!validation.valid) return validation.response
 

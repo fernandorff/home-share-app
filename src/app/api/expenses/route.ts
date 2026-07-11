@@ -9,6 +9,7 @@ import {
   requireActiveGroup,
   allActiveGroupMembers,
   recordActivity,
+  assertExpectedGroup,
 } from '@/lib/api-helpers'
 
 // Defensive cap on how many chip values a single filter dimension can carry — a house never
@@ -82,6 +83,9 @@ export async function POST(request: Request) {
     if (!check.ok) return check.response
 
     const body = await request.json()
+    const staleGroup = assertExpectedGroup(check.groupId, body.expectedGroupId)
+    if (staleGroup) return staleGroup
+
     const validation = validateExpenseInput(body)
     if (!validation.valid) return validation.response
 

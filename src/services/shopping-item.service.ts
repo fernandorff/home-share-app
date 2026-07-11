@@ -57,9 +57,14 @@ export class ShoppingItemService {
   async togglePurchased(groupId: number, publicId: string) {
     const item = await this.findOwned(groupId, publicId)
 
-    return prisma.shoppingItem.update({
+    // Flip in the DB (SET comprado = NOT comprado) rather than reading the value into JS and
+    // writing back its negation — the read-modify-write version loses updates when two people
+    // tap the same checkbox at once (found in QA). The NOT is evaluated atomically under the
+    // row lock, so N concurrent toggles land on the correct final state.
+    await prisma.$executeRaw`UPDATE "item_compra" SET "comprado" = NOT "comprado" WHERE id = ${item.id}`
+
+    return prisma.shoppingItem.findFirstOrThrow({
       where: { id: item.id },
-      data: { isPurchased: !item.isPurchased },
       include: itemInclude,
     })
   }

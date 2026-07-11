@@ -311,6 +311,10 @@ export function ExpenseFormModal({
       amount,
       date,
       splitEqually,
+      // Sanity guard, NOT the source of truth for the house (that's always the cookie server-side):
+      // if the active house changed in another tab while this form was open, the server rejects with
+      // 409 instead of silently saving into the wrong house (found in QA). See requireActiveGroup.
+      expectedGroupId: activeGroup?.id,
     };
 
     if (!splitEqually) {

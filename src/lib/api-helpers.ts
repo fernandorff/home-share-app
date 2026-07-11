@@ -23,6 +23,23 @@ export async function recordActivity(entry: AuditEntry): Promise<void> {
   }
 }
 
+/**
+ * Optimistic guard against a house-switch race: if the client sends the `expectedGroupId` it
+ * believed was active (e.g. an expense form opened before the user switched houses in another
+ * tab), and it no longer matches the authoritative active house (from the cookie), reject with 409
+ * so the write never lands in the wrong house. Returns null (no error) when absent or matching.
+ * The cookie stays the source of truth — this only DETECTS divergence, it never selects the house.
+ */
+export function assertExpectedGroup(activeGroupId: number, expectedGroupId: unknown): NextResponse | null {
+  if (typeof expectedGroupId === 'number' && expectedGroupId !== activeGroupId) {
+    return NextResponse.json(
+      { error: 'Sua casa ativa mudou em outra aba. Recarregue para continuar.', code: 'STALE_GROUP' },
+      { status: 409 }
+    )
+  }
+  return null
+}
+
 export function handleApiError(error: unknown, defaultMsg: string): NextResponse {
   // Expected, typed failures (not-found, invalid input) carry their own status/code.
   if (error instanceof ApiError) {
@@ -208,6 +225,29 @@ function cleanTags(values: unknown, maxLen: number): string[] {
 // particular is unstorable in a Postgres text column and would crash the write into a 500.
 const CONTROL_CHARS = /[\x00-\x08\x0b\x0c\x0e-\x1f]/
 
+/**
+ * Parse a user-supplied date into a Date, or return null if it's not a real calendar date.
+ * `new Date('2026-02-30')` doesn't throw — JS rolls it over to Mar 2 (found in QA: impossible
+ * dates were silently accepted and shifted). For bare `YYYY-MM-DD` we verify the parsed Date's
+ * components round-trip to the input (rejecting 02-30, 13-01, etc.) and bound the year to a sane
+ * range. Other string forms (with time) fall back to a plain NaN check.
+ */
+function parseInputDate(date: unknown): Date | null | undefined {
+  if (date === undefined || date === null || date === '') return undefined
+  const raw = typeof date === 'string' ? date : String(date)
+  const isoDay = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
+  if (isoDay) {
+    const [, ys, ms, ds] = isoDay
+    const y = Number(ys), m = Number(ms), d = Number(ds)
+    if (y < 2000 || y > 2100) return null
+    const parsed = new Date(`${raw}T12:00:00`)
+    if (parsed.getFullYear() !== y || parsed.getMonth() + 1 !== m || parsed.getDate() !== d) return null
+    return parsed
+  }
+  const parsed = new Date(raw)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
 export function validateExpenseInput(
   body: ExpenseInputRaw,
   options: { payerRequired?: boolean } = {}
@@ -295,13 +335,9 @@ export function validateExpenseInput(
     }
   }
 
-  let parsedDate: Date | undefined
-  if (date) {
-    const raw = typeof date === 'string' ? date : String(date)
-    parsedDate = new Date(raw + (/^\d{4}-\d{2}-\d{2}$/.test(raw) ? 'T12:00:00' : ''))
-    if (Number.isNaN(parsedDate.getTime())) {
-      return fail('Data inválida', 'DATE_INVALID')
-    }
+  const parsedDate = parseInputDate(date)
+  if (parsedDate === null) {
+    return fail('Data inválida', 'DATE_INVALID')
   }
 
   return {
@@ -350,6 +386,9 @@ export function validateSettlementInput(
   if (toCents(amount) > 9_999_999_999) return bad('Valor muito alto (máx. 99.999.999,99)', 'AMOUNT_TOO_HIGH')
   if (note && note.length > LIMITS.SETTLEMENT_NOTE) return bad(`Observação muito longa (máx. ${LIMITS.SETTLEMENT_NOTE} caracteres)`, 'NOTE_TOO_LONG')
 
+  const parsedDate = parseInputDate(date)
+  if (parsedDate === null) return bad('Data inválida', 'DATE_INVALID')
+
   return {
     valid: true,
     data: {
@@ -357,7 +396,7 @@ export function validateSettlementInput(
       toUserId: toUserId!,
       amount,
       note: note ?? null,
-      date: date ? new Date(date + (/^\d{4}-\d{2}-\d{2}$/.test(date) ? 'T12:00:00' : '')) : undefined,
+      date: parsedDate,
     },
   }
 }
