@@ -2,6 +2,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 import { cn } from "./cn";
 import type { ReactNode } from "react";
 
@@ -23,11 +24,27 @@ export function Modal({
   className?: string;
 }) {
   const tc = useTranslations("Common");
+  // These modals are controlled (no Dialog.Trigger), so Radix has no trigger to restore focus to
+  // on close and focus lands on <body> — a keyboard user gets dumped to the top (WCAG 2.4.3).
+  // Capture whatever was focused when the modal opened and restore it in onCloseAutoFocus.
+  const triggerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (open) triggerRef.current = document.activeElement as HTMLElement | null;
+  }, [open]);
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="anim-overlay fixed inset-0 z-40 bg-ink/40 backdrop-blur-[1px]" />
         <Dialog.Content
+          aria-modal
+          onCloseAutoFocus={(e) => {
+            const el = triggerRef.current;
+            if (el && el.isConnected && typeof el.focus === "function") {
+              e.preventDefault();
+              el.focus();
+            }
+          }}
           // With a description present, let Radix auto-wire aria-describedby to <Dialog.Description>;
           // only suppress the "missing description" warning (undefined attr) when there is none.
           {...(description ? {} : { "aria-describedby": undefined })}

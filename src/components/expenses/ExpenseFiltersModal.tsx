@@ -146,8 +146,9 @@ export function ExpenseFiltersModal({
       }
     >
       <form id="expense-filters-form" onSubmit={submit} className="flex flex-col gap-3">
-        <Field label={t("searchLabel")}>
+        <Field label={t("searchLabel")} htmlFor="filter-search">
           <Input
+            id="filter-search"
             value={draft.query}
             onChange={(e) => setField("query", e.target.value)}
             placeholder={t("searchPlaceholder")}
@@ -176,11 +177,11 @@ export function ExpenseFiltersModal({
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("filterFrom")}>
-            <Input type="date" className="tnum" value={draft.fromDate} onChange={(e) => setField("fromDate", e.target.value)} />
+          <Field label={t("filterFrom")} htmlFor="filter-from">
+            <Input id="filter-from" type="date" className="tnum" value={draft.fromDate} onChange={(e) => setField("fromDate", e.target.value)} />
           </Field>
-          <Field label={t("filterTo")}>
-            <Input type="date" className="tnum" value={draft.toDate} onChange={(e) => setField("toDate", e.target.value)} />
+          <Field label={t("filterTo")} htmlFor="filter-to">
+            <Input id="filter-to" type="date" className="tnum" value={draft.toDate} onChange={(e) => setField("toDate", e.target.value)} />
           </Field>
         </div>
       </form>

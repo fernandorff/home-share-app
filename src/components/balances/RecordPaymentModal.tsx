@@ -130,7 +130,7 @@ export function RecordPaymentModal({ open, onOpenChange, prefill, settlements, o
         </div>
 
         {fromId !== "" && fromId === toId && (
-          <p className="text-xs text-debt">{t("sameError")}</p>
+          <p role="alert" className="text-xs text-debt">{t("sameError")}</p>
         )}
 
         <Field label={t("amountLabel", { symbol: currencySymbol })} htmlFor="pay-amount">

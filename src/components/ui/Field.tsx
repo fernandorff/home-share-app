@@ -40,7 +40,9 @@ export function Field({
       {label && <Label htmlFor={htmlFor}>{label}</Label>}
       {children}
       {error ? (
-        <p className="mt-1.5 text-pretty text-xs text-debt">{error}</p>
+        // role=alert so a screen reader announces the validation error when it appears (a11y
+        // WCAG 3.3.1 / 4.1.3 — the toasts already do this, form errors didn't).
+        <p role="alert" className="mt-1.5 text-pretty text-xs text-debt">{error}</p>
       ) : hint ? (
         <p className="mt-1.5 text-pretty text-xs text-faint">{hint}</p>
       ) : null}

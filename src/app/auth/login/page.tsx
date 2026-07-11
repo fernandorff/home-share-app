@@ -64,7 +64,7 @@ export default function LoginPage() {
         </h2>
 
         {error && (
-          <div className="rounded-md border border-debt/40 bg-stamp-soft px-3 py-2 text-sm text-debt">
+          <div role="alert" className="rounded-md border border-debt/40 bg-stamp-soft px-3 py-2 text-sm text-debt">
             {error}
           </div>
         )}

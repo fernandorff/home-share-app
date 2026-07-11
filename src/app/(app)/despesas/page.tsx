@@ -481,7 +481,9 @@ export default function DespesasPage() {
                 }
               }}
               className={cn(
-                "rounded-md border px-3 py-1.5 text-[0.7rem] font-display font-bold uppercase tracking-wider transition-colors",
+                // ring-inset (not offset): the offset ring was clipped by the rounded group so the
+                // toggle showed no keyboard focus at all (a11y WCAG 2.4.7).
+                "rounded-md border px-3 py-1.5 text-[0.7rem] font-display font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stamp",
                 view === v.id
                   ? "border-ink bg-ink text-paper"
                   : "border-rule bg-card text-ink-soft hover:bg-panel"
