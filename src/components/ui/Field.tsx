@@ -1,9 +1,11 @@
+import { cloneElement, isValidElement, useId } from "react";
 import { cn } from "./cn";
 import type {
   InputHTMLAttributes,
   TextareaHTMLAttributes,
   SelectHTMLAttributes,
   ReactNode,
+  ReactElement,
 } from "react";
 
 // 16px on mobile (text-base) — iOS Safari auto-zooms the page on focus for any input under 16px
@@ -35,16 +37,25 @@ export function Field({
   error?: ReactNode;
   children: ReactNode;
 }) {
+  // Wire the hint/error text to the control via aria-describedby so a screen reader reads it when
+  // the field is focused (a11y WCAG 3.3.2). cloneElement injects the id onto the single input child;
+  // if a caller passes something exotic, it just isn't described (no crash).
+  const msgId = useId();
+  const described = (error || hint) ? msgId : undefined;
+  const control =
+    described && isValidElement(children)
+      ? cloneElement(children as ReactElement<{ "aria-describedby"?: string }>, { "aria-describedby": described })
+      : children;
   return (
     <div className="flex flex-col">
       {label && <Label htmlFor={htmlFor}>{label}</Label>}
-      {children}
+      {control}
       {error ? (
         // role=alert so a screen reader announces the validation error when it appears (a11y
         // WCAG 3.3.1 / 4.1.3 — the toasts already do this, form errors didn't).
-        <p role="alert" className="mt-1.5 text-pretty text-xs text-debt">{error}</p>
+        <p id={msgId} role="alert" className="mt-1.5 text-pretty text-xs text-debt">{error}</p>
       ) : hint ? (
-        <p className="mt-1.5 text-pretty text-xs text-faint">{hint}</p>
+        <p id={msgId} className="mt-1.5 text-pretty text-xs text-faint">{hint}</p>
       ) : null}
     </div>
   );

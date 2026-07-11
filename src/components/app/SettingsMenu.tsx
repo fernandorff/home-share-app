@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { MenuSub, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/Menu";
+import { MenuSub, MenuLabel, MenuSeparator, MenuRadioGroup, MenuRadioItem } from "@/components/ui/Menu";
 import { THEMES, DEFAULT_THEME, THEME_COOKIE, isTheme, type Theme } from "@/lib/theme";
 import { setClientCookie } from "@/lib/client-cookie";
 
@@ -51,20 +51,22 @@ export function SettingsMenu() {
   return (
     <MenuSub label={tNav("settings")}>
       <MenuLabel>{t("label")}</MenuLabel>
-      {THEMES.map((th) => (
-        <MenuItem key={th} onSelect={() => pickTheme(th)}>
-          <span className="flex-1">{t(th)}</span>
-          {th === theme && <span className="text-stamp">✓</span>}
-        </MenuItem>
-      ))}
+      <MenuRadioGroup value={theme}>
+        {THEMES.map((th) => (
+          <MenuRadioItem key={th} value={th} onSelect={() => pickTheme(th)}>
+            {t(th)}
+          </MenuRadioItem>
+        ))}
+      </MenuRadioGroup>
       <MenuSeparator />
       <MenuLabel>{tc("language")}</MenuLabel>
-      {LANGS.map((l) => (
-        <MenuItem key={l.code} onSelect={() => pickLocale(l.code)}>
-          <span className="flex-1">{l.label}</span>
-          {l.code === locale && <span className="text-stamp">✓</span>}
-        </MenuItem>
-      ))}
+      <MenuRadioGroup value={locale}>
+        {LANGS.map((l) => (
+          <MenuRadioItem key={l.code} value={l.code} onSelect={() => pickLocale(l.code)}>
+            {l.label}
+          </MenuRadioItem>
+        ))}
+      </MenuRadioGroup>
     </MenuSub>
   );
 }
