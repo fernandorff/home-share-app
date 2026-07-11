@@ -5,7 +5,7 @@ export const THEMES = ["default", "bolitas"] as const;
 export type Theme = (typeof THEMES)[number];
 
 export const DEFAULT_THEME: Theme = "default";
-export const THEME_COOKIE = "bolitas_theme";
+export const THEME_COOKIE = "homeshare_theme";
 
 export function isTheme(value: string | undefined | null): value is Theme {
   return !!value && (THEMES as readonly string[]).includes(value);

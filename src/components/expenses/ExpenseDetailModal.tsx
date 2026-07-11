@@ -37,7 +37,7 @@ export function ExpenseDetailModal({
 
   const lbl = (ns: string, v: string) => (t.has(`${ns}.${v}`) ? t(`${ns}.${v}`) : v);
   const payerColor = expense ? memberById.get(expense.payerId)?.colorIndex ?? 0 : 0;
-  // Same ex-member/deleted-account treatment as saldos/atividade (BL-16/BL-23) — the embedded
+  // Same ex-member/deleted-account treatment as balances/activity (BL-16/BL-23) — the embedded
   // `expense.payer.name` snapshot is a live join to the CURRENT User row, so a deleted account
   // would already show its (untranslated, raw) placeholder there without this override.
   const memberDisplayName = (id: number, fallback: string) => {

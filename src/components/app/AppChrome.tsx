@@ -60,12 +60,12 @@ function ClockIcon({ className }: IconProps) {
 }
 
 const NAV = [
-  { href: "/despesas", key: "expenses", Icon: ReceiptIcon },
-  { href: "/saldos", key: "balances", Icon: ScaleIcon },
-  { href: "/compras", key: "shopping", Icon: CartIcon },
-  { href: "/catalogos", key: "catalogs", Icon: GridIcon },
-  { href: "/atividade", key: "activity", Icon: ClockIcon },
-  { href: "/casa", key: "household", Icon: HomeIcon },
+  { href: "/expenses", key: "expenses", Icon: ReceiptIcon },
+  { href: "/balances", key: "balances", Icon: ScaleIcon },
+  { href: "/shopping", key: "shopping", Icon: CartIcon },
+  { href: "/catalogs", key: "catalogs", Icon: GridIcon },
+  { href: "/activity", key: "activity", Icon: ClockIcon },
+  { href: "/house", key: "household", Icon: HomeIcon },
 ] as const;
 
 function useIsActive() {
@@ -103,7 +103,7 @@ function CasaSelector() {
         </MenuItem>
       ))}
       <MenuSeparator />
-      <MenuItem onSelect={() => router.push("/casa")}>+ {t("manageHouse")}</MenuItem>
+      <MenuItem onSelect={() => router.push("/house")}>+ {t("manageHouse")}</MenuItem>
     </Menu>
   );
 }
@@ -137,8 +137,8 @@ function UserMenu() {
       }
     >
       <MenuLabel>@{me.user.username}</MenuLabel>
-      <MenuItem onSelect={() => router.push("/conta")}>{t("myAccount")}</MenuItem>
-      <MenuItem onSelect={() => router.push("/casa")}>{t("houseAndMembers")}</MenuItem>
+      <MenuItem onSelect={() => router.push("/account")}>{t("myAccount")}</MenuItem>
+      <MenuItem onSelect={() => router.push("/house")}>{t("houseAndMembers")}</MenuItem>
       <MenuSeparator />
       <SettingsMenu />
       <MenuSeparator />
@@ -157,7 +157,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
     <div className="paper-grain min-h-dvh">
       <header className="sticky top-0 z-30 border-b border-rule bg-paper/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
-          <Link href="/despesas" className="shrink-0 font-display text-base font-bold tracking-tight text-ink">
+          <Link href="/expenses" className="shrink-0 font-display text-base font-bold tracking-tight text-ink">
             HOME<span className="text-stamp">SHARE</span>
           </Link>
           <span className="hidden text-faint sm:inline" aria-hidden>·</span>

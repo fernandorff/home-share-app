@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 
-export const SESSION_COOKIE = 'bolitas_session'
-export const GROUP_COOKIE = 'bolitas_group'
+export const SESSION_COOKIE = 'homeshare_session'
+export const GROUP_COOKIE = 'homeshare_group'
 // Shortened from 30 days — bounds how long a leaked/stolen token stays usable. Real revocation
 // (logout / password change) now also happens immediately via sessionVersion, below.
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7 // 7 days

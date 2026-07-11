@@ -19,7 +19,7 @@ export async function middleware(request: NextRequest) {
   if (isPublicPage) {
     // Already signed in — /auth/login and /auth/register are dead ends otherwise.
     if (session) {
-      return NextResponse.redirect(new URL('/despesas', request.url))
+      return NextResponse.redirect(new URL('/expenses', request.url))
     }
     return NextResponse.next()
   }

@@ -20,7 +20,7 @@ beforeEach(() => {
 
 function mockCookieStore(token: string | undefined) {
   mockCookies.mockResolvedValue({
-    get: (name: string) => (name === 'bolitas_session' && token ? { value: token } : undefined),
+    get: (name: string) => (name === 'homeshare_session' && token ? { value: token } : undefined),
   })
 }
 
@@ -76,7 +76,7 @@ describe('requireSession — sessionVersion revocation (BL-13)', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) {
       const setCookie = result.response.headers.get('set-cookie')
-      expect(setCookie).toMatch(/bolitas_session=;/)
+      expect(setCookie).toMatch(/homeshare_session=;/)
     }
   })
 

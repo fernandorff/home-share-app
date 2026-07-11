@@ -235,7 +235,7 @@ const HIDDEN_FIELDS = new Set([
 ]);
 const ENTITY_TYPES = ["Expense", "Settlement", "ShoppingItem", "Category", "Platform", "PaymentMethod", "GroupMember"] as const;
 // Categories/platforms/payment methods store a system i18n key ("groceries") or a house custom
-// name ("Streaming") with no marker distinguishing them — same fallback pattern as saldos/page.tsx.
+// name ("Streaming") with no marker distinguishing them — same fallback pattern as balances/page.tsx.
 const TAG_FIELD_NS: Record<string, string> = { categories: "category", platforms: "platform", paymentMethods: "payment" };
 
 /** The detailed audit trail (raw EntityRevision snapshots across all entities). */
@@ -284,7 +284,7 @@ function DetailedFeed({ groupKey }: { groupKey: number | undefined }) {
   }, [groupKey, filter]);
 
   // Field-value lookup (e.g. "payerId changed to X") AND actor-name lookup share the same
-  // ex-member/deleted-account treatment as saldos/page.tsx's displayName (BL-16/BL-23).
+  // ex-member/deleted-account treatment as balances/page.tsx's displayName (BL-16/BL-23).
   const memberName = (id: unknown) => {
     const m = members.find((mm) => mm.id === Number(id));
     if (!m) return `#${id}`;

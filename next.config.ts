@@ -24,6 +24,24 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   // Drops the "X-Powered-By: Next.js" header (minor info-disclosure — no functional purpose).
   poweredByHeader: false,
+  // The app's page routes were renamed from Portuguese to English; old bookmarks/deep links
+  // still land in the right place.
+  async redirects() {
+    const renames: Array<[string, string]> = [
+      ["despesas", "expenses"],
+      ["saldos", "balances"],
+      ["compras", "shopping"],
+      ["catalogos", "catalogs"],
+      ["atividade", "activity"],
+      ["casa", "house"],
+      ["conta", "account"],
+    ];
+    return renames.map(([from, to]) => ({
+      source: `/${from}`,
+      destination: `/${to}`,
+      permanent: true,
+    }));
+  },
   async headers() {
     const securityHeaders = [
       { key: "X-Frame-Options", value: "DENY" },

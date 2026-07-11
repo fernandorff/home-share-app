@@ -1,7 +1,7 @@
 // Minimal Google OAuth 2.0 (Authorization Code) helper — no external SDK.
 // Guarded by env: when GOOGLE_CLIENT_ID/SECRET are absent, the feature is off.
 
-export const OAUTH_STATE_COOKIE = "bolitas_oauth_state";
+export const OAUTH_STATE_COOKIE = "homeshare_oauth_state";
 
 export interface GoogleProfile {
   googleId: string;

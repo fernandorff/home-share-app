@@ -1,4 +1,4 @@
-// Same-origin API client. Auth rides on the httpOnly cookie (bolitas_session),
+// Same-origin API client. Auth rides on the httpOnly cookie (homeshare_session),
 // so the browser attaches it automatically — no token handling here.
 
 export class ApiError extends Error {

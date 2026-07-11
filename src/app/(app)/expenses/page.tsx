@@ -994,7 +994,7 @@ const ExpenseRow = memo(function ExpenseRow({
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); handleView(); }
   };
   const ratio = splitRatio(e, members);
-  // Same ex-member/deleted-account treatment as saldos/atividade/ExpenseDetailModal (BL-16/BL-23).
+  // Same ex-member/deleted-account treatment as balances/activity/ExpenseDetailModal (BL-16/BL-23).
   const payer = members.find((m) => m.id === e.payerId);
   const payerName = payer?.deleted
     ? tacc("deletedUserLabel")
@@ -1063,7 +1063,7 @@ const ExpenseCard = memo(function ExpenseCard({
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); handleBody(); }
   };
   const ratio = splitRatio(e, members);
-  // Same ex-member/deleted-account treatment as saldos/atividade/ExpenseDetailModal (BL-16/BL-23).
+  // Same ex-member/deleted-account treatment as balances/activity/ExpenseDetailModal (BL-16/BL-23).
   const payer = members.find((m) => m.id === e.payerId);
   const payerName = payer?.deleted
     ? tacc("deletedUserLabel")
