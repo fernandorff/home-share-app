@@ -1,0 +1,34 @@
+# CI gate: typecheck + full vitest suite on every push/PR to main.
+# Tests are fully self-contained — vitest's globalSetup boots an in-process Postgres
+# (pglite over a TCP socket) and applies the schema via `prisma migrate diff`, so no
+# database service, no Docker, and no secrets are needed here.
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # prisma.config.ts reads DATABASE_URL at load time; generate never connects, but the
+      # variable must exist. The value is a placeholder — tests pin their own URL (pglite).
+      - run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
+
+      - run: npx tsc --noEmit
+
+      - run: npm run test
