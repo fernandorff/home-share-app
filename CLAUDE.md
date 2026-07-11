@@ -52,3 +52,5 @@ prisma/                   # schema (User tem email/googleId p/ Google), prisma.c
 - Datas: convenção `T12:00:00` local na escrita; formata em UTC no export.
 - **Porquês de arquitetura** (auth, casa ativa, dinheiro — com alternativas rejeitadas):
   `docs/decisions/` (ADRs, MADR, append-only). Consultar antes de mexer nessas áreas.
+- **Feature não-trivial** = spec primeiro: `docs/specs/NNN-nome/` (copiar `_TEMPLATE`;
+  critérios EARS verificáveis, tasks com caminho de arquivo + `_Requirements:_`).

@@ -23,3 +23,4 @@ Conventions:
 - [0004 — Next.js same-origin monolith, not a separate frontend + API](0004-nextjs-same-origin-monolith.md)
 - [0005 — Audit trail via Prisma extension writing EntityRevision rows](0005-audit-trail-prisma-extension.md)
 - [0006 — Optimistic concurrency via expected-state tokens → 409](0006-optimistic-concurrency-expected-state-tokens.md)
+- [0007 — English-only codebase and database](0007-english-only-codebase-and-database.md)

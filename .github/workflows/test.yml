@@ -34,3 +34,10 @@ jobs:
       - run: npx tsc --noEmit
 
       - run: npm run test
+
+      # `npx next build` directly — NOT `npm run build`, which would run `prisma db push`
+      # against a real database. The build needs no DB (all pages are dynamic); verified
+      # locally with this same placeholder URL.
+      - run: npx next build
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
