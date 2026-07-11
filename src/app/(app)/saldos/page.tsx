@@ -274,7 +274,9 @@ export default function SaldosPage() {
                     type="button"
                     aria-label={ts("deletePayment")}
                     onClick={() => setDeleteTarget(p)}
-                    className="shrink-0 rounded-md px-2 py-1 text-sm text-ink-soft transition-colors hover:bg-panel hover:text-debt"
+                    // min-h-11 min-w-11: 44px touch floor on mobile (D3 — destructive ✕ was 27x28);
+                    // sm:* restores the compact desktop size.
+                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md px-2 py-1 text-sm text-ink-soft transition-colors hover:bg-panel hover:text-debt sm:min-h-0 sm:min-w-0"
                   >
                     ✕
                   </button>

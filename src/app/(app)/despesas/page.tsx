@@ -1122,7 +1122,8 @@ const RowMenu = memo(function RowMenu({ onEdit, onDelete }: { onEdit: () => void
       trigger={
         <button
           aria-label={t("rowActions")}
-          className="rounded-md px-2 py-1 text-lg leading-none text-ink-soft transition-colors hover:bg-panel hover:text-ink"
+          // min-h-11 min-w-11: 44px touch floor on mobile (D3 — was 31x26); sm:* restores compact desktop.
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 py-1 text-lg leading-none text-ink-soft transition-colors hover:bg-panel hover:text-ink sm:min-h-0 sm:min-w-0"
         >
           ⋯
         </button>

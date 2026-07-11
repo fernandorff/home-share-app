@@ -183,7 +183,7 @@ function SummaryFeed({ groupKey }: { groupKey: number | undefined }) {
             <div className="flex items-start gap-3 py-3">
               <MemberDot colorIndex={colorOf(e.actor?.id)} name={displayName(e.actor?.id, e.actor?.name ?? "?")} size={26} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-ink">
+                <p className="break-words text-sm text-ink">
                   <span className="font-medium">{displayName(e.actor?.id, e.actor?.name ?? t("system"))}</span>{" "}
                   <span className="text-ink-soft">{actionLabel(e.action, e.entityType)}</span>
                   {resolvedSummary(e) && (

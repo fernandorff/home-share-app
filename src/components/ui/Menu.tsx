@@ -20,7 +20,8 @@ export function Menu({
         <DropdownMenu.Content
           align={align}
           sideOffset={6}
-          className="anim-pop z-50 min-w-48 rounded-md border border-ink bg-card p-1 shadow-[3px_3px_0_rgba(22,20,15,0.14)]"
+          collisionPadding={8}
+          className="anim-pop z-50 min-w-44 max-w-[calc(100vw-1rem)] rounded-md border border-ink bg-card p-1 shadow-[3px_3px_0_rgba(22,20,15,0.14)] sm:min-w-48"
         >
           {children}
         </DropdownMenu.Content>
@@ -44,7 +45,9 @@ export function MenuItem({
     <DropdownMenu.Item
       onSelect={onSelect}
       className={cn(
-        "flex cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm outline-none",
+        // min-w-0 lets a truncate child (e.g. a long house name in the switcher) actually shrink
+        // and ellipsize instead of forcing the whole menu wider than the viewport (mobile QA #47).
+        "flex min-w-0 cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm outline-none",
         "data-[highlighted]:bg-panel",
         danger ? "text-debt" : "text-ink",
         className
@@ -81,7 +84,8 @@ export function MenuSub({ label, children }: { label: ReactNode; children: React
         <DropdownMenu.SubContent
           sideOffset={4}
           alignOffset={-4}
-          className="anim-pop z-50 min-w-48 rounded-md border border-ink bg-card p-1 shadow-[3px_3px_0_rgba(22,20,15,0.14)]"
+          collisionPadding={8}
+          className="anim-pop z-50 min-w-44 max-w-[calc(100vw-1rem)] rounded-md border border-ink bg-card p-1 shadow-[3px_3px_0_rgba(22,20,15,0.14)] sm:min-w-48"
         >
           {children}
         </DropdownMenu.SubContent>

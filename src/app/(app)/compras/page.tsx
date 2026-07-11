@@ -447,7 +447,8 @@ function ItemRow({
             type="button"
             aria-label={t("itemActions")}
             disabled={busy}
-            className="shrink-0 rounded-sm px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink disabled:opacity-50"
+            // min-h-11 min-w-11: 44px touch floor on mobile (D3 — was 31x26); sm:* restores compact desktop.
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink disabled:opacity-50 sm:min-h-0 sm:min-w-0"
           >
             ⋯
           </button>

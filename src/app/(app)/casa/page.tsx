@@ -300,7 +300,9 @@ export default function CasaPage() {
                         <button
                           type="button"
                           onClick={() => setLeaveConfirmOpen(true)}
-                          className="label-mono shrink-0 text-debt hover:underline"
+                          // min-h-11: 44px touch floor on mobile (D3 — destructive action was 18px
+                          // tall); sm:min-h-0 restores the compact desktop size.
+                          className="label-mono inline-flex min-h-11 shrink-0 items-center text-debt hover:underline sm:min-h-0"
                         >
                           {t("leave")}
                         </button>
@@ -310,7 +312,7 @@ export default function CasaPage() {
                             <button
                               type="button"
                               aria-label={t("removeConfirmTitle", { name: m.name })}
-                              className="shrink-0 rounded-sm px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink"
+                              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink sm:min-h-0 sm:min-w-0"
                             >
                               ⋯
                             </button>

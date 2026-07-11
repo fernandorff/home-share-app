@@ -89,6 +89,7 @@ function ProfileSection({ me, onSaved }: { me: Me; onSaved: () => Promise<void> 
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={80}
+              autoComplete="name"
               required
             />
           </Field>
@@ -102,6 +103,7 @@ function ProfileSection({ me, onSaved }: { me: Me; onSaved: () => Promise<void> 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               maxLength={254}
+              autoComplete="email"
             />
           </Field>
           <Field label={t("username")} htmlFor="account-username">
@@ -113,6 +115,7 @@ function ProfileSection({ me, onSaved }: { me: Me; onSaved: () => Promise<void> 
               onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
               maxLength={30}
               autoCapitalize="none"
+              autoComplete="username"
               required
             />
           </Field>
