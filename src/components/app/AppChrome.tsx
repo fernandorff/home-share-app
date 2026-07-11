@@ -73,7 +73,7 @@ function useIsActive() {
   return (href: string) => pathname === href || pathname.startsWith(href + "/");
 }
 
-function CasaSelector() {
+function HouseSelector() {
   const { me, activeGroup, switchGroup } = useSession();
   const router = useRouter();
   const t = useTranslations("Nav");
@@ -161,7 +161,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             HOME<span className="text-stamp">SHARE</span>
           </Link>
           <span className="hidden text-faint sm:inline" aria-hidden>·</span>
-          <CasaSelector />
+          <HouseSelector />
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <UserMenu />
           </div>

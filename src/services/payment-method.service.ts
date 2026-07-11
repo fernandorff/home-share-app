@@ -8,7 +8,7 @@ export const paymentMethodService = makeTagService({
   model: 'paymentMethod',
   column: 'formas_pagamento',
   kind: 'payment',
-  notFound: 'Forma de pagamento não encontrada',
-  duplicate: 'Já existe uma forma de pagamento com esse nome',
-  systemCollision: 'Essa forma de pagamento já existe como padrão do sistema',
+  notFound: 'Payment method not found',
+  duplicate: 'A payment method with that name already exists',
+  systemCollision: 'That payment method already exists as a system default',
 })

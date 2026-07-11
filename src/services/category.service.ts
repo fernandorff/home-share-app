@@ -8,7 +8,7 @@ export const categoryService = makeTagService({
   model: 'category',
   column: 'categorias',
   kind: 'category',
-  notFound: 'Categoria não encontrada',
-  duplicate: 'Já existe uma categoria com esse nome',
-  systemCollision: 'Essa categoria já existe como padrão do sistema',
+  notFound: 'Category not found',
+  duplicate: 'A category with that name already exists',
+  systemCollision: 'That category already exists as a system default',
 })

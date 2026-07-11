@@ -29,8 +29,8 @@ function createdCount(created: ImportResult["created"]): number {
 // Mirrors the columns/format the parser (lib/csv-parser.ts) actually accepts (BL-25/U3 —
 // the modal gave no hint of the required shape, so a mismatched CSV just 400'd).
 const CSV_TEMPLATE =
-  "descricao,valor,data,plataforma,observacao\n" +
-  'Compra no mercado,89.90,15/03/2026,Mercado Livre,"Compra semanal"\n';
+  "description,amount,date,platform,notes\n" +
+  'Grocery run,89.90,15/03/2026,Mercado Livre,"Weekly groceries"\n';
 const CSV_TEMPLATE_HREF = `data:text/csv;charset=utf-8,${encodeURIComponent(CSV_TEMPLATE)}`;
 
 export function ImportCsvModal({
@@ -46,6 +46,7 @@ export function ImportCsvModal({
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
   const apiErr = useApiError();
+  const tCsv = useTranslations("CsvErrors");
 
   const [file, setFile] = useState<File | null>(null);
   const [platform, setPlatform] = useState<string>("");
@@ -127,7 +128,7 @@ export function ImportCsvModal({
               <span className="mt-1 block">{t("csvColumnsHelp")}</span>
               <a
                 href={CSV_TEMPLATE_HREF}
-                download="modelo-despesas.csv"
+                download="expenses-template.csv"
                 className="mt-1 inline-block text-ink-soft underline decoration-dotted underline-offset-2 hover:text-ink"
               >
                 {t("downloadTemplate")}
@@ -219,7 +220,7 @@ export function ImportCsvModal({
                       <span className="font-display font-bold text-debt">
                         {t("rowLabel", { line: row.line })}
                       </span>{" "}
-                      {row.reason}
+                      {tCsv(row.code, row.values)}
                     </li>
                   ))}
                 </ul>

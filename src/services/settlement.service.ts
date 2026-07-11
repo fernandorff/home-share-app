@@ -48,7 +48,7 @@ export class SettlementService {
       where: { publicId, groupId },
       include: settlementInclude,
     })
-    if (!settlement) throw new ApiError('Pagamento não encontrado nesta casa', 404)
+    if (!settlement) throw new ApiError('Payment not found in this house', 404)
     await prisma.settlement.delete({ where: { id: settlement.id } })
     return settlement
   }

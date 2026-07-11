@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
     // Same shared bucket as PATCH /api/auth/me — both gate on the same current-password secret.
     if (!rateLimit(`account:pw:${check.session.userId}`, 10, 60_000)) {
-      return NextResponse.json({ error: 'Muitas tentativas. Tente novamente em instantes.', code: 'RATE_LIMITED' }, { status: 429 })
+      return NextResponse.json({ error: 'Too many attempts. Try again shortly.', code: 'RATE_LIMITED' }, { status: 429 })
     }
 
     const body = await request.json()
@@ -41,6 +41,6 @@ export async function POST(request: Request) {
     response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions())
     return response
   } catch (error) {
-    return handleApiError(error, 'Erro ao atualizar a senha')
+    return handleApiError(error, 'Failed to update password')
   }
 }

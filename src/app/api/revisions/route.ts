@@ -19,6 +19,6 @@ export async function GET(request: Request) {
     const revisions = await revisionService.listForGroup(check.groupId, { entityType, limit })
     return NextResponse.json({ revisions })
   } catch (error) {
-    return handleApiError(error, 'Erro ao carregar o histórico detalhado')
+    return handleApiError(error, 'Failed to load detailed history')
   }
 }

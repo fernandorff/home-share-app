@@ -8,16 +8,29 @@ import { ApiError } from '@/lib/errors'
 const MAX_AMOUNT_CENTS = 9_999_999_999
 
 export interface ExpenseRow {
-  descricao: string
-  observacao?: string
-  valor: number
-  data: string
-  plataforma?: string
+  description: string
+  notes?: string
+  amount: number
+  date: string
+  platform?: string
 }
+
+// Per-row failures are structured (code + interpolation values), not prose — the client renders
+// them localized via the CsvErrors i18n namespace, so the parser stays language-neutral.
+export type InvalidRowCode =
+  | 'EMPTY_DESCRIPTION'
+  | 'DESCRIPTION_TOO_LONG'
+  | 'NOTES_TOO_LONG'
+  | 'EMPTY_AMOUNT'
+  | 'INVALID_AMOUNT'
+  | 'AMOUNT_TOO_HIGH'
+  | 'INVALID_DATE'
 
 export interface InvalidRow {
   line: number
-  reason: string
+  code: InvalidRowCode
+  /** ICU interpolation values for the code's message (offending value, limit, …). */
+  values?: { value?: string; max?: number }
 }
 
 export interface ParsedCSV {
@@ -30,36 +43,38 @@ export const CSV_MAX_BYTES = 1024 * 1024 // 1MB
 
 /**
  * Full parse with per-line error reporting — invalid lines are never silently
- * dropped; each one comes back with its 1-based line number and a reason.
+ * dropped; each one comes back with its 1-based line number and a reason code.
  */
 export function parseCSVDetailed(csvText: string): ParsedCSV {
   // These are user-input errors (the caller uploaded a malformed file), so they carry a 400 —
   // a plain Error would bubble up as a generic 500 (found in QA: header/size/line-count issues
   // returned 500 instead of a helpful 400).
   if (new TextEncoder().encode(csvText).length > CSV_MAX_BYTES) {
-    throw new ApiError('Arquivo muito grande (máx. 1MB)', 400)
+    throw new ApiError('File too large (max. 1MB)', 400)
   }
 
   const lines = csvText.trim().split('\n')
   if (lines.length < 2) return { expenses: [], invalidRows: [] }
   if (lines.length - 1 > CSV_MAX_LINES) {
-    throw new ApiError(`CSV com linhas demais (máx. ${CSV_MAX_LINES})`, 400)
+    throw new ApiError(`CSV has too many lines (max. ${CSV_MAX_LINES})`, 400)
   }
 
-  // Detectar separador (vírgula ou ponto-e-vírgula)
+  // Detect the separator (comma or semicolon)
   const firstLine = lines[0]
   const separator = firstLine.includes(';') ? ';' : ','
 
   const headers = lines[0].split(separator).map(h => h.trim().toLowerCase().replace(/"/g, ''))
 
-  const descricaoIndex = headers.findIndex(h => h === 'descricao' || h === 'descrição' || h === 'description')
-  const observacaoIndex = headers.findIndex(h => h === 'observacao' || h === 'observação' || h === 'obs' || h === 'notes')
-  const valorIndex = headers.findIndex(h => h === 'valor' || h === 'value' || h === 'amount')
-  const dataIndex = headers.findIndex(h => h === 'data' || h === 'date')
-  const plataformaIndex = headers.findIndex(h => h === 'plataforma' || h === 'platform')
+  // Both English and Portuguese header names are accepted — pt-BR spreadsheets predate the
+  // English-only codebase and keep working.
+  const descriptionIndex = headers.findIndex(h => h === 'descricao' || h === 'descrição' || h === 'description')
+  const notesIndex = headers.findIndex(h => h === 'observacao' || h === 'observação' || h === 'obs' || h === 'notes')
+  const amountIndex = headers.findIndex(h => h === 'valor' || h === 'value' || h === 'amount')
+  const dateIndex = headers.findIndex(h => h === 'data' || h === 'date')
+  const platformIndex = headers.findIndex(h => h === 'plataforma' || h === 'platform')
 
-  if (descricaoIndex === -1 || valorIndex === -1) {
-    throw new ApiError('CSV deve conter colunas "descricao" e "valor"', 400)
+  if (descriptionIndex === -1 || amountIndex === -1) {
+    throw new ApiError('CSV must contain "description" and "amount" columns', 400)
   }
 
   const expenses: ExpenseRow[] = []
@@ -69,55 +84,55 @@ export function parseCSVDetailed(csvText: string): ParsedCSV {
     const line = lines[i].trim()
     if (!line) continue
 
-    // Parse respeitando aspas
+    // Parse respecting quoted fields
     const values = parseCSVLine(line, separator)
 
-    const descricao = values[descricaoIndex]?.replace(/"/g, '').trim()
-    const observacao = observacaoIndex !== -1 ? values[observacaoIndex]?.replace(/"/g, '').trim() : undefined
-    const valorStr = values[valorIndex]?.replace(/"/g, '').trim()
-    const dataStr = dataIndex !== -1 ? values[dataIndex]?.replace(/"/g, '').trim() : ''
-    const plataforma = plataformaIndex !== -1 ? values[plataformaIndex]?.replace(/"/g, '').trim() : undefined
+    const description = values[descriptionIndex]?.replace(/"/g, '').trim()
+    const notes = notesIndex !== -1 ? values[notesIndex]?.replace(/"/g, '').trim() : undefined
+    const amountStr = values[amountIndex]?.replace(/"/g, '').trim()
+    const dateStr = dateIndex !== -1 ? values[dateIndex]?.replace(/"/g, '').trim() : ''
+    const platform = platformIndex !== -1 ? values[platformIndex]?.replace(/"/g, '').trim() : undefined
 
-    if (!descricao) {
-      invalidRows.push({ line: i + 1, reason: 'descrição vazia' })
+    if (!description) {
+      invalidRows.push({ line: i + 1, code: 'EMPTY_DESCRIPTION' })
       continue
     }
-    if (descricao.length > LIMITS.DESCRIPTION) {
-      invalidRows.push({ line: i + 1, reason: `descrição muito longa (máx. ${LIMITS.DESCRIPTION} caracteres)` })
+    if (description.length > LIMITS.DESCRIPTION) {
+      invalidRows.push({ line: i + 1, code: 'DESCRIPTION_TOO_LONG', values: { max: LIMITS.DESCRIPTION } })
       continue
     }
-    if (observacao && observacao.length > LIMITS.NOTES) {
-      invalidRows.push({ line: i + 1, reason: `observação muito longa (máx. ${LIMITS.NOTES} caracteres)` })
+    if (notes && notes.length > LIMITS.NOTES) {
+      invalidRows.push({ line: i + 1, code: 'NOTES_TOO_LONG', values: { max: LIMITS.NOTES } })
       continue
     }
-    if (!valorStr) {
-      invalidRows.push({ line: i + 1, reason: 'valor vazio' })
-      continue
-    }
-
-    const valor = parseMoneyValue(valorStr)
-    if (valor === null || valor <= 0) {
-      invalidRows.push({ line: i + 1, reason: `valor inválido: "${valorStr}"` })
-      continue
-    }
-    if (toCents(valor) > MAX_AMOUNT_CENTS) {
-      invalidRows.push({ line: i + 1, reason: `valor muito alto (máx. 99.999.999,99): "${valorStr}"` })
+    if (!amountStr) {
+      invalidRows.push({ line: i + 1, code: 'EMPTY_AMOUNT' })
       continue
     }
 
-    // Parse data
-    let data = new Date().toISOString().split('T')[0] // Default: hoje
-    if (dataStr) {
-      const parsed = parseDate(dataStr)
+    const amount = parseMoneyValue(amountStr)
+    if (amount === null || amount <= 0) {
+      invalidRows.push({ line: i + 1, code: 'INVALID_AMOUNT', values: { value: amountStr } })
+      continue
+    }
+    if (toCents(amount) > MAX_AMOUNT_CENTS) {
+      invalidRows.push({ line: i + 1, code: 'AMOUNT_TOO_HIGH', values: { value: amountStr } })
+      continue
+    }
+
+    // Parse the date
+    let date = new Date().toISOString().split('T')[0] // Default: today
+    if (dateStr) {
+      const parsed = parseDate(dateStr)
       if (parsed) {
-        data = parsed
+        date = parsed
       } else {
-        invalidRows.push({ line: i + 1, reason: `data inválida: "${dataStr}"` })
+        invalidRows.push({ line: i + 1, code: 'INVALID_DATE', values: { value: dateStr } })
         continue
       }
     }
 
-    expenses.push({ descricao, observacao: observacao || undefined, valor, data, plataforma: plataforma || undefined })
+    expenses.push({ description, notes: notes || undefined, amount, date, platform: platform || undefined })
   }
 
   return { expenses, invalidRows }
@@ -150,50 +165,50 @@ function parseCSVLine(line: string, separator: string): string[] {
 }
 
 /**
- * Parse valor monetário aceitando formatos:
- * - Brasileiro: R$ 1.234,56 ou 26,00
- * - Internacional: 1,234.56 ou 26.00
+ * Parse a monetary value accepting the formats:
+ * - Brazilian: R$ 1.234,56 or 26,00
+ * - International: 1,234.56 or 26.00
  */
-export function parseMoneyValue(valorStr: string): number | null {
-  const cleanValue = valorStr
+export function parseMoneyValue(amountStr: string): number | null {
+  const cleanValue = amountStr
     .replace('R$', '')
     .replace(/\s/g, '')
     .trim()
 
-  // Detectar formato:
-  // - Se tem vírgula seguida de 1-2 dígitos no final = vírgula é decimal (BR: 1.234,56 ou 26,00)
-  // - Se tem ponto seguido de 1-2 dígitos no final e não tem vírgula = ponto é decimal (INT: 1234.56 ou 26.00)
+  // Detect the format:
+  // - Comma followed by 1-2 trailing digits = comma is the decimal (BR: 1.234,56 or 26,00)
+  // - Dot followed by 1-2 trailing digits and no comma = dot is the decimal (INT: 1234.56 or 26.00)
 
   const hasCommaDecimal = /,\d{1,2}$/.test(cleanValue)
   // "1,234.56": the trailing dot+decimals win; commas are thousands separators
   const hasDotDecimal = /\.\d{1,2}$/.test(cleanValue)
 
-  let valor: number
+  let amount: number
   if (hasCommaDecimal) {
-    // Formato brasileiro: 1.234,56 -> remove pontos de milhar, troca vírgula por ponto
-    valor = parseFloat(cleanValue.replace(/\./g, '').replace(',', '.'))
+    // Brazilian format: 1.234,56 -> strip thousands dots, swap comma for dot
+    amount = parseFloat(cleanValue.replace(/\./g, '').replace(',', '.'))
   } else if (hasDotDecimal) {
-    // Formato internacional: 1,234.56 ou 26.00 -> remove vírgulas de milhar
-    valor = parseFloat(cleanValue.replace(/,/g, ''))
+    // International format: 1,234.56 or 26.00 -> strip thousands commas
+    amount = parseFloat(cleanValue.replace(/,/g, ''))
   } else {
-    // Sem decimal explícito, tenta parse direto
-    valor = parseFloat(cleanValue.replace(/[,\.]/g, ''))
+    // No explicit decimal, try a direct parse
+    amount = parseFloat(cleanValue.replace(/[,\.]/g, ''))
   }
 
-  return isNaN(valor) ? null : valor
+  return isNaN(amount) ? null : amount
 }
 
 /**
- * Parse data aceitando formatos:
- * - DD/MM/YYYY ou DD-MM-YYYY (brasileiro)
+ * Parse a date accepting the formats:
+ * - DD/MM/YYYY or DD-MM-YYYY (Brazilian)
  * - YYYY-MM-DD (ISO)
  */
 export function parseDate(dateStr: string): string | null {
   let year: string, month: string, day: string
 
-  // Formato DD/MM/YYYY ou DD-MM-YYYY
+  // DD/MM/YYYY or DD-MM-YYYY format
   const brMatch = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
-  // Formato YYYY-MM-DD
+  // YYYY-MM-DD format
   const isoMatch = dateStr.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/)
 
   if (brMatch) {

@@ -13,7 +13,7 @@ export async function PATCH(
 
     const { itemId } = await params
     if (!isValidUUID(itemId)) {
-      return NextResponse.json({ error: 'ID de item inválido' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid item ID' }, { status: 400 })
     }
 
     const item = await shoppingItemService.togglePurchased(check.groupId, itemId)
@@ -30,6 +30,6 @@ export async function PATCH(
 
     return NextResponse.json({ item })
   } catch (error) {
-    return handleApiError(error, 'Erro ao alternar item')
+    return handleApiError(error, 'Failed to toggle item')
   }
 }

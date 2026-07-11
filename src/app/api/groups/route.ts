@@ -11,7 +11,7 @@ export async function GET() {
     const groups = await groupService.listForUser(check.session.userId)
     return NextResponse.json({ groups })
   } catch (error) {
-    return handleApiError(error, 'Erro ao listar casas')
+    return handleApiError(error, 'Failed to list houses')
   }
 }
 
@@ -23,10 +23,10 @@ export async function POST(request: Request) {
     const body = await request.json()
     const name = typeof body.name === 'string' ? body.name.trim() : ''
     if (!name) {
-      return NextResponse.json({ error: 'Nome da casa é obrigatório', code: 'NAME_REQUIRED' }, { status: 400 })
+      return NextResponse.json({ error: 'House name is required', code: 'NAME_REQUIRED' }, { status: 400 })
     }
     if (name.length > 80) {
-      return NextResponse.json({ error: 'Nome da casa muito longo (máx. 80 caracteres)', code: 'NAME_TOO_LONG' }, { status: 400 })
+      return NextResponse.json({ error: 'House name too long (max 80 characters)', code: 'NAME_TOO_LONG' }, { status: 400 })
     }
 
     const group = await groupService.create(check.session.userId, name)
@@ -38,6 +38,6 @@ export async function POST(request: Request) {
     response.cookies.set(GROUP_COOKIE, String(group.id), groupCookieOptions())
     return response
   } catch (error) {
-    return handleApiError(error, 'Erro ao criar casa')
+    return handleApiError(error, 'Failed to create house')
   }
 }

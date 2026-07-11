@@ -16,18 +16,18 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     const { expenseId: expensePublicId } = await params
     if (!isValidUUID(expensePublicId)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
     // Group-scoped: never expose another house's expense. The trail keys on the internal id.
     const expense = await expenseService.findByPublicId(check.groupId, expensePublicId)
     if (!expense) {
-      return NextResponse.json({ error: 'Despesa não encontrada' }, { status: 404 })
+      return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
     }
 
     const revisions = await revisionService.listForEntity(check.groupId, 'Expense', String(expense.id))
     return NextResponse.json({ revisions })
   } catch (error) {
-    return handleApiError(error, 'Erro ao carregar o histórico da despesa')
+    return handleApiError(error, 'Failed to load expense history')
   }
 }

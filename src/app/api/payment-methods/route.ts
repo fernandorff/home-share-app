@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ paymentMethods })
   } catch (error) {
-    return handleApiError(error, 'Erro ao listar formas de pagamento')
+    return handleApiError(error, 'Failed to list payment methods')
   }
 }
 
@@ -30,11 +30,11 @@ export async function POST(request: Request) {
     const name = typeof body?.name === 'string' ? body.name.trim() : ''
 
     if (!name) {
-      return NextResponse.json({ error: 'Nome é obrigatório', code: 'NAME_REQUIRED' }, { status: 400 })
+      return NextResponse.json({ error: 'Name is required', code: 'NAME_REQUIRED' }, { status: 400 })
     }
     if (name.length > LIMITS.PAYMENT_NAME) {
       return NextResponse.json(
-        { error: `Nome muito longo (máx. ${LIMITS.PAYMENT_NAME} caracteres)`, code: 'NAME_TOO_LONG' },
+        { error: `Name too long (max ${LIMITS.PAYMENT_NAME} characters)`, code: 'NAME_TOO_LONG' },
         { status: 400 }
       )
     }
@@ -42,6 +42,6 @@ export async function POST(request: Request) {
     const paymentMethod = await paymentMethodService.create(check.groupId, name)
     return NextResponse.json({ paymentMethod }, { status: 201 })
   } catch (error) {
-    return handleApiError(error, 'Erro ao criar forma de pagamento')
+    return handleApiError(error, 'Failed to create payment method')
   }
 }

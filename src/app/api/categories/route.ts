@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ categories })
   } catch (error) {
-    return handleApiError(error, 'Erro ao listar categorias')
+    return handleApiError(error, 'Failed to list categories')
   }
 }
 
@@ -30,11 +30,11 @@ export async function POST(request: Request) {
     const name = typeof body?.name === 'string' ? body.name.trim() : ''
 
     if (!name) {
-      return NextResponse.json({ error: 'Nome é obrigatório', code: 'NAME_REQUIRED' }, { status: 400 })
+      return NextResponse.json({ error: 'Name is required', code: 'NAME_REQUIRED' }, { status: 400 })
     }
     if (name.length > LIMITS.CATEGORY_NAME) {
       return NextResponse.json(
-        { error: `Nome muito longo (máx. ${LIMITS.CATEGORY_NAME} caracteres)`, code: 'NAME_TOO_LONG' },
+        { error: `Name too long (max ${LIMITS.CATEGORY_NAME} characters)`, code: 'NAME_TOO_LONG' },
         { status: 400 }
       )
     }
@@ -42,6 +42,6 @@ export async function POST(request: Request) {
     const category = await categoryService.create(check.groupId, name)
     return NextResponse.json({ category }, { status: 201 })
   } catch (error) {
-    return handleApiError(error, 'Erro ao criar categoria')
+    return handleApiError(error, 'Failed to create category')
   }
 }

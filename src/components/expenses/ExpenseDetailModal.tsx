@@ -178,7 +178,7 @@ function ExpenseHistory({ expense }: { expense: Expense }) {
 
   const fieldLabelKey: Record<string, string> = {
     description: "description",
-    // colAmount is a plain "Valor"; amountLabel is an ICU message that requires a {symbol} arg.
+    // colAmount is a plain "Amount" label; amountLabel is an ICU message that requires a {symbol} arg.
     amount: "colAmount",
     categories: "categoryLabel",
     platforms: "platformLabel",

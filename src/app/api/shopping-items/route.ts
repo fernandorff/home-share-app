@@ -10,7 +10,7 @@ export async function GET() {
     const items = await shoppingItemService.list(check.groupId)
     return NextResponse.json({ items })
   } catch (error) {
-    return handleApiError(error, 'Erro ao listar itens')
+    return handleApiError(error, 'Failed to list items')
   }
 }
 
@@ -23,10 +23,10 @@ export async function POST(request: Request) {
     const { name } = body
 
     if (typeof name !== 'string' || !name.trim()) {
-      return NextResponse.json({ error: 'Nome é obrigatório', code: 'NAME_REQUIRED' }, { status: 400 })
+      return NextResponse.json({ error: 'Name is required', code: 'NAME_REQUIRED' }, { status: 400 })
     }
     if (name.trim().length > 200) {
-      return NextResponse.json({ error: 'Nome muito longo (máx. 200 caracteres)', code: 'NAME_TOO_LONG' }, { status: 400 })
+      return NextResponse.json({ error: 'Name too long (max 200 characters)', code: 'NAME_TOO_LONG' }, { status: 400 })
     }
 
     const item = await shoppingItemService.create(check.groupId, name, check.session.userId)
@@ -42,6 +42,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ item }, { status: 201 })
   } catch (error) {
-    return handleApiError(error, 'Erro ao criar item')
+    return handleApiError(error, 'Failed to create item')
   }
 }

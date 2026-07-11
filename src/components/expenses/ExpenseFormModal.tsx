@@ -44,7 +44,7 @@ interface ExpenseFormModalProps {
   onSaved: () => void;
 }
 
-type CustomMode = "valor" | "percent";
+type CustomMode = "amount" | "percent";
 
 /** Selected-chip fill per tag dimension (mirrors the Tag tones; color carries the dimension). */
 const CHIP_ON_TONES: Record<TagTone, string> = {
@@ -130,7 +130,7 @@ export function ExpenseFormModal({
   const [amountMasked, setAmountMasked] = useState("");
   const [date, setDate] = useState(todayInputValue());
   const [splitEqually, setSplitEqually] = useState(true);
-  const [customMode, setCustomMode] = useState<CustomMode>("valor");
+  const [customMode, setCustomMode] = useState<CustomMode>("amount");
   const [custom, setCustom] = useState<Record<number, string>>({});
   const [percent, setPercent] = useState<Record<number, number>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -180,7 +180,7 @@ export function ExpenseFormModal({
   useEffect(() => {
     if (!open) return;
     isResettingRef.current = true;
-    setCustomMode("valor");
+    setCustomMode("amount");
     if (expense) {
       setPayerId(String(expense.payerId));
       setSelCategories(new Set(expense.categories));
@@ -206,7 +206,7 @@ export function ExpenseFormModal({
       setCustom({});
     }
     // Seed the percent map from the REAL split when editing a custom-split expense, so merely
-    // toggling to "por percentual" (without editing) doesn't silently rewrite e.g. 70/30 as 50/50.
+    // toggling to "by percent" (without editing) doesn't silently rewrite e.g. 70/30 as 50/50.
     const seeded: Record<number, number> = {};
     if (expense && !detectSplitEqually(expense, members)) {
       const total = toCents(expense.amount);
@@ -254,7 +254,7 @@ export function ExpenseFormModal({
     [custom, members, locale]
   );
   const diffCents = totalCents - customSumCents;
-  const valorMatches = totalCents > 0 && diffCents === 0;
+  const amountMatches = totalCents > 0 && diffCents === 0;
 
   // ---- Custom by percentage ----
   const totalPct = useMemo(
@@ -272,7 +272,7 @@ export function ExpenseFormModal({
     return splitCents(totalCents, members.length);
   }, [members.length, totalCents]);
 
-  const customOk = customMode === "valor" ? valorMatches : percentMatches;
+  const customOk = customMode === "amount" ? amountMatches : percentMatches;
   const canSubmit =
     description.trim().length > 0 &&
     totalCents > 0 &&
@@ -532,12 +532,12 @@ export function ExpenseFormModal({
             <div className="flex items-center justify-between gap-3">
               <p className="label-mono">{t("splitBy")}</p>
               <div className="grid w-[9rem] shrink-0 grid-cols-2 gap-1.5">
-                {subToggle("valor", t("byValue"))}
+                {subToggle("amount", t("byValue"))}
                 {subToggle("percent", t("byPercent"))}
               </div>
             </div>
 
-            {customMode === "valor" ? (
+            {customMode === "amount" ? (
               <>
                 <ul className="flex flex-col gap-2">
                   {members.map((m) => (
@@ -578,7 +578,7 @@ export function ExpenseFormModal({
                   </span>
                 </div>
                 <p className="text-xs">
-                  {valorMatches ? (
+                  {amountMatches ? (
                     <span className="text-credit">{t("matches")}</span>
                   ) : totalCents <= 0 ? (
                     <span className="text-faint">{t("enterTotal")}</span>

@@ -14,12 +14,12 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     const { platformId } = await params
     if (!isValidUUID(platformId)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
     await platformService.delete(check.groupId, platformId)
-    return NextResponse.json({ message: 'Plataforma excluída com sucesso' })
+    return NextResponse.json({ message: 'Platform deleted successfully' })
   } catch (error) {
-    return handleApiError(error, 'Erro ao excluir plataforma')
+    return handleApiError(error, 'Failed to delete platform')
   }
 }

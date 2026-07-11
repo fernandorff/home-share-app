@@ -26,7 +26,7 @@ export async function middleware(request: NextRequest) {
 
   if (!session) {
     if (pathname.startsWith('/api')) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
     const loginUrl = new URL('/auth/login', request.url)
     return NextResponse.redirect(loginUrl)

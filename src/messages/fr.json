@@ -470,6 +470,15 @@
     "MEMBER_NOT_FOUND": "Cette personne n'est plus membre de cette maison.",
     "CANNOT_REMOVE_SELF": "Utilisez « Quitter la maison » pour vous retirer vous-même."
   },
+  "CsvErrors": {
+    "EMPTY_DESCRIPTION": "Description vide",
+    "DESCRIPTION_TOO_LONG": "Description trop longue (max. {max} caractères)",
+    "NOTES_TOO_LONG": "Note trop longue (max. {max} caractères)",
+    "EMPTY_AMOUNT": "Montant vide",
+    "INVALID_AMOUNT": "Montant invalide : “{value}”",
+    "AMOUNT_TOO_HIGH": "Montant trop élevé (max. 99 999 999,99) : “{value}”",
+    "INVALID_DATE": "Date invalide : “{value}”"
+  },
   "Currency": {
     "title": "Devise",
     "hint": "Comment les montants sont affichés dans ce foyer (affichage uniquement — sans conversion).",

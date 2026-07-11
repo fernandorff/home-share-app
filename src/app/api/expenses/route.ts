@@ -66,14 +66,14 @@ export async function GET(request: Request) {
     const sortDirection = searchParams.get('sortDirection') === 'asc' ? 'asc' as const : 'desc' as const
 
     if (!(VALID_SORT_FIELDS as readonly string[]).includes(sortField)) {
-      return NextResponse.json({ error: `Campo de ordenação inválido: ${sortField}` }, { status: 400 })
+      return NextResponse.json({ error: `Invalid sort field: ${sortField}` }, { status: 400 })
     }
 
     const filters = parseExpenseFilters(searchParams)
     const result = await expenseService.list(check.groupId, { page, pageSize, sortField, sortDirection, filters })
     return NextResponse.json(result)
   } catch (error) {
-    return handleApiError(error, 'Erro ao listar despesas')
+    return handleApiError(error, 'Failed to list expenses')
   }
 }
 
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     const involvedIds = [payerId, ...participants.map(p => p.userId)]
     // Active only (BL-16) — an ex-member can't be assigned to a brand-new expense.
     if (!(await allActiveGroupMembers(check.groupId, involvedIds))) {
-      return NextResponse.json({ error: 'Pagador ou participante não é membro desta casa' }, { status: 400 })
+      return NextResponse.json({ error: 'Payer or participant is not a member of this house' }, { status: 400 })
     }
 
     const tagError = await validateExpenseTags(check.groupId, validation.data)
@@ -117,6 +117,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ expense }, { status: 201 })
   } catch (error) {
-    return handleApiError(error, 'Erro ao criar despesa')
+    return handleApiError(error, 'Failed to create expense')
   }
 }

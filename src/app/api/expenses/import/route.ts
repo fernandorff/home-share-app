@@ -23,7 +23,7 @@ async function parseRequestBody(request: Request): Promise<ParsedImportBody> {
   if (contentType.includes('multipart/form-data')) {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-    if (!file) throw new Error('Arquivo CSV não enviado')
+    if (!file) throw new Error('CSV file not provided')
     csvText = await file.text()
 
     const divideParam = formData.get('splitEqually')
@@ -55,12 +55,12 @@ export async function POST(request: Request) {
     const { csvText, splitEqually, payerId, platform } = await parseRequestBody(request)
 
     if (!csvText || csvText.trim().length === 0) {
-      return NextResponse.json({ error: 'CSV vazio' }, { status: 400 })
+      return NextResponse.json({ error: 'Empty CSV' }, { status: 400 })
     }
 
     // Platform is optional now; if set it must be a system default or a custom platform of the house.
     if (platform && !isDefaultPlatform(platform) && !(await platformService.existsInGroup(check.groupId, platform))) {
-      return NextResponse.json({ error: 'Plataforma inválida' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid platform' }, { status: 400 })
     }
 
     const members = await groupService.listMembers(check.groupId)
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     const effectivePayerId = payerId ?? check.session.userId
     if (!memberIds.includes(effectivePayerId)) {
-      return NextResponse.json({ error: 'Pagador não é membro desta casa' }, { status: 400 })
+      return NextResponse.json({ error: 'Payer is not a member of this house' }, { status: 400 })
     }
 
     const result = await expenseService.importFromCSV(
@@ -83,13 +83,13 @@ export async function POST(request: Request) {
     )
 
     return NextResponse.json({
-      message: `${result.created.length} despesas importadas com sucesso`,
+      message: `${result.created.length} expenses imported successfully`,
       created: result.created.length,
       invalidRows: result.invalidRows,
       totalValue: result.totalValue,
       expenses: result.created
     }, { status: 201 })
   } catch (error) {
-    return handleApiError(error, 'Erro ao importar despesas')
+    return handleApiError(error, 'Failed to import expenses')
   }
 }

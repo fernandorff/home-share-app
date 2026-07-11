@@ -202,7 +202,8 @@ export interface ShoppingItem {
 
 export interface InvalidRow {
   line: number;
-  reason: string;
+  code: string;
+  values?: { value?: string; max?: number };
 }
 
 export interface ImportResult {

@@ -33,7 +33,7 @@ function useQueryParamSetter() {
   };
 }
 
-export default function AtividadePage() {
+export default function ActivityPage() {
   const t = useTranslations("Activity");
   const { activeGroup } = useSession();
   const searchParams = useSearchParams();

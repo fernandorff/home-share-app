@@ -12,10 +12,10 @@ import { Button } from "@/components/ui/Button";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 
 const CODE_TO_KEY: Record<string, string> = {
-  google_indisponivel: "googleUnavailable",
-  google_cancelado: "googleCancelled",
-  google_estado: "googleState",
-  google_falha: "googleFailed",
+  google_unavailable: "googleUnavailable",
+  google_cancelled: "googleCancelled",
+  google_state: "googleState",
+  google_failed: "googleFailed",
 };
 
 export default function LoginPage() {

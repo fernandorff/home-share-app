@@ -75,7 +75,7 @@ interface PersonGroup {
   months: MonthGroup[];
 }
 
-/** "Junho / 2026" — locale-aware month, capitalized. */
+/** "June / 2026" — locale-aware month, capitalized. */
 function monthLabel(d: Date, locale: string): string {
   const m = new Intl.DateTimeFormat(locale, { month: "long" }).format(d);
   return `${m.charAt(0).toUpperCase()}${m.slice(1)} / ${d.getFullYear()}`;
@@ -92,7 +92,7 @@ function SortIndicator({
   return <span className="text-stamp">{direction === "asc" ? "▲" : "▼"}</span>;
 }
 
-export default function DespesasPage() {
+export default function ExpensesPage() {
   const { activeGroup, members, me } = useSession();
   const toast = useToast();
   const t = useTranslations("Expenses");
@@ -119,7 +119,7 @@ export default function DespesasPage() {
   const [toDate, setToDate] = useState("");
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  // Checkboxes are hidden until the user enters selection mode (the "Selecionar" button).
+  // Checkboxes are hidden until the user enters selection mode (the "Select" button).
   const [selectionMode, setSelectionMode] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);

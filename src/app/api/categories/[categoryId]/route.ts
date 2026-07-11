@@ -14,12 +14,12 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     const { categoryId } = await params
     if (!isValidUUID(categoryId)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
     await categoryService.delete(check.groupId, categoryId)
-    return NextResponse.json({ message: 'Categoria excluída com sucesso' })
+    return NextResponse.json({ message: 'Category deleted successfully' })
   } catch (error) {
-    return handleApiError(error, 'Erro ao excluir categoria')
+    return handleApiError(error, 'Failed to delete category')
   }
 }

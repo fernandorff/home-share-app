@@ -17,6 +17,6 @@ export async function POST() {
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return handleApiError(error, 'Erro ao sair da casa')
+    return handleApiError(error, 'Failed to leave house')
   }
 }

@@ -24,12 +24,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const { expenseId: expensePublicId } = await params
 
     if (!isValidUUID(expensePublicId)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
     const existingExpense = await expenseService.findByPublicId(check.groupId, expensePublicId)
     if (!existingExpense) {
-      return NextResponse.json({ error: 'Despesa não encontrada' }, { status: 404 })
+      return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
     }
 
     const body = await request.json()
@@ -51,7 +51,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const involvedIds = [payerId, ...participants.map(p => p.userId)]
     const newlyIntroducedIds = involvedIds.filter(id => !existingInvolvedIds.has(id))
     if (!(await allActiveGroupMembers(check.groupId, newlyIntroducedIds))) {
-      return NextResponse.json({ error: 'Pagador ou participante não é membro desta casa' }, { status: 400 })
+      return NextResponse.json({ error: 'Payer or participant is not a member of this house' }, { status: 400 })
     }
 
     const tagError = await validateExpenseTags(check.groupId, validation.data)
@@ -90,7 +90,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ expense })
   } catch (error) {
-    return handleApiError(error, 'Erro ao atualizar despesa')
+    return handleApiError(error, 'Failed to update expense')
   }
 }
 
@@ -102,12 +102,12 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const { expenseId: expensePublicId } = await params
 
     if (!isValidUUID(expensePublicId)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
     const expense = await expenseService.findByPublicId(check.groupId, expensePublicId)
     if (!expense) {
-      return NextResponse.json({ error: 'Despesa não encontrada' }, { status: 404 })
+      return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
     }
 
     await expenseService.delete(check.groupId, expense.id, check.session.userId, check.role === 'ADMIN')
@@ -122,8 +122,8 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       changes: { amount: String(expense.amount) },
     })
 
-    return NextResponse.json({ message: 'Despesa excluída com sucesso' })
+    return NextResponse.json({ message: 'Expense deleted successfully' })
   } catch (error) {
-    return handleApiError(error, 'Erro ao excluir despesa')
+    return handleApiError(error, 'Failed to delete expense')
   }
 }

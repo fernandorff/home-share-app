@@ -14,7 +14,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     const { settlementId } = await params
     if (!isValidUUID(settlementId)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
     const removed = await settlementService.delete(check.groupId, settlementId)
@@ -33,6 +33,6 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return handleApiError(error, 'Erro ao excluir pagamento')
+    return handleApiError(error, 'Failed to delete settlement')
   }
 }

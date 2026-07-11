@@ -13,7 +13,7 @@ import type { Member, Platform, Category, PaymentMethod } from "@/lib/types";
 
 /** The expense list's filter set — each dimension is multi-select (OR within a
  *  dimension, AND across dimensions). Edited as a draft inside the modal; only
- *  committed (and applied to the list) when the user submits "Filtrar". */
+ *  committed (and applied to the list) when the user submits "Filter". */
 export interface ExpenseFilters {
   query: string;
   payers: number[];

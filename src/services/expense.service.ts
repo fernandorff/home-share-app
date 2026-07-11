@@ -235,13 +235,13 @@ export class ExpenseService {
           select: { id: true, payerId: true, updatedAt: true }
         })
         if (!existing) {
-          throw new ApiError('Despesa não encontrada nesta casa', 404)
+          throw new ApiError('Expense not found in this house', 404)
         }
         if (!isAdmin && existing.payerId !== actingUserId) {
-          throw new ApiError('Você só pode editar despesas que você pagou (ou ser admin da casa)', 403, 'NOT_EXPENSE_OWNER')
+          throw new ApiError('You can only edit expenses you paid (or be a house admin)', 403, 'NOT_EXPENSE_OWNER')
         }
         if (expectedUpdatedAt && existing.updatedAt.toISOString() !== expectedUpdatedAt) {
-          throw new ApiError('Esta despesa foi alterada por outra pessoa. Recarregue para ver a versão mais recente.', 409, 'STALE_EXPENSE')
+          throw new ApiError('This expense was changed by someone else. Reload to see the latest version.', 409, 'STALE_EXPENSE')
         }
 
         if (participantData) {
@@ -274,7 +274,7 @@ export class ExpenseService {
       // 409 instead of a raw 500 — the client already knows how to prompt "reload".
       const code = e && typeof e === 'object' && 'code' in e ? (e as { code?: string }).code : undefined
       if (code === 'P2002' || code === 'P2034') {
-        throw new ApiError('Esta despesa foi alterada por outra pessoa. Recarregue para ver a versão mais recente.', 409, 'STALE_EXPENSE')
+        throw new ApiError('This expense was changed by someone else. Reload to see the latest version.', 409, 'STALE_EXPENSE')
       }
       throw e
     }
@@ -293,10 +293,10 @@ export class ExpenseService {
         select: { id: true, payerId: true }
       })
       if (!existing) {
-        throw new ApiError('Despesa não encontrada nesta casa', 404)
+        throw new ApiError('Expense not found in this house', 404)
       }
       if (!isAdmin && existing.payerId !== actingUserId) {
-        throw new ApiError('Você só pode excluir despesas que você pagou (ou ser admin da casa)', 403, 'NOT_EXPENSE_OWNER')
+        throw new ApiError('You can only delete expenses you paid (or be a house admin)', 403, 'NOT_EXPENSE_OWNER')
       }
       return tx.expense.delete({ where: { id: expenseId } })
     })
@@ -320,9 +320,9 @@ export class ExpenseService {
 
     if (expenses.length === 0) {
       const detail = invalidRows.length > 0
-        ? ` Linhas com erro: ${invalidRows.map(r => `${r.line} (${r.reason})`).join(', ')}`
+        ? ` Rows with errors: ${invalidRows.map(r => `${r.line} (${r.code})`).join(', ')}`
         : ''
-      throw new ApiError(`Nenhuma despesa válida encontrada no CSV.${detail}`, 400)
+      throw new ApiError(`No valid expenses found in the CSV.${detail}`, 400)
     }
 
     const platforms = platform ? [platform] : []
@@ -331,11 +331,11 @@ export class ExpenseService {
       groupId,
       payerId,
       platforms,
-      description: expense.descricao,
-      notes: expense.observacao || null,
-      amount: expense.valor,
+      description: expense.description,
+      notes: expense.notes || null,
+      amount: expense.amount,
       // Same convention as validateExpenseInput: noon local avoids UTC off-by-one
-      date: new Date(expense.data + 'T12:00:00'),
+      date: new Date(expense.date + 'T12:00:00'),
     }))
 
     // All-or-nothing: one failure rolls back the entire import (safe to retry). Three bulk writes.
@@ -351,8 +351,8 @@ export class ExpenseService {
       const participantRows = expenses.flatMap((expense, i) => {
         const expenseId = idByPublicId.get(expenseRows[i].publicId)!
         const participantData = splitEqually
-          ? equalSplit(expense.valor, memberIds)
-          : memberIds.map(userId => ({ userId, amount: userId === payerId ? expense.valor : 0 }))
+          ? equalSplit(expense.amount, memberIds)
+          : memberIds.map(userId => ({ userId, amount: userId === payerId ? expense.amount : 0 }))
         return participantData.map(p => ({ ...p, expenseId }))
       })
       await tx.expenseParticipant.createMany({ data: participantRows })
@@ -361,7 +361,7 @@ export class ExpenseService {
     return {
       created: expenses,
       invalidRows,
-      totalValue: expenses.reduce((sum, e) => sum + e.valor, 0)
+      totalValue: expenses.reduce((sum, e) => sum + e.amount, 0)
     }
   }
 

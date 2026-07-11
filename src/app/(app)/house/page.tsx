@@ -20,7 +20,7 @@ import { SUPPORTED_CURRENCIES } from "@/lib/currencies";
 import { useApiError } from "@/lib/api-errors";
 import type { Member } from "@/lib/types";
 
-export default function CasaPage() {
+export default function HousePage() {
   const t = useTranslations("Household");
   const tc = useTranslations("Common");
   const { me, activeGroup, members, membersLoading, refresh, refreshMembers, switchGroup } =

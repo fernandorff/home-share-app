@@ -12,7 +12,7 @@ export async function GET() {
 
     const user = await authService.getUserWithGroups(check.session.userId)
     if (!user) {
-      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     const cookieStore = await cookies()
@@ -22,7 +22,7 @@ export async function GET() {
 
     return NextResponse.json({ user, activeGroupId: activeGroup?.id ?? null })
   } catch (error) {
-    return handleApiError(error, 'Erro ao carregar sessão')
+    return handleApiError(error, 'Failed to load session')
   }
 }
 
@@ -38,10 +38,10 @@ export async function PATCH(request: Request) {
     const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : undefined
 
     if (name === undefined && email === undefined && username === undefined) {
-      return NextResponse.json({ error: 'Informe ao menos um campo para atualizar', code: 'NO_FIELDS' }, { status: 400 })
+      return NextResponse.json({ error: 'Provide at least one field to update', code: 'NO_FIELDS' }, { status: 400 })
     }
     if (name !== undefined && (!name || name.length > 80)) {
-      return NextResponse.json({ error: 'Nome é obrigatório (máx. 80 caracteres)', code: 'INVALID_NAME' }, { status: 400 })
+      return NextResponse.json({ error: 'Name is required (max 80 characters)', code: 'INVALID_NAME' }, { status: 400 })
     }
     if (email !== undefined) {
       const emailError = authService.validateEmail(email)
@@ -60,7 +60,7 @@ export async function PATCH(request: Request) {
     // changes — gate those attempts per authenticated user (shared bucket with /api/auth/password).
     if (email !== undefined || username !== undefined) {
       if (!rateLimit(`account:pw:${check.session.userId}`, 10, 60_000)) {
-        return NextResponse.json({ error: 'Muitas tentativas. Tente novamente em instantes.', code: 'RATE_LIMITED' }, { status: 429 })
+        return NextResponse.json({ error: 'Too many attempts. Try again shortly.', code: 'RATE_LIMITED' }, { status: 429 })
       }
     }
 
@@ -76,7 +76,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ user: result.user })
   } catch (error) {
-    return handleApiError(error, 'Erro ao atualizar conta')
+    return handleApiError(error, 'Failed to update account')
   }
 }
 
@@ -95,7 +95,7 @@ export async function DELETE(request: Request) {
     const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : undefined
 
     if (!rateLimit(`account:pw:${check.session.userId}`, 10, 60_000)) {
-      return NextResponse.json({ error: 'Muitas tentativas. Tente novamente em instantes.', code: 'RATE_LIMITED' }, { status: 429 })
+      return NextResponse.json({ error: 'Too many attempts. Try again shortly.', code: 'RATE_LIMITED' }, { status: 429 })
     }
 
     const result = await authService.deleteAccount(check.session.userId, currentPassword)
@@ -113,6 +113,6 @@ export async function DELETE(request: Request) {
     response.cookies.delete(GROUP_COOKIE)
     return response
   } catch (error) {
-    return handleApiError(error, 'Erro ao excluir conta')
+    return handleApiError(error, 'Failed to delete account')
   }
 }

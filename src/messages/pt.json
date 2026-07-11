@@ -470,6 +470,15 @@
     "MEMBER_NOT_FOUND": "Esta pessoa não é mais membro desta casa.",
     "CANNOT_REMOVE_SELF": "Use \"Sair da casa\" para remover a si mesmo."
   },
+  "CsvErrors": {
+    "EMPTY_DESCRIPTION": "Descrição vazia",
+    "DESCRIPTION_TOO_LONG": "Descrição muito longa (máx. {max} caracteres)",
+    "NOTES_TOO_LONG": "Observação muito longa (máx. {max} caracteres)",
+    "EMPTY_AMOUNT": "Valor vazio",
+    "INVALID_AMOUNT": "Valor inválido: “{value}”",
+    "AMOUNT_TOO_HIGH": "Valor muito alto (máx. 99.999.999,99): “{value}”",
+    "INVALID_DATE": "Data inválida: “{value}”"
+  },
   "Currency": {
     "title": "Moeda",
     "hint": "Como os valores são exibidos nesta casa (só exibição — sem conversão).",

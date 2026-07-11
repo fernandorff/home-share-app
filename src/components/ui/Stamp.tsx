@@ -9,7 +9,7 @@ const TONES: Record<Tone, string> = {
   ink: "text-ink border-ink",
 };
 
-/** Rotated rubber-stamp label — "PAGO", "DEVE", "A RECEBER". */
+/** Rotated rubber-stamp label — "PAID", "OWES", "TO RECEIVE". */
 export function Stamp({
   children,
   tone = "stamp",

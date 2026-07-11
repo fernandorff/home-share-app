@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   try {
     if (!googleConfigured()) {
-      loginUrl.searchParams.set("error", "google_indisponivel");
+      loginUrl.searchParams.set("error", "google_unavailable");
       return NextResponse.redirect(loginUrl);
     }
 
@@ -23,11 +23,11 @@ export async function GET(request: NextRequest) {
     const cookieState = request.cookies.get(OAUTH_STATE_COOKIE)?.value;
 
     if (params.get("error")) {
-      loginUrl.searchParams.set("error", "google_cancelado");
+      loginUrl.searchParams.set("error", "google_cancelled");
       return NextResponse.redirect(loginUrl);
     }
     if (!code || !state || !cookieState || state !== cookieState) {
-      loginUrl.searchParams.set("error", "google_estado");
+      loginUrl.searchParams.set("error", "google_state");
       return NextResponse.redirect(loginUrl);
     }
 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     res.cookies.delete(OAUTH_STATE_COOKIE);
     return res;
   } catch {
-    loginUrl.searchParams.set("error", "google_falha");
+    loginUrl.searchParams.set("error", "google_failed");
     return NextResponse.redirect(loginUrl);
   }
 }

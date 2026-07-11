@@ -8,18 +8,18 @@ describe('parseCSVDetailed', () => {
     )
     expect(expenses).toHaveLength(2)
     expect(invalidRows).toHaveLength(0)
-    expect(expenses[0]).toMatchObject({ descricao: 'Mercado', valor: 150, data: '2026-05-15' })
-    expect(expenses[1]).toMatchObject({ descricao: 'Gasolina', valor: 100, data: '2026-05-15' })
+    expect(expenses[0]).toMatchObject({ description: 'Mercado', amount: 150, date: '2026-05-15' })
+    expect(expenses[1]).toMatchObject({ description: 'Gasolina', amount: 100, date: '2026-05-15' })
   })
 
   it('parses semicolon separator and BR money format', () => {
     const { expenses } = parseCSVDetailed('descricao;valor\nLuz;R$ 1.234,56')
-    expect(expenses[0].valor).toBe(1234.56)
+    expect(expenses[0].amount).toBe(1234.56)
   })
 
   it('respects quoted fields containing the separator', () => {
-    const { expenses } = parseCSVDetailed('description,amount\n"Petisco, ração e areia",42.00')
-    expect(expenses[0].descricao).toBe('Petisco, ração e areia')
+    const { expenses } = parseCSVDetailed('description,amount\n"Treats, food and litter",42.00')
+    expect(expenses[0].description).toBe('Treats, food and litter')
   })
 
   it('reports invalid rows with 1-based line numbers instead of dropping them', () => {
@@ -28,10 +28,10 @@ describe('parseCSVDetailed', () => {
     )
     expect(expenses).toHaveLength(1)
     expect(invalidRows).toEqual([
-      { line: 3, reason: 'descrição vazia' },
-      { line: 4, reason: 'valor vazio' },
-      { line: 5, reason: expect.stringContaining('valor inválido') },
-      { line: 6, reason: expect.stringContaining('data inválida') },
+      { line: 3, code: 'EMPTY_DESCRIPTION' },
+      { line: 4, code: 'EMPTY_AMOUNT' },
+      { line: 5, code: 'INVALID_AMOUNT', values: { value: 'abc' } },
+      { line: 6, code: 'INVALID_DATE', values: { value: '31/31/2026' } },
     ])
   })
 
@@ -40,19 +40,19 @@ describe('parseCSVDetailed', () => {
       'description,amount\nOk,10.00\nToo big,99999999999.99'
     )
     expect(expenses).toHaveLength(1)
-    expect(invalidRows).toEqual([{ line: 3, reason: expect.stringContaining('valor muito alto') }])
+    expect(invalidRows).toEqual([{ line: 3, code: 'AMOUNT_TOO_HIGH', values: { value: '99999999999.99' } }])
   })
 
   // These are user-upload errors — must carry ApiError status 400 so the route returns a helpful
   // 400, not a generic 500 (regression from QA #38/#39).
   it('throws a 400 ApiError when required columns are missing', () => {
-    expect(() => parseCSVDetailed('foo,bar\n1,2')).toThrow(/descricao/)
+    expect(() => parseCSVDetailed('foo,bar\n1,2')).toThrow(/description/)
     expect(() => parseCSVDetailed('foo,bar\n1,2')).toThrow(expect.objectContaining({ status: 400 }))
   })
 
   it('enforces the line limit with a 400 ApiError', () => {
     const big = 'description,amount\n' + Array.from({ length: CSV_MAX_LINES + 1 }, (_, i) => `Item ${i},1.00`).join('\n')
-    expect(() => parseCSVDetailed(big)).toThrow(/linhas demais/)
+    expect(() => parseCSVDetailed(big)).toThrow(/too many lines/)
     expect(() => parseCSVDetailed(big)).toThrow(expect.objectContaining({ status: 400 }))
   })
 })
@@ -84,6 +84,6 @@ describe('parseDate', () => {
   })
 
   it('rejects invalid strings', () => {
-    expect(parseDate('amanhã')).toBeNull()
+    expect(parseDate('tomorrow')).toBeNull()
   })
 })

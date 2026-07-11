@@ -13,11 +13,11 @@ export async function POST(request: Request) {
 
     const ip = clientIp(request)
     if (ip !== 'unknown' && !rateLimit(`register:ip:${ip}`, 15, 60_000)) {
-      return NextResponse.json({ error: 'Muitas tentativas. Tente novamente em instantes.', code: 'RATE_LIMITED' }, { status: 429 })
+      return NextResponse.json({ error: 'Too many attempts. Try again shortly.', code: 'RATE_LIMITED' }, { status: 429 })
     }
 
     if (!name || name.length > 80) {
-      return NextResponse.json({ error: 'Nome é obrigatório (máx. 80 caracteres)', code: 'INVALID_NAME' }, { status: 400 })
+      return NextResponse.json({ error: 'Name is required (max 80 characters)', code: 'INVALID_NAME' }, { status: 400 })
     }
     const usernameError = authService.validateUsername(username)
     if (usernameError) {
@@ -44,6 +44,6 @@ export async function POST(request: Request) {
     response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions())
     return response
   } catch (error) {
-    return handleApiError(error, 'Erro ao criar conta')
+    return handleApiError(error, 'Failed to create account')
   }
 }

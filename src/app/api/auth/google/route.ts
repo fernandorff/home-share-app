@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   // Guarded: until the env credentials exist, bounce back with a friendly note.
   if (!googleConfigured()) {
     const loginUrl = new URL("/auth/login", origin);
-    loginUrl.searchParams.set("error", "google_indisponivel");
+    loginUrl.searchParams.set("error", "google_unavailable");
     return NextResponse.redirect(loginUrl);
   }
 

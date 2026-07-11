@@ -21,23 +21,23 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     if (check.role !== 'ADMIN') {
       return NextResponse.json(
-        { error: 'Apenas o admin da casa pode remover membros', code: 'NOT_ADMIN' },
+        { error: 'Only the house admin can remove members', code: 'NOT_ADMIN' },
         { status: 403 }
       )
     }
 
     const { userId: targetPublicId } = await params
     if (!isValidUUID(targetPublicId)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
     const target = await prisma.user.findUnique({ where: { publicId: targetPublicId }, select: { id: true } })
     if (!target) {
-      return NextResponse.json({ error: 'Pessoa não encontrada', code: 'MEMBER_NOT_FOUND' }, { status: 404 })
+      return NextResponse.json({ error: 'Person not found', code: 'MEMBER_NOT_FOUND' }, { status: 404 })
     }
     if (target.id === check.session.userId) {
       return NextResponse.json(
-        { error: 'Use "Sair da casa" para remover a si mesmo', code: 'CANNOT_REMOVE_SELF' },
+        { error: 'Use "Leave house" to remove yourself', code: 'CANNOT_REMOVE_SELF' },
         { status: 400 }
       )
     }
@@ -46,6 +46,6 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    return handleApiError(error, 'Erro ao remover membro')
+    return handleApiError(error, 'Failed to remove member')
   }
 }

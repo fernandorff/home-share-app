@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import type { Me } from "@/lib/types";
 
-export default function ContaPage() {
+export default function AccountPage() {
   const t = useTranslations("Account");
   const { me, refresh } = useSession();
 

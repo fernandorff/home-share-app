@@ -7,7 +7,7 @@ import { DEFAULT_PLATFORMS } from "@/lib/platforms";
 import { DEFAULT_PAYMENT_METHODS } from "@/lib/payment-methods";
 import { LIMITS } from "@/lib/constants";
 
-export default function CatalogosPage() {
+export default function CatalogsPage() {
   const t = useTranslations("Catalogs");
   const tExp = useTranslations("Expenses");
 

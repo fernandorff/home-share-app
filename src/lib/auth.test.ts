@@ -4,15 +4,15 @@ import { generateJoinCode, isValidJoinCodeFormat, normalizeJoinCode, JOIN_CODE_L
 
 describe('password hashing', () => {
   it('hashes and verifies a password', async () => {
-    const hash = await hashPassword('senha-segura-123')
-    expect(hash).not.toBe('senha-segura-123')
-    expect(await verifyPassword('senha-segura-123', hash)).toBe(true)
-    expect(await verifyPassword('senha-errada', hash)).toBe(false)
+    const hash = await hashPassword('secure-password-123')
+    expect(hash).not.toBe('secure-password-123')
+    expect(await verifyPassword('secure-password-123', hash)).toBe(true)
+    expect(await verifyPassword('wrong-password', hash)).toBe(false)
   })
 
   it('produces unique salts per hash', async () => {
-    const a = await hashPassword('mesma-senha')
-    const b = await hashPassword('mesma-senha')
+    const a = await hashPassword('same-password')
+    const b = await hashPassword('same-password')
     expect(a).not.toBe(b)
   })
 })

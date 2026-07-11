@@ -9,7 +9,7 @@ export async function POST() {
 
     if (check.role !== 'ADMIN') {
       return NextResponse.json(
-        { error: 'Apenas o admin da casa pode regenerar o código' },
+        { error: 'Only the house admin can regenerate the code' },
         { status: 403 }
       )
     }
@@ -17,6 +17,6 @@ export async function POST() {
     const joinCode = await groupService.regenerateJoinCode(check.groupId)
     return NextResponse.json({ joinCode })
   } catch (error) {
-    return handleApiError(error, 'Erro ao regenerar código')
+    return handleApiError(error, 'Failed to regenerate code')
   }
 }

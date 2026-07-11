@@ -10,6 +10,6 @@ export async function GET() {
     const entries = await auditService.list(check.groupId)
     return NextResponse.json({ entries })
   } catch (error) {
-    return handleApiError(error, 'Erro ao carregar o histórico')
+    return handleApiError(error, 'Failed to load history')
   }
 }

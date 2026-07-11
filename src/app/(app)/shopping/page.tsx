@@ -21,7 +21,7 @@ import { revealDelay } from "@/components/ui/motion";
 
 const NAME_MAX = 200;
 
-export default function ComprasPage() {
+export default function ShoppingPage() {
   const t = useTranslations("Shopping");
   const tc = useTranslations("Common");
   const apiErr = useApiError();
@@ -226,7 +226,7 @@ export default function ComprasPage() {
         </Card>
       ) : (
         <div className="flex flex-col gap-6">
-          {/* A comprar */}
+          {/* To buy */}
           <section className="flex flex-col gap-3">
             <SectionTitle right={<span className="label-mono">{toBuy.length}</span>}>
               {t("toBuy")}
@@ -253,7 +253,7 @@ export default function ComprasPage() {
             )}
           </section>
 
-          {/* Comprados */}
+          {/* Purchased */}
           {purchased.length > 0 && (
             <section className="flex flex-col gap-3">
               <SectionTitle

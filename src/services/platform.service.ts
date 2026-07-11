@@ -8,7 +8,7 @@ export const platformService = makeTagService({
   model: 'platform',
   column: 'plataformas',
   kind: 'platform',
-  notFound: 'Plataforma não encontrada',
-  duplicate: 'Já existe uma plataforma com esse nome',
-  systemCollision: 'Essa plataforma já existe como padrão do sistema',
+  notFound: 'Platform not found',
+  duplicate: 'A platform with that name already exists',
+  systemCollision: 'That platform already exists as a system default',
 })

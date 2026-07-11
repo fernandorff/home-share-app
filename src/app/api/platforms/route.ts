@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ platforms })
   } catch (error) {
-    return handleApiError(error, 'Erro ao listar plataformas')
+    return handleApiError(error, 'Failed to list platforms')
   }
 }
 
@@ -30,15 +30,15 @@ export async function POST(request: Request) {
     const { name } = body
 
     if (typeof name !== 'string' || !name.trim()) {
-      return NextResponse.json({ error: 'Nome é obrigatório', code: 'NAME_REQUIRED' }, { status: 400 })
+      return NextResponse.json({ error: 'Name is required', code: 'NAME_REQUIRED' }, { status: 400 })
     }
     if (name.trim().length > LIMITS.PLATFORM_NAME) {
-      return NextResponse.json({ error: `Nome muito longo (máx. ${LIMITS.PLATFORM_NAME} caracteres)`, code: 'NAME_TOO_LONG' }, { status: 400 })
+      return NextResponse.json({ error: `Name too long (max ${LIMITS.PLATFORM_NAME} characters)`, code: 'NAME_TOO_LONG' }, { status: 400 })
     }
 
     const platform = await platformService.create(check.groupId, name)
     return NextResponse.json({ platform }, { status: 201 })
   } catch (error) {
-    return handleApiError(error, 'Erro ao criar plataforma')
+    return handleApiError(error, 'Failed to create platform')
   }
 }

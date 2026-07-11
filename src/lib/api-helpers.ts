@@ -33,7 +33,7 @@ export async function recordActivity(entry: AuditEntry): Promise<void> {
 export function assertExpectedGroup(activeGroupId: number, expectedGroupId: unknown): NextResponse | null {
   if (typeof expectedGroupId === 'number' && expectedGroupId !== activeGroupId) {
     return NextResponse.json(
-      { error: 'Sua casa ativa mudou em outra aba. Recarregue para continuar.', code: 'STALE_GROUP' },
+      { error: 'Your active house changed in another tab. Reload to continue.', code: 'STALE_GROUP' },
       { status: 409 }
     )
   }
@@ -65,7 +65,7 @@ export async function requireSession(): Promise<SessionCheck> {
   if (!session) {
     return {
       ok: false,
-      response: NextResponse.json({ error: 'Não autenticado', code: 'NOT_AUTHENTICATED' }, { status: 401 }),
+      response: NextResponse.json({ error: 'Not authenticated', code: 'NOT_AUTHENTICATED' }, { status: 401 }),
     }
   }
 
@@ -77,7 +77,7 @@ export async function requireSession(): Promise<SessionCheck> {
     // (never sessionVersion, to avoid a DB round-trip on every page nav), so a still-present but
     // revoked cookie would make it treat the browser as "logged in" and bounce it straight back
     // out of /auth/login — an infinite redirect loop instead of reaching the sign-in form.
-    const response = NextResponse.json({ error: 'Sessão expirada, faça login novamente', code: 'SESSION_REVOKED' }, { status: 401 })
+    const response = NextResponse.json({ error: 'Session expired, please log in again', code: 'SESSION_REVOKED' }, { status: 401 })
     response.cookies.delete(SESSION_COOKIE)
     return { ok: false, response }
   }
@@ -114,7 +114,7 @@ export async function requireActiveGroup(): Promise<GroupCheck> {
     return {
       ok: false,
       response: NextResponse.json(
-        { error: 'Você ainda não participa de nenhuma casa', code: 'NO_GROUP' },
+        { error: 'You are not a member of any house yet', code: 'NO_GROUP' },
         { status: 403 }
       ),
     }
@@ -149,9 +149,9 @@ export async function validateExpenseTags(
   input: { categories: string[]; platforms: string[]; paymentMethods: string[] }
 ): Promise<NextResponse | null> {
   return (
-    (await validateTagList(input.categories, isExpenseCategory, (n) => categoryService.existsInGroup(groupId, n), 'Categoria inválida', 'INVALID_CATEGORY')) ??
-    (await validateTagList(input.platforms, isDefaultPlatform, (n) => platformService.existsInGroup(groupId, n), 'Plataforma inválida', 'INVALID_PLATFORM')) ??
-    (await validateTagList(input.paymentMethods, isDefaultPaymentMethod, (n) => paymentMethodService.existsInGroup(groupId, n), 'Forma de pagamento inválida', 'INVALID_PAYMENT'))
+    (await validateTagList(input.categories, isExpenseCategory, (n) => categoryService.existsInGroup(groupId, n), 'Invalid category', 'INVALID_CATEGORY')) ??
+    (await validateTagList(input.platforms, isDefaultPlatform, (n) => platformService.existsInGroup(groupId, n), 'Invalid platform', 'INVALID_PLATFORM')) ??
+    (await validateTagList(input.paymentMethods, isDefaultPaymentMethod, (n) => paymentMethodService.existsInGroup(groupId, n), 'Invalid payment method', 'INVALID_PAYMENT'))
   )
 }
 
@@ -267,69 +267,69 @@ export function validateExpenseInput(
   // with typeof before calling string/array methods so a malformed body 400s instead of
   // crashing into a generic 500 (handleApiError's catch-all).
   if (typeof description !== 'string' || description.trim() === '') {
-    return fail('Descrição é obrigatória', 'DESCRIPTION_REQUIRED')
+    return fail('Description is required', 'DESCRIPTION_REQUIRED')
   }
   if (description.length > LIMITS.DESCRIPTION) {
-    return fail(`Descrição muito longa (máx. ${LIMITS.DESCRIPTION} caracteres)`, 'DESCRIPTION_TOO_LONG')
+    return fail(`Description too long (max ${LIMITS.DESCRIPTION} characters)`, 'DESCRIPTION_TOO_LONG')
   }
   // Postgres text columns can't hold a NUL byte — it reaches the DB write and crashes into a
   // generic 500 (found in QA). Reject it (and any C0 control char except tab/newline) as 400.
   if (CONTROL_CHARS.test(description)) {
-    return fail('Descrição contém caracteres inválidos', 'DESCRIPTION_INVALID')
+    return fail('Description contains invalid characters', 'DESCRIPTION_INVALID')
   }
   if (notes !== undefined && notes !== null && typeof notes !== 'string') {
-    return fail('Observação inválida', 'NOTES_INVALID')
+    return fail('Invalid notes', 'NOTES_INVALID')
   }
   if (notes && notes.length > LIMITS.NOTES) {
-    return fail(`Observação muito longa (máx. ${LIMITS.NOTES} caracteres)`, 'NOTES_TOO_LONG')
+    return fail(`Notes too long (max ${LIMITS.NOTES} characters)`, 'NOTES_TOO_LONG')
   }
   if (notes && CONTROL_CHARS.test(notes)) {
-    return fail('Observação contém caracteres inválidos', 'NOTES_INVALID')
+    return fail('Notes contain invalid characters', 'NOTES_INVALID')
   }
   if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
-    return fail('Valor deve ser maior que zero', 'AMOUNT_INVALID')
+    return fail('Amount must be greater than zero', 'AMOUNT_INVALID')
   }
   // Reject sub-cent precision: Decimal(10,2) rounds the decimal string while our cents math
   // uses float rounding — divergent rounding would break the participants-sum == total invariant.
   if (!isCents(amount)) {
-    return fail('Valor deve ter no máximo 2 casas decimais', 'AMOUNT_PRECISION')
+    return fail('Amount must have at most 2 decimal places', 'AMOUNT_PRECISION')
   }
   // amount is stored as Decimal(10,2) — reject values that would overflow the column.
   if (toCents(amount) > 9_999_999_999) {
-    return fail('Valor muito alto (máx. 99.999.999,99)', 'AMOUNT_TOO_HIGH')
+    return fail('Amount too high (max 99,999,999.99)', 'AMOUNT_TOO_HIGH')
   }
   // Tags (categories/platforms/paymentMethods) are cleaned above; the route confirms each value is
   // a system default or a group custom via validateExpenseTags.
   // Membership of payer/participants is validated by the route via allGroupMembers().
   if (payerRequired && !payerId) {
-    return fail('Pagador é obrigatório', 'PAYER_REQUIRED')
+    return fail('Payer is required', 'PAYER_REQUIRED')
   }
 
   if (!Array.isArray(participants)) {
-    return fail('Lista de participantes inválida', 'PARTICIPANTS_INVALID')
+    return fail('Invalid participants list', 'PARTICIPANTS_INVALID')
   }
 
   // Custom split: every share must be a real, non-negative number, with no duplicate
   // participants, and the parts must sum exactly to the total (integer-cents comparison).
   if (!splitEqually) {
     if (participants.length === 0) {
-      return fail('Divisão personalizada precisa de ao menos um participante', 'SPLIT_EMPTY')
+      return fail('A custom split needs at least one participant', 'SPLIT_EMPTY')
     }
     const ids = participants.map(p => p.userId)
     if (new Set(ids).size !== ids.length) {
-      return fail('Há um participante repetido na divisão', 'PARTICIPANT_DUPLICATE')
+      return fail('There is a duplicate participant in the split', 'PARTICIPANT_DUPLICATE')
     }
     if (participants.some(p => !Number.isFinite(p.amount) || p.amount < 0)) {
-      return fail('Valor de um participante não pode ser negativo', 'PARTICIPANT_NEGATIVE')
+      return fail("A participant's amount cannot be negative", 'PARTICIPANT_NEGATIVE')
     }
     if (participants.some(p => !isCents(p.amount))) {
-      return fail('Valor de um participante deve ter no máximo 2 casas decimais', 'PARTICIPANT_PRECISION')
+      return fail("A participant's amount must have at most 2 decimal places", 'PARTICIPANT_PRECISION')
     }
     const totalCents = participants.reduce((sum, p) => sum + toCents(p.amount), 0)
     const totalParticipants = fromCents(totalCents)
     if (totalCents !== toCents(amount)) {
       return fail(
-        `Soma dos valores dos participantes (${totalParticipants.toFixed(2)}) difere do valor total (${amount.toFixed(2)})`,
+        `Sum of participant amounts (${totalParticipants.toFixed(2)}) differs from the total amount (${amount.toFixed(2)})`,
         'PARTICIPANTS_SUM_MISMATCH'
       )
     }
@@ -337,7 +337,7 @@ export function validateExpenseInput(
 
   const parsedDate = parseInputDate(date)
   if (parsedDate === null) {
-    return fail('Data inválida', 'DATE_INVALID')
+    return fail('Invalid date', 'DATE_INVALID')
   }
 
   return {
@@ -379,15 +379,15 @@ export function validateSettlementInput(
   const { fromUserId, toUserId, amount, note, date } = body
   const bad = (error: string, code: string) => ({ valid: false as const, response: NextResponse.json({ error, code }, { status: 400 }) })
 
-  if (!Number.isInteger(fromUserId) || !Number.isInteger(toUserId)) return bad('Pagador e recebedor são obrigatórios', 'SETTLEMENT_USERS_REQUIRED')
-  if (fromUserId === toUserId) return bad('O pagamento precisa ser entre duas pessoas diferentes', 'SETTLEMENT_SAME_USER')
-  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return bad('Valor deve ser maior que zero', 'AMOUNT_INVALID')
-  if (!isCents(amount)) return bad('Valor deve ter no máximo 2 casas decimais', 'AMOUNT_PRECISION')
-  if (toCents(amount) > 9_999_999_999) return bad('Valor muito alto (máx. 99.999.999,99)', 'AMOUNT_TOO_HIGH')
-  if (note && note.length > LIMITS.SETTLEMENT_NOTE) return bad(`Observação muito longa (máx. ${LIMITS.SETTLEMENT_NOTE} caracteres)`, 'NOTE_TOO_LONG')
+  if (!Number.isInteger(fromUserId) || !Number.isInteger(toUserId)) return bad('Payer and recipient are required', 'SETTLEMENT_USERS_REQUIRED')
+  if (fromUserId === toUserId) return bad('The payment must be between two different people', 'SETTLEMENT_SAME_USER')
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return bad('Amount must be greater than zero', 'AMOUNT_INVALID')
+  if (!isCents(amount)) return bad('Amount must have at most 2 decimal places', 'AMOUNT_PRECISION')
+  if (toCents(amount) > 9_999_999_999) return bad('Amount too high (max 99,999,999.99)', 'AMOUNT_TOO_HIGH')
+  if (note && note.length > LIMITS.SETTLEMENT_NOTE) return bad(`Note too long (max ${LIMITS.SETTLEMENT_NOTE} characters)`, 'NOTE_TOO_LONG')
 
   const parsedDate = parseInputDate(date)
-  if (parsedDate === null) return bad('Data inválida', 'DATE_INVALID')
+  if (parsedDate === null) return bad('Invalid date', 'DATE_INVALID')
 
   return {
     valid: true,

@@ -41,15 +41,15 @@ export async function exchangeCodeForProfile(
       grant_type: "authorization_code",
     }),
   });
-  if (!tokenRes.ok) throw new Error("Falha ao trocar o código do Google");
+  if (!tokenRes.ok) throw new Error("Failed to exchange the Google code");
 
   const token = (await tokenRes.json()) as { access_token?: string };
-  if (!token.access_token) throw new Error("Google não retornou access_token");
+  if (!token.access_token) throw new Error("Google did not return an access_token");
 
   const infoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
     headers: { Authorization: `Bearer ${token.access_token}` },
   });
-  if (!infoRes.ok) throw new Error("Falha ao obter o perfil do Google");
+  if (!infoRes.ok) throw new Error("Failed to fetch the Google profile");
 
   const info = (await infoRes.json()) as { sub: string; email?: string; email_verified?: boolean; name?: string };
   // Only trust the email for account-linking when Google says it's verified — otherwise

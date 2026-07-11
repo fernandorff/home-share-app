@@ -37,14 +37,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       window.location.href = "/auth/login";
     }
     throw new ApiError(
-      data && typeof data.error === "string" ? data.error : "Não autenticado",
+      data && typeof data.error === "string" ? data.error : "Not authenticated",
       401,
       data?.code
     );
   }
 
   if (!res.ok) {
-    const message = (data && typeof data.error === "string") ? data.error : `Erro ${res.status}`;
+    const message = (data && typeof data.error === "string") ? data.error : `Error ${res.status}`;
     throw new ApiError(message, res.status, data?.code);
   }
   return data as T;

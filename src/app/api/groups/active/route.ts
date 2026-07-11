@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const groupId = Number(body.groupId)
     if (!Number.isInteger(groupId) || groupId <= 0) {
-      return NextResponse.json({ error: 'Casa inválida' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid house' }, { status: 400 })
     }
 
     const membership = await prisma.groupMember.findUnique({
@@ -21,13 +21,13 @@ export async function POST(request: Request) {
     // leftAt: not-active check done explicitly (not in the query) so a left/kicked user (BL-16)
     // gets the same clear "not a member" message instead of a Prisma null falling through.
     if (!membership || membership.leftAt !== null) {
-      return NextResponse.json({ error: 'Você não participa desta casa' }, { status: 403 })
+      return NextResponse.json({ error: 'You are not a member of this house' }, { status: 403 })
     }
 
     const response = NextResponse.json({ ok: true, groupId })
     response.cookies.set(GROUP_COOKIE, String(groupId), groupCookieOptions())
     return response
   } catch (error) {
-    return handleApiError(error, 'Erro ao trocar de casa')
+    return handleApiError(error, 'Failed to switch house')
   }
 }

@@ -1,5 +1,5 @@
 // Full navigation (not fetch) — OAuth needs a top-level redirect to Google.
-export function GoogleButton({ label = "Entrar com Google" }: { label?: string }) {
+export function GoogleButton({ label = "Sign in with Google" }: { label?: string }) {
   return (
     <a
       href="/api/auth/google"

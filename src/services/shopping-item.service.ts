@@ -35,7 +35,7 @@ export class ShoppingItemService {
   /** Group-scoped lookup shared by the mutations below. */
   private async findOwned(groupId: number, publicId: string) {
     const item = await prisma.shoppingItem.findFirst({ where: { publicId, groupId } })
-    if (!item) throw new ApiError('Item não encontrado', 404)
+    if (!item) throw new ApiError('Item not found', 404)
     return item
   }
 

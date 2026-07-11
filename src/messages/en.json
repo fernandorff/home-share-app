@@ -470,6 +470,15 @@
     "MEMBER_NOT_FOUND": "This person is no longer a member of this house.",
     "CANNOT_REMOVE_SELF": "Use \"Leave house\" to remove yourself."
   },
+  "CsvErrors": {
+    "EMPTY_DESCRIPTION": "Empty description",
+    "DESCRIPTION_TOO_LONG": "Description too long (max. {max} characters)",
+    "NOTES_TOO_LONG": "Note too long (max. {max} characters)",
+    "EMPTY_AMOUNT": "Empty amount",
+    "INVALID_AMOUNT": "Invalid amount: “{value}”",
+    "AMOUNT_TOO_HIGH": "Amount too high (max. 99,999,999.99): “{value}”",
+    "INVALID_DATE": "Invalid date: “{value}”"
+  },
   "Currency": {
     "title": "Currency",
     "hint": "How amounts are displayed in this house (display only — no conversion).",

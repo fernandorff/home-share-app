@@ -14,12 +14,12 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 
     const { paymentMethodId } = await params
     if (!isValidUUID(paymentMethodId)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
     await paymentMethodService.delete(check.groupId, paymentMethodId)
-    return NextResponse.json({ message: 'Forma de pagamento excluída com sucesso' })
+    return NextResponse.json({ message: 'Payment method deleted successfully' })
   } catch (error) {
-    return handleApiError(error, 'Erro ao excluir forma de pagamento')
+    return handleApiError(error, 'Failed to delete payment method')
   }
 }

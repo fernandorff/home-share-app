@@ -19,7 +19,7 @@ import { formatDateLocale } from "@/lib/money";
 import { RecordPaymentModal, type PaymentPrefill } from "@/components/balances/RecordPaymentModal";
 import type { BalancesResponse, Payment } from "@/lib/types";
 
-export default function SaldosPage() {
+export default function BalancesPage() {
   const t = useTranslations("Balances");
   const ts = useTranslations("Settlements");
   const tc = useTranslations("Common");
@@ -138,7 +138,7 @@ export default function SaldosPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Hero "extrato" */}
+      {/* Hero "statement" */}
       <Card className="reveal overflow-hidden">
         <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
           <div>

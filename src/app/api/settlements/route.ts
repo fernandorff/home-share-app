@@ -16,7 +16,7 @@ export async function GET() {
     const settlements = await settlementService.list(check.groupId)
     return NextResponse.json({ settlements })
   } catch (error) {
-    return handleApiError(error, 'Erro ao listar pagamentos')
+    return handleApiError(error, 'Failed to list settlements')
   }
 }
 
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
     const { fromUserId, toUserId } = validation.data
     if (!(await allGroupMembers(check.groupId, [fromUserId, toUserId]))) {
-      return NextResponse.json({ error: 'Pagador ou recebedor não é membro desta casa' }, { status: 400 })
+      return NextResponse.json({ error: 'Payer or recipient is not a member of this house' }, { status: 400 })
     }
 
     const settlement = await settlementService.create(check.groupId, {
@@ -55,6 +55,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ settlement }, { status: 201 })
   } catch (error) {
-    return handleApiError(error, 'Erro ao registrar pagamento')
+    return handleApiError(error, 'Failed to record settlement')
   }
 }

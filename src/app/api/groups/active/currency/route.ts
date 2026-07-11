@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
     if (check.role !== "ADMIN") {
       return NextResponse.json(
-        { error: "Apenas o admin da casa pode mudar a moeda", code: "NOT_ADMIN" },
+        { error: "Only the house admin can change the currency", code: "NOT_ADMIN" },
         { status: 403 }
       );
     }
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     if (!isCurrency(body.currency)) {
       return NextResponse.json(
-        { error: "Moeda inválida", code: "INVALID_CURRENCY" },
+        { error: "Invalid currency", code: "INVALID_CURRENCY" },
         { status: 400 }
       );
     }
@@ -37,6 +37,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ currency: body.currency });
   } catch (error) {
-    return handleApiError(error, "Erro ao mudar a moeda");
+    return handleApiError(error, "Failed to change currency");
   }
 }

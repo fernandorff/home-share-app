@@ -470,6 +470,15 @@
     "MEMBER_NOT_FOUND": "Esta persona ya no es miembro de esta casa.",
     "CANNOT_REMOVE_SELF": "Usa \"Salir de la casa\" para quitarte a ti mismo."
   },
+  "CsvErrors": {
+    "EMPTY_DESCRIPTION": "Descripción vacía",
+    "DESCRIPTION_TOO_LONG": "Descripción demasiado larga (máx. {max} caracteres)",
+    "NOTES_TOO_LONG": "Nota demasiado larga (máx. {max} caracteres)",
+    "EMPTY_AMOUNT": "Importe vacío",
+    "INVALID_AMOUNT": "Importe inválido: “{value}”",
+    "AMOUNT_TOO_HIGH": "Importe demasiado alto (máx. 99.999.999,99): “{value}”",
+    "INVALID_DATE": "Fecha inválida: “{value}”"
+  },
   "Currency": {
     "title": "Moneda",
     "hint": "Cómo se muestran los importes en esta casa (solo visualización — sin conversión).",

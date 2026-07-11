@@ -179,7 +179,7 @@ describe("audit trail / EntityRevision (integration, real pglite DB)", () => {
   it("CREATE: records actor + groupId + full after-snapshot (incl. nested participants)", async () => {
     const { u, g } = await seedUserGroup();
     const exp = await runWithAuditContext({ actorId: u.id, groupId: g.id }, async () =>
-      await newExpense(g.id, u.id, "Café", 10)
+      await newExpense(g.id, u.id, "Coffee", 10)
     );
     await flushAudit();
     const revs = await prisma.entityRevision.findMany({
@@ -191,7 +191,7 @@ describe("audit trail / EntityRevision (integration, real pglite DB)", () => {
     expect(r.actorId).toBe(u.id);
     expect(r.groupId).toBe(g.id);
     const after = r.after as Record<string, unknown>;
-    expect(after.description).toBe("Café");
+    expect(after.description).toBe("Coffee");
     // nested participants are captured inside the parent snapshot
     expect(Array.isArray(after.participants)).toBe(true);
     expect((after.participants as unknown[]).length).toBe(1);
@@ -199,27 +199,27 @@ describe("audit trail / EntityRevision (integration, real pglite DB)", () => {
 
   it("UPDATE: records the new after-snapshot; the prior CREATE holds the old value (history chain)", async () => {
     const { u, g } = await seedUserGroup();
-    const exp = await newExpense(g.id, u.id, "Café", 10);
+    const exp = await newExpense(g.id, u.id, "Coffee", 10);
     await runWithAuditContext({ actorId: u.id, groupId: g.id }, async () =>
-      await prisma.expense.update({ where: { id: exp.id }, data: { description: "Chá" } })
+      await prisma.expense.update({ where: { id: exp.id }, data: { description: "Tea" } })
     );
     await flushAudit();
     const upd = await prisma.entityRevision.findFirst({
       where: { entityType: "Expense", entityId: String(exp.id), action: "UPDATE" },
     });
     expect(upd).not.toBeNull();
-    expect((upd!.after as Record<string, unknown>).description).toBe("Chá");
+    expect((upd!.after as Record<string, unknown>).description).toBe("Tea");
     expect(upd!.actorId).toBe(u.id);
     // the "before" of the update = the previous revision's "after"
     const create = await prisma.entityRevision.findFirst({
       where: { entityType: "Expense", entityId: String(exp.id), action: "CREATE" },
     });
-    expect((create!.after as Record<string, unknown>).description).toBe("Café");
+    expect((create!.after as Record<string, unknown>).description).toBe("Coffee");
   });
 
   it("DELETE: records the removed row's final state", async () => {
     const { u, g } = await seedUserGroup();
-    const exp = await newExpense(g.id, u.id, "Café", 10);
+    const exp = await newExpense(g.id, u.id, "Coffee", 10);
     await runWithAuditContext({ actorId: u.id, groupId: g.id }, async () =>
       await prisma.expense.delete({ where: { id: exp.id } })
     );
@@ -228,7 +228,7 @@ describe("audit trail / EntityRevision (integration, real pglite DB)", () => {
       where: { entityType: "Expense", entityId: String(exp.id), action: "DELETE" },
     });
     expect(r).not.toBeNull();
-    expect((r!.before as Record<string, unknown>).description).toBe("Café");
+    expect((r!.before as Record<string, unknown>).description).toBe("Coffee");
     expect(r!.after).toBeNull();
   });
 
@@ -247,7 +247,7 @@ describe("audit trail / EntityRevision (integration, real pglite DB)", () => {
 
   it("actor is null when there is no audit context, but groupId is still derived from the row", async () => {
     const { u, g } = await seedUserGroup();
-    const exp = await newExpense(g.id, u.id, "Sem contexto", 5); // no runWithAuditContext
+    const exp = await newExpense(g.id, u.id, "No context", 5); // no runWithAuditContext
     await flushAudit();
     const r = await prisma.entityRevision.findFirst({
       where: { entityType: "Expense", entityId: String(exp.id) },
@@ -501,8 +501,8 @@ describe("account deletion (integration, real pglite DB)", () => {
     expect(success).toMatchObject({ ok: true });
 
     const row = await prisma.user.findUnique({ where: { id: g.id } });
-    expect(row!.name).toBe("Usuário excluído");
-    expect(row!.username).toBe(`usuario_excluido_${g.id}`);
+    expect(row!.name).toBe("Deleted user");
+    expect(row!.username).toBe(`deleted_user_${g.id}`);
     expect(row!.email).toBeNull();
     expect(row!.emailVerified).toBe(false);
     expect(row!.password).toBeNull();

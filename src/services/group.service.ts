@@ -60,7 +60,7 @@ class GroupService {
   async joinByCode(userId: number, rawCode: string) {
     const code = normalizeJoinCode(rawCode)
     const group = await prisma.group.findUnique({ where: { joinCode: code } })
-    if (!group) return { error: 'Código inválido — confira com quem te convidou' }
+    if (!group) return { error: 'Invalid code — check with whoever invited you' }
 
     const existing = await prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId: group.id } },
@@ -138,7 +138,7 @@ class GroupService {
   private async assertCanLeave(groupId: number, userId: number): Promise<void> {
     const target = await prisma.groupMember.findUnique({ where: { userId_groupId: { userId, groupId } } })
     if (!target || target.leftAt !== null) {
-      throw new ApiError('Esta pessoa não é mais membro desta casa', 404, 'MEMBER_NOT_FOUND')
+      throw new ApiError('This person is no longer a member of this house', 404, 'MEMBER_NOT_FOUND')
     }
     if (target.role !== 'ADMIN') return
 
@@ -151,7 +151,7 @@ class GroupService {
       where: { groupId, leftAt: null, userId: { not: userId } },
     })
     if (otherActiveMembers > 0) {
-      throw new ApiError('Esta casa ficaria sem admin — promova outro membro antes', 409, 'LAST_ADMIN')
+      throw new ApiError('This house would be left without an admin — promote another member first', 409, 'LAST_ADMIN')
     }
   }
 
@@ -189,7 +189,7 @@ class GroupService {
     if (activeAdmins > 0) return
     const activeMembers = await prisma.groupMember.count({ where: { groupId, leftAt: null } })
     if (activeMembers > 0) {
-      throw new ApiError('Esta casa ficaria sem admin — promova outro membro antes', 409, 'LAST_ADMIN')
+      throw new ApiError('This house would be left without an admin — promote another member first', 409, 'LAST_ADMIN')
     }
   }
 

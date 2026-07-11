@@ -36,30 +36,30 @@ export type DeleteAccountResult =
 class AuthService {
   validateUsername(username: string): string | null {
     if (!USERNAME_REGEX.test(username)) {
-      return 'Usuário deve ter 3-30 caracteres (letras minúsculas, números, ponto, hífen ou underline)'
+      return 'Username must be 3-30 characters (lowercase letters, numbers, dot, hyphen or underscore)'
     }
     return null
   }
 
   validatePassword(password: string): { error: string; code: string } | null {
     if (typeof password !== 'string' || password.length < 8) {
-      return { error: 'Senha deve ter pelo menos 8 caracteres', code: 'INVALID_PASSWORD' }
+      return { error: 'Password must be at least 8 characters', code: 'INVALID_PASSWORD' }
     }
     if (password.length > 72) {
-      return { error: 'Senha deve ter no máximo 72 caracteres', code: 'INVALID_PASSWORD' }
+      return { error: 'Password must be at most 72 characters', code: 'INVALID_PASSWORD' }
     }
     if (COMMON_PASSWORDS.has(password.toLowerCase())) {
-      return { error: 'Essa senha é muito comum. Escolha uma senha mais difícil de adivinhar', code: 'PASSWORD_TOO_COMMON' }
+      return { error: 'This password is too common. Pick one that is harder to guess', code: 'PASSWORD_TOO_COMMON' }
     }
     if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-      return { error: 'Senha deve conter letras e números', code: 'PASSWORD_NO_COMPLEXITY' }
+      return { error: 'Password must contain letters and numbers', code: 'PASSWORD_NO_COMPLEXITY' }
     }
     return null
   }
 
   validateEmail(email: string): string | null {
     if (email.length > 254 || !EMAIL_REGEX.test(email)) {
-      return 'E-mail inválido'
+      return 'Invalid e-mail'
     }
     return null
   }
@@ -67,7 +67,7 @@ class AuthService {
   async register(name: string, username: string, password: string) {
     const existing = await prisma.user.findUnique({ where: { username } })
     if (existing) {
-      return { error: 'Este usuário já existe' }
+      return { error: 'This username already exists' }
     }
 
     const user = await prisma.user.create({
@@ -151,7 +151,7 @@ class AuthService {
       user = await prisma.user.create({
         data: {
           publicId: uuidv7(),
-          name: profile.name?.trim() || profile.email?.split('@')[0] || 'Usuário',
+          name: profile.name?.trim() || profile.email?.split('@')[0] || 'User',
           username,
           email: emailForNewUser,
           emailVerified: emailForNewUser !== null,
@@ -225,28 +225,28 @@ class AuthService {
     input: { name?: string; email?: string; username?: string; currentPassword?: string }
   ): Promise<UpdateProfileResult> {
     const user = await prisma.user.findUnique({ where: { id: userId } })
-    if (!user) return { error: 'Usuário não encontrado', code: 'NOT_FOUND' }
+    if (!user) return { error: 'User not found', code: 'NOT_FOUND' }
 
     const emailChanging = input.email !== undefined && input.email !== user.email
     const usernameChanging = input.username !== undefined && input.username !== user.username
 
     if ((emailChanging || usernameChanging) && user.password !== null) {
       if (!input.currentPassword) {
-        return { error: 'Senha atual é obrigatória', code: 'CURRENT_PASSWORD_REQUIRED' }
+        return { error: 'Current password is required', code: 'CURRENT_PASSWORD_REQUIRED' }
       }
       const ok = await verifyPassword(input.currentPassword, user.password)
       if (!ok) {
-        return { error: 'Senha atual incorreta', code: 'CURRENT_PASSWORD_INVALID' }
+        return { error: 'Current password is incorrect', code: 'CURRENT_PASSWORD_INVALID' }
       }
     }
 
     if (emailChanging) {
       const conflict = await prisma.user.findUnique({ where: { email: input.email } })
-      if (conflict) return { error: 'Este e-mail já está em uso', code: 'EMAIL_TAKEN' }
+      if (conflict) return { error: 'This e-mail is already in use', code: 'EMAIL_TAKEN' }
     }
     if (usernameChanging) {
       const conflict = await prisma.user.findUnique({ where: { username: input.username } })
-      if (conflict) return { error: 'Este usuário já existe', code: 'USERNAME_TAKEN' }
+      if (conflict) return { error: 'This username already exists', code: 'USERNAME_TAKEN' }
     }
 
     const data: { name?: string; email?: string; emailVerified?: boolean; username?: string } = {}
@@ -266,8 +266,8 @@ class AuthService {
     } catch (e) {
       const code = e && typeof e === 'object' && 'code' in e ? (e as { code?: string }).code : undefined
       if (code === 'P2002') {
-        if (emailChanging) return { error: 'Este e-mail já está em uso', code: 'EMAIL_TAKEN' }
-        if (usernameChanging) return { error: 'Este usuário já existe', code: 'USERNAME_TAKEN' }
+        if (emailChanging) return { error: 'This e-mail is already in use', code: 'EMAIL_TAKEN' }
+        if (usernameChanging) return { error: 'This username already exists', code: 'USERNAME_TAKEN' }
       }
       throw e
     }
@@ -284,15 +284,15 @@ class AuthService {
     sessionIssuedAt: number
   ): Promise<ChangePasswordResult> {
     const user = await prisma.user.findUnique({ where: { id: userId } })
-    if (!user) return { error: 'Usuário não encontrado', code: 'NOT_FOUND' }
+    if (!user) return { error: 'User not found', code: 'NOT_FOUND' }
 
     if (user.password !== null) {
       if (!currentPassword) {
-        return { error: 'Senha atual é obrigatória', code: 'CURRENT_PASSWORD_REQUIRED' }
+        return { error: 'Current password is required', code: 'CURRENT_PASSWORD_REQUIRED' }
       }
       const ok = await verifyPassword(currentPassword, user.password)
       if (!ok) {
-        return { error: 'Senha atual incorreta', code: 'CURRENT_PASSWORD_INVALID' }
+        return { error: 'Current password is incorrect', code: 'CURRENT_PASSWORD_INVALID' }
       }
     } else {
       // Defining a password for the very first time (Google-only account) has no prior secret to
@@ -302,7 +302,7 @@ class AuthService {
       // never notices. This does not apply once a password already exists (branch above).
       const ageSeconds = Math.floor(Date.now() / 1000) - sessionIssuedAt
       if (ageSeconds > REAUTH_WINDOW_SECONDS) {
-        return { error: 'Faça login novamente para definir uma senha', code: 'REAUTH_REQUIRED' }
+        return { error: 'Log in again to set a password', code: 'REAUTH_REQUIRED' }
       }
     }
 
@@ -326,15 +326,15 @@ class AuthService {
    */
   async deleteAccount(userId: number, currentPassword: string | undefined): Promise<DeleteAccountResult> {
     const user = await prisma.user.findUnique({ where: { id: userId } })
-    if (!user) return { error: 'Usuário não encontrado', code: 'NOT_FOUND' }
+    if (!user) return { error: 'User not found', code: 'NOT_FOUND' }
 
     if (user.password !== null) {
       if (!currentPassword) {
-        return { error: 'Senha atual é obrigatória', code: 'CURRENT_PASSWORD_REQUIRED' }
+        return { error: 'Current password is required', code: 'CURRENT_PASSWORD_REQUIRED' }
       }
       const ok = await verifyPassword(currentPassword, user.password)
       if (!ok) {
-        return { error: 'Senha atual incorreta', code: 'CURRENT_PASSWORD_INVALID' }
+        return { error: 'Current password is incorrect', code: 'CURRENT_PASSWORD_INVALID' }
       }
     }
 
@@ -350,8 +350,8 @@ class AuthService {
       await tx.user.update({
         where: { id: userId },
         data: {
-          name: 'Usuário excluído',
-          username: `usuario_excluido_${userId}`,
+          name: 'Deleted user',
+          username: `deleted_user_${userId}`,
           email: null,
           emailVerified: false,
           password: null,

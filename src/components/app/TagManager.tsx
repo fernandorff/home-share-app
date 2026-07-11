@@ -30,7 +30,7 @@ const ROW_ACCENT: Record<TagTone, string> = {
 };
 
 /** Manages one tag dimension (category / platform / payment method): system defaults (read-only)
- *  + the house's custom entries (create / delete). Used three times on the Catálogos page. */
+ *  + the house's custom entries (create / delete). Used three times on the Catalogs page. */
 export function TagManager({
   label,
   kind,
@@ -104,7 +104,7 @@ export function TagManager({
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-rule bg-panel/40 px-4 py-3">
         {/* Real <h2> per section (was a <span>) + a section-scoped accessible name on the add
-            button, so a screen reader doesn't read three identical "Adicionar" buttons (a11y). */}
+            button, so a screen reader doesn't read three identical "Add" buttons (a11y). */}
         <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink">{label}</h2>
         <Button size="sm" onClick={() => { setName(""); setCreating(true); }} aria-label={`${t("new")} — ${label}`}>
           {t("new")}

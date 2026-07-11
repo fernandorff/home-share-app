@@ -23,7 +23,7 @@ export function formatSigned(value: Money): string {
   return `${sign}${formatBRL(Math.abs(n))}`;
 }
 
-/** ISO date → "dd/mm/aaaa" in local time (dates are stored at local noon). */
+/** ISO date → "dd/mm/yyyy" in local time (dates are stored at local noon). */
 export function formatDateBR(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
@@ -34,7 +34,7 @@ export function formatDateBR(iso: string): string {
   });
 }
 
-/** ISO (or now) → "aaaa-mm-dd" for <input type="date">. */
+/** ISO (or now) → "yyyy-mm-dd" for <input type="date">. */
 export function toDateInputValue(iso?: string): string {
   const d = iso ? new Date(iso) : new Date();
   if (Number.isNaN(d.getTime())) return "";
