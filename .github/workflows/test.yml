@@ -18,7 +18,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # 24, not 22: Node 22 ships npm 10, whose `npm ci` rejects this lockfile over an
+          # optional peer dep (@swc/core → @swc/helpers >=0.5.17); npm 11 resolves it fine.
+          node-version: 24
           cache: npm
 
       - run: npm ci
