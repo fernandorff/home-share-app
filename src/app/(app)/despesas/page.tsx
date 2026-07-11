@@ -230,23 +230,25 @@ export default function DespesasPage() {
     { enabled: byPersonRequested, onError: (err) => toast(apiErr(err, t("loadError")), "error") }
   );
 
-  // True house total, completely independent of the active filters — used only to tell "no
-  // expenses at all" apart from "no results for this filter" below. A dedicated, always-current
-  // fetch (pageSize=1 — only `pagination.total` is read) rather than reusing `listState` filtered:
-  // reusing it would go stale the moment a mutation runs while a filter is active (e.g. the user
-  // bulk-deletes the last few rows matching a filter — `listState.total` correctly drops to 0 for
-  // THAT filter, but says nothing about whether the house is now genuinely empty).
+  // True house total, used only to tell "no expenses at all" apart from "no results for this
+  // filter". When NO filter is active, `listState.total` already IS the real house total, so we
+  // skip this fetch entirely (perf: dropped a redundant round trip on the common unfiltered load).
+  // Only when a filter is active do we need a dedicated pageSize=1 probe — reusing the filtered
+  // `listState.total` there would say 0 for "no matches" without telling us if the house is empty.
   const houseTotalUrl = useMemo(
     () => buildExpenseQuery({ page: 1, pageSize: 1, sortField: "date", sortDirection: "desc", filters: EMPTY_FILTERS }),
     []
   );
-  const { data: houseTotalData, reload: reloadHouseTotal } = useFetch<ExpenseListResponse>(houseTotalUrl);
-  const unfilteredTotal = houseTotalData?.pagination.total ?? null;
+  const { data: houseTotalData, reload: reloadHouseTotal } = useFetch<ExpenseListResponse>(
+    houseTotalUrl,
+    { enabled: filtersActive }
+  );
+  const unfilteredTotal = filtersActive ? (houseTotalData?.pagination.total ?? null) : listState.total;
 
   function reloadAll() {
     listState.reload();
     if (byPersonRequested) reloadByPerson();
-    reloadHouseTotal();
+    if (filtersActive) reloadHouseTotal();
   }
 
   // Infinite-scroll sentinel — loads the next page once it enters the viewport. A callback ref
