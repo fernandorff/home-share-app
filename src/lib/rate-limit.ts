@@ -19,9 +19,22 @@ export function rateLimit(key: string, max: number, windowMs: number): boolean {
   return recent.length <= max;
 }
 
-/** Best-effort client IP from proxy headers (Vercel sets x-forwarded-for). */
+/**
+ * Best-effort client IP for per-IP rate-limit buckets.
+ *
+ * MUST NOT trust the leftmost `x-forwarded-for` value: that position is client-controllable, so
+ * rotating it defeats the login/register brute-force throttle entirely (found in a security audit).
+ * On Vercel, `x-real-ip` is set by the platform from the real connection and can't be spoofed by a
+ * request header, so prefer it. If only XFF is present we take the RIGHTMOST hop (the one appended
+ * by the nearest trusted proxy), never the leftmost.
+ */
 export function clientIp(request: Request): string {
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
   const fwd = request.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
+  if (fwd) {
+    const parts = fwd.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
+  return "unknown";
 }
