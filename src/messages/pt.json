@@ -317,6 +317,7 @@
     },
     "customSplit": "Divisão personalizada",
     "filter": "Filtrar",
+    "moreActions": "Mais ações de despesas",
     "filtersTitle": "Filtros",
     "searchLabel": "Busca",
     "amountOf": "Valor de {name}",

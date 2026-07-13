@@ -30,9 +30,9 @@ that navigation, house switching, account access, and settings do not compete wi
    and segmented controls at least 44px tall; removable filter chips SHALL be at least 32px tall.
 8. WHILE the viewport is at least 768px wide, THE SYSTEM SHALL preserve the existing desktop
    header, house selector, user menu, and left sidebar.
-9. WHILE viewing Expenses below 768px, THE SYSTEM SHALL display New expense as the primary action,
-   expose CSV actions through a 44px overflow trigger, and render the List/By person selector with
-   equal-width choices.
+9. WHILE viewing Expenses, THE SYSTEM SHALL display New expense as the primary action and expose
+   filter, selection, and CSV actions through one overflow trigger; below 768px, THE SYSTEM SHALL
+   render the List/By person selector with equal-width choices and a 44px overflow trigger.
 
 ## Out of scope
 

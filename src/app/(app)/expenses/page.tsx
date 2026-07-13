@@ -25,6 +25,7 @@ import { money } from "@/lib/format";
 import { memberStyle } from "@/lib/members";
 import { toCents } from "@/lib/currency";
 import { detectSplitEqually } from "@/lib/split";
+import { groupExpensesByMonth, type ExpenseMonthGroup } from "@/lib/expense-month-groups";
 import type { Expense, ExpenseListResponse, ExpenseSortField, Platform, Category, PaymentMethod, Member } from "@/lib/types";
 import { ExpenseFormModal } from "@/components/expenses/ExpenseFormModal";
 import { ExpenseDetailModal } from "@/components/expenses/ExpenseDetailModal";
@@ -58,24 +59,12 @@ const COLUMNS: SortableCol[] = [
   { field: "amount", labelKey: "colAmount", className: "text-right" },
 ];
 
-interface MonthGroup {
-  key: string;
-  label: string;
-  subtotal: number;
-  items: Expense[];
-}
 interface PersonGroup {
   payerId: number;
   name: string;
   colorIndex: number;
   total: number;
-  months: MonthGroup[];
-}
-
-/** "June / 2026" — locale-aware month, capitalized. */
-function monthLabel(d: Date, locale: string): string {
-  const m = new Intl.DateTimeFormat(locale, { month: "long" }).format(d);
-  return `${m.charAt(0).toUpperCase()}${m.slice(1)} / ${d.getFullYear()}`;
+  months: ExpenseMonthGroup<Expense>[];
 }
 
 function SortIndicator({
@@ -313,26 +302,24 @@ export default function ExpensesPage() {
   // By person → grouped by month (newest first).
   const byPerson = useMemo<PersonGroup[]>(() => {
     return members.map((m) => {
-      const monthsMap = new Map<string, MonthGroup>();
-      for (const e of byPersonExpenses) {
-        if (e.payerId !== m.id) continue;
-        const amt = money(e.amount);
-        const d = new Date(e.date);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        let mg = monthsMap.get(key);
-        if (!mg) {
-          mg = { key, label: monthLabel(d, locale), subtotal: 0, items: [] };
-          monthsMap.set(key, mg);
-        }
-        mg.subtotal += amt;
-        mg.items.push(e);
-      }
-      const monthsArr = Array.from(monthsMap.values()).sort((a, b) =>
-        b.key.localeCompare(a.key)
+      const monthsArr = groupExpensesByMonth(
+        byPersonExpenses.filter((expense) => expense.payerId === m.id),
+        locale
       );
       return { payerId: m.id, name: m.name, colorIndex: m.colorIndex, total: payerTotalById.get(m.id) ?? 0, months: monthsArr };
     });
   }, [byPersonExpenses, members, locale, payerTotalById]);
+
+  // List uses the same month sections as By person. The API's current ordering is retained inside
+  // each month; only the month buckets themselves are ordered here.
+  const listMonths = useMemo(
+    () => groupExpensesByMonth(
+      listState.items,
+      locale,
+      sortField === "date" ? sortDirection : "desc"
+    ),
+    [listState.items, locale, sortField, sortDirection]
+  );
 
   const byPersonEmpty = byPerson.every((p) => p.months.length === 0);
   // Mobile by-person shows one person at a time (desktop keeps both columns).
@@ -389,18 +376,18 @@ export default function ExpensesPage() {
   // Render the row elements once and reuse them — note: NOT keyed on `selected`. So toggling
   // selection doesn't even re-create/diff 300 elements; React bails out of the row subtree and
   // only the context-subscribed checkboxes update.
-  const desktopRows = useMemo(
-    () => listState.items.map((e, i) => (
+  const desktopRowsById = useMemo(
+    () => new Map(listState.items.map((e, i) => [e.publicId, (
       <ExpenseRow key={e.publicId} expense={e} rowNumber={i + 1} colorIndex={colorByPayer.get(e.payerId) ?? 0}
         members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
-    )),
+    )])),
     [listState.items, colorByPayer, members, selectionMode, openView, openEdit]
   );
-  const mobileCards = useMemo(
-    () => listState.items.map((e) => (
+  const mobileCardsById = useMemo(
+    () => new Map(listState.items.map((e) => [e.publicId, (
       <ExpenseCard key={e.publicId} expense={e} colorIndex={colorByPayer.get(e.payerId) ?? 0}
         members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} onToggle={toggleRow} />
-    )),
+    )])),
     [listState.items, colorByPayer, members, selectionMode, openView, openEdit, toggleRow]
   );
 
@@ -436,12 +423,20 @@ export default function ExpensesPage() {
     }
   }
 
+  function toggleSelectionMode() {
+    if (selectionMode) {
+      setSelectionMode(false);
+      setSelected(new Set());
+    } else {
+      setSelectionMode(true);
+    }
+  }
+
   const total = listState.total;
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Mobile gets one clear primary action and a square overflow control. Desktop preserves the
-          compact single-row ledger header. */}
+      {/* Keep one clear primary action and one compact overflow control at every viewport size. */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center">
         <div className="flex min-w-0 items-center gap-3 md:flex-1">
           <h1 className="whitespace-nowrap font-display text-sm font-bold uppercase tracking-wider text-ink">
@@ -453,23 +448,35 @@ export default function ExpensesPage() {
           <span className="flex-1 border-t border-dashed border-rule" aria-hidden />
         </div>
         <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] items-stretch gap-2 md:flex md:items-center">
-          <Button size="sm" onClick={openCreate} className="order-1 w-full md:order-2 md:w-auto">
+          <Button size="sm" onClick={openCreate} className="w-full md:w-auto">
             {t("newExpense")}
           </Button>
-          <div className="order-2 md:order-1">
+          <div>
             <Menu
               align="end"
               trigger={
                 <button
                   type="button"
-                  aria-label="CSV"
-                  className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-md border border-ink bg-card px-2 text-[0.7rem] font-display font-bold uppercase tracking-wider text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper md:min-h-0 md:min-w-0 md:px-3 md:py-2"
+                  aria-label={t("moreActions")}
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-ink bg-card px-2 font-display text-lg font-bold leading-none text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper md:min-h-9 md:min-w-9"
                 >
-                  <span className="text-lg leading-none md:hidden" aria-hidden>⋮</span>
-                  <span className="hidden md:inline" aria-hidden>CSV <span className="text-faint">▾</span></span>
+                  <span aria-hidden>⋮</span>
                 </button>
               }
             >
+              {!listState.initialLoading && total > 0 && (
+                <>
+                  <MenuItem onSelect={() => setFilterModalOpen(true)}>
+                    {t("filter")}{filtersActive ? ` · ${activeFilterCount}` : ""}
+                  </MenuItem>
+                  {view === "list" && (
+                    <MenuItem onSelect={toggleSelectionMode}>
+                      {selectionMode ? tc("cancel") : t("select")}
+                    </MenuItem>
+                  )}
+                  <MenuSeparator />
+                </>
+              )}
               <MenuItem onSelect={() => setImportOpen(true)}>{t("importCsv")}</MenuItem>
               <MenuSeparator />
               <MenuItem>
@@ -483,8 +490,8 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      {/* View toggle + selection toggle */}
-      <div className="flex items-center justify-between gap-2">
+      {/* View toggle */}
+      <div className="flex items-center gap-2">
         <div className="grid flex-1 grid-cols-2 items-center gap-1 md:flex md:flex-none">
           {(
             [
@@ -515,37 +522,13 @@ export default function ExpensesPage() {
             </button>
           ))}
         </div>
-        {view === "list" && total > 0 && (
-          <Button
-            variant={selectionMode ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => {
-              if (selectionMode) {
-                setSelectionMode(false);
-                setSelected(new Set());
-              } else {
-                setSelectionMode(true);
-              }
-            }}
-          >
-            {selectionMode ? tc("cancel") : t("select")}
-          </Button>
-        )}
       </div>
 
-      {/* Filter toolbar — opens the modal; applied filters show as removable chips. */}
+      {/* Applied filters stay visible and removable after the filter modal closes. */}
       {!listState.initialLoading && total > 0 && (
         <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setFilterModalOpen(true)}>
-              <span className="inline-flex items-center gap-1.5">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M3 5h18l-7 8v6l-4-2v-6Z" />
-                </svg>
-                {t("filter")}{filtersActive ? ` · ${activeFilterCount}` : ""}
-              </span>
-            </Button>
-            {filtersActive && (
+          {filtersActive && (
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={clearFilters}
@@ -553,21 +536,21 @@ export default function ExpensesPage() {
               >
                 {t("clearFilters")}
               </button>
-            )}
-            {filterChips.map((c) => (
-              <button
-                key={c.key}
-                type="button"
-                onClick={c.remove}
-                aria-label={`${c.label}: ${c.value} — ${t("clearFilters")}`}
-                className="inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-md border border-rule bg-panel px-2 py-1 text-xs text-ink transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
-              >
-                <span className="label-mono text-faint">{c.label}</span>
-                <span className="min-w-0 truncate">{c.value}</span>
-                <span aria-hidden className="text-faint">✕</span>
-              </button>
-            ))}
-          </div>
+              {filterChips.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={c.remove}
+                  aria-label={`${c.label}: ${c.value} — ${t("clearFilters")}`}
+                  className="inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-md border border-rule bg-panel px-2 py-1 text-xs text-ink transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+                >
+                  <span className="label-mono text-faint">{c.label}</span>
+                  <span className="min-w-0 truncate">{c.value}</span>
+                  <span aria-hidden className="text-faint">✕</span>
+                </button>
+              ))}
+            </div>
+          )}
           {filtersActive && (
             <div className="flex items-center justify-between gap-3 rounded-md border border-dotted border-rule bg-panel/40 px-3 py-1.5">
               <span className="label-mono">{t("filteredCount", { count: total })}</span>
@@ -715,7 +698,7 @@ export default function ExpensesPage() {
                               {mg.items.map((e, i) => {
                                 const ratio = splitRatio(e, members);
                                 return (
-                                <tr key={e.publicId} onClick={() => openView(e)} className="group cursor-pointer border-t border-dotted border-rule align-top transition-colors hover:bg-panel/30">
+                                <tr key={e.publicId} onClick={() => openView(e)} className="group cursor-pointer border-t border-dotted border-rule align-middle transition-colors hover:bg-panel/30">
                                   <td className="px-2 py-2 text-xs leading-5 text-faint tnum" aria-hidden>{i + 1}</td>
                                   <td className="px-4 py-2 text-sm text-ink">
                                     <span className="break-words">{e.description}</span>
@@ -776,7 +759,7 @@ export default function ExpensesPage() {
           <table className="hidden w-full md:table">
             <thead className="bg-card">
               <tr className="border-b border-dashed border-rule text-left">
-                <th className="w-8 px-2 py-2.5" aria-hidden />
+                <th className="w-10 px-2 py-2.5" aria-hidden />
                 {selectionMode && (
                   <th className="w-10 px-4 py-2.5">
                     <input
@@ -816,7 +799,19 @@ export default function ExpensesPage() {
                 <th className="w-10 px-4 py-2.5" />
               </tr>
             </thead>
-            <tbody>{desktopRows}</tbody>
+            {listMonths.map((month) => (
+              <tbody key={month.key}>
+                <tr className="border-b border-dashed border-rule bg-panel/40">
+                  <th colSpan={COLUMNS.length + 3 + Number(selectionMode)} className="px-4 py-2">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="label-mono">▦ {month.label}</span>
+                      <Money value={month.subtotal} className="font-normal text-ink-soft" />
+                    </span>
+                  </th>
+                </tr>
+                {month.items.map((expense) => desktopRowsById.get(expense.publicId))}
+              </tbody>
+            ))}
           </table>
 
           {/* Mobile stacked cards */}
@@ -833,9 +828,17 @@ export default function ExpensesPage() {
                 <span className="label-mono">{t("selectAll")}</span>
               </label>
             )}
-            <ul>
-              {mobileCards}
-            </ul>
+            {listMonths.map((month) => (
+              <div key={month.key}>
+                <div className="flex items-center justify-between gap-3 border-b border-dashed border-rule bg-panel/40 px-4 py-2">
+                  <span className="label-mono">▦ {month.label}</span>
+                  <Money value={month.subtotal} className="text-ink-soft" />
+                </div>
+                <ul>
+                  {month.items.map((expense) => mobileCardsById.get(expense.publicId))}
+                </ul>
+              </div>
+            ))}
           </div>
         </Card>
         {/* Infinite-scroll sentinel (BL-20/P3) — loads the next page once it's in view. */}
@@ -1034,11 +1037,11 @@ const ExpenseRow = memo(function ExpenseRow({
       role={selectionMode ? undefined : "button"}
       aria-label={selectionMode ? undefined : e.description}
       className={cn(
-        "border-b border-dotted border-rule align-top transition-colors last:border-b-0 hover:bg-panel/30 has-[:checked]:bg-panel/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink",
+        "border-b border-dotted border-rule align-middle transition-colors last:border-b-0 hover:bg-panel/30 has-[:checked]:bg-panel/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink",
         !selectionMode && "cursor-pointer"
       )}
     >
-      <td className="px-2 py-3 text-xs leading-5 text-faint tnum" aria-hidden>{rowNumber}</td>
+      <td className="w-10 px-2 py-3 text-right text-xs leading-5 text-faint tnum" aria-hidden>{rowNumber}</td>
       {selectionMode && (
         <td className="px-4 py-3">
           <RowCheckbox

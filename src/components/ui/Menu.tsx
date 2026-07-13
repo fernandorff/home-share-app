@@ -95,8 +95,8 @@ export function MenuRadioItem({
   );
 }
 
-export function MenuSeparator() {
-  return <DropdownMenu.Separator className="my-1 border-t border-dashed border-rule" />;
+export function MenuSeparator({ className }: { className?: string } = {}) {
+  return <DropdownMenu.Separator className={cn("my-1 border-t border-dashed border-rule", className)} />;
 }
 
 /** A menu item that expands into its own nested menu (e.g. "Settings" inside the user menu),

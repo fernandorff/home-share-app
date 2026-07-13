@@ -317,6 +317,7 @@
     },
     "customSplit": "División personalizada",
     "filter": "Filtrar",
+    "moreActions": "Más acciones de gastos",
     "filtersTitle": "Filtros",
     "searchLabel": "Búsqueda",
     "amountOf": "Importe de {name}",

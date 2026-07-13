@@ -317,6 +317,7 @@
     },
     "customSplit": "Custom split",
     "filter": "Filter",
+    "moreActions": "More expense actions",
     "filtersTitle": "Filters",
     "searchLabel": "Search",
     "amountOf": "Amount for {name}",

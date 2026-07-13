@@ -317,6 +317,7 @@
     },
     "customSplit": "Partage personnalisé",
     "filter": "Filtrer",
+    "moreActions": "Plus d’actions sur les dépenses",
     "filtersTitle": "Filtres",
     "searchLabel": "Recherche",
     "amountOf": "Montant de {name}",
