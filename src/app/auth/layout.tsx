@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
-import { LanguageSelector } from "@/components/app/LanguageSelector";
+import { AuthLanguageSelector } from "@/components/auth/AuthLanguageSelector";
 
 export default async function AuthLayout({ children }: { children: ReactNode }) {
   const t = await getTranslations("Auth");
   return (
     <main className="paper-grain relative flex min-h-dvh flex-col items-center justify-center px-4 py-10">
       <div className="absolute right-4 top-4">
-        <LanguageSelector />
+        <AuthLanguageSelector />
       </div>
       <div className="w-full max-w-sm">
         <header className="mb-6 text-center">

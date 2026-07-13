@@ -4,21 +4,8 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { MenuSub, MenuLabel, MenuSeparator, MenuRadioGroup, MenuRadioItem } from "@/components/ui/Menu";
-import { THEMES, DEFAULT_THEME, THEME_COOKIE, isTheme, type Theme } from "@/lib/theme";
-import { setClientCookie } from "@/lib/client-cookie";
-
-const LANGS = [
-  { code: "en", label: "English" },
-  { code: "pt", label: "Português" },
-  { code: "es", label: "Español" },
-  { code: "fr", label: "Français" },
-] as const;
-
-/** Applies the theme to the document outside React's reactive scope (DOM write + cookie). */
-function applyTheme(theme: Theme) {
-  document.documentElement.dataset.theme = theme;
-  setClientCookie(THEME_COOKIE, theme);
-}
+import { THEMES, DEFAULT_THEME, isTheme, type Theme } from "@/lib/theme";
+import { LANGUAGES, applyLocalePreference, applyThemePreference } from "@/lib/client-preferences";
 
 /** Theme + language pickers, as a "Settings" item that expands into its own submenu inside the
  *  user (avatar) menu — not a standalone top-bar trigger. Logged-in area only — the public auth
@@ -39,12 +26,12 @@ export function SettingsMenu() {
   }, []);
 
   function pickTheme(next: Theme) {
-    applyTheme(next);
+    applyThemePreference(next);
     setTheme(next);
   }
 
   function pickLocale(code: string) {
-    setClientCookie("locale", code);
+    applyLocalePreference(code);
     router.refresh();
   }
 
@@ -61,7 +48,7 @@ export function SettingsMenu() {
       <MenuSeparator />
       <MenuLabel>{tc("language")}</MenuLabel>
       <MenuRadioGroup value={locale}>
-        {LANGS.map((l) => (
+        {LANGUAGES.map((l) => (
           <MenuRadioItem key={l.code} value={l.code} onSelect={() => pickLocale(l.code)}>
             {l.label}
           </MenuRadioItem>

@@ -3,7 +3,7 @@ import { cn } from "./cn";
 type Tone = "stamp" | "credit" | "debt" | "ink";
 
 const TONES: Record<Tone, string> = {
-  stamp: "text-stamp border-stamp",
+  stamp: "text-stamp-text border-stamp",
   credit: "text-credit border-credit",
   debt: "text-debt border-debt",
   ink: "text-ink border-ink",

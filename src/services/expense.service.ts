@@ -75,6 +75,7 @@ export interface PaginationParams {
   sortField: string
   sortDirection: 'asc' | 'desc'
   filters?: ExpenseFilterParams
+  includePayerTotals?: boolean
 }
 
 // Equal split in integer cents — parts always sum to the exact total.
@@ -108,7 +109,7 @@ const legacyOmit = { category: true, platformId: true, platformIds: true } as co
 
 export class ExpenseService {
   async list(groupId: number, params: PaginationParams) {
-    const { page, pageSize, sortField, sortDirection, filters } = params
+    const { page, pageSize, sortField, sortDirection, filters, includePayerTotals = false } = params
 
     const where: Prisma.ExpenseWhereInput = { groupId }
     if (filters?.payerIds?.length) where.payerId = { in: filters.payerIds }
@@ -139,7 +140,7 @@ export class ExpenseService {
       ? [{ payer: { name: sortDirection } }, { id: sortDirection }]
       : [{ [sortField]: sortDirection }, { id: sortDirection }]
 
-    const [expenses, total, totalSum] = await Promise.all([
+    const [expenses, total, totalSum, payerTotals] = await Promise.all([
       prisma.expense.findMany({
         where,
         omit: legacyOmit,
@@ -149,7 +150,10 @@ export class ExpenseService {
         take: pageSize
       }),
       prisma.expense.count({ where }),
-      prisma.expense.aggregate({ where, _sum: { amount: true } })
+      prisma.expense.aggregate({ where, _sum: { amount: true } }),
+      includePayerTotals
+        ? prisma.expense.groupBy({ by: ['payerId'], where, _sum: { amount: true } })
+        : Promise.resolve([])
     ])
 
     return {
@@ -161,7 +165,13 @@ export class ExpenseService {
         totalPages: Math.ceil(total / pageSize),
         // Sum across EVERY row matching the current filters, not just this page — lets the UI
         // show a correct running total for the filtered set while only some pages are loaded.
-        totalAmount: (totalSum._sum.amount ?? 0).toString()
+        totalAmount: (totalSum._sum.amount ?? 0).toString(),
+        ...(includePayerTotals && {
+          payerTotals: payerTotals.map(row => ({
+            payerId: row.payerId,
+            totalAmount: (row._sum.amount ?? 0).toString()
+          }))
+        })
       }
     }
   }

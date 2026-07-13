@@ -34,11 +34,8 @@ import { ExpenseFiltersModal, EMPTY_FILTERS, type ExpenseFilters } from "@/compo
 type SortDirection = "asc" | "desc";
 type ViewMode = "list" | "byPayer";
 
-// List view: true infinite scroll (BL-20/P3). By-person still needs the FULL matching set to
-// group/total correctly, so it keeps the old "load everything" cap — just server-filtered now,
-// and only fetched once that tab is actually opened.
 const LIST_PAGE_SIZE = 50;
-const BY_PERSON_PAGE_SIZE = 100_000;
+const BY_PERSON_PAGE_SIZE = 50;
 
 // Stable "empty" references (module scope, never mutated) — clearFilters() below resets to
 // THESE instead of fresh `[]` literals, so clearing already-empty filters (e.g. on mount, or on
@@ -214,21 +211,21 @@ export default function ExpensesPage() {
     onError: (err) => toast(apiErr(err, t("loadError")), "error"),
   });
 
-  // ===== By-person view: needs the full matching set to group/total correctly, so it loads
-  // everything (like the old model) — but only once the tab is actually opened, and it respects
-  // the same server-side filters as the list. =====
+  // ===== By-person view: its own lazy infinite feed, always chronological so pages can merge
+  // into stable payer/month groups. PostgreSQL returns complete filtered totals per payer. =====
   const [byPersonRequested, setByPersonRequested] = useState(false);
   useEffect(() => {
     if (view === "byPayer") setByPersonRequested(true);
   }, [view]);
-  const byPersonUrl = useMemo(
-    () => buildExpenseQuery({ page: 1, pageSize: BY_PERSON_PAGE_SIZE, sortField: "date", sortDirection: "desc", filters: appliedFilters }),
+  const buildByPersonUrl = useCallback(
+    (page: number) => buildExpenseQuery({ page, pageSize: BY_PERSON_PAGE_SIZE, sortField: "date", sortDirection: "desc", filters: appliedFilters, includePayerTotals: true }),
     [appliedFilters]
   );
-  const { data: byPersonData, loading: byPersonLoading, reload: reloadByPerson } = useFetch<ExpenseListResponse>(
-    byPersonUrl,
-    { enabled: byPersonRequested, onError: (err) => toast(apiErr(err, t("loadError")), "error") }
-  );
+  const byPersonState = useInfiniteExpenses(buildByPersonUrl, {
+    enabled: byPersonRequested,
+    onError: (err) => toast(apiErr(err, t("loadError")), "error"),
+  });
+  const loadMoreByPerson = byPersonState.loadMore;
 
   // True house total, used only to tell "no expenses at all" apart from "no results for this
   // filter". When NO filter is active, `listState.total` already IS the real house total, so we
@@ -247,7 +244,7 @@ export default function ExpensesPage() {
 
   function reloadAll() {
     listState.reload();
-    if (byPersonRequested) reloadByPerson();
+    if (byPersonRequested) byPersonState.reload();
     if (filtersActive) reloadHouseTotal();
   }
 
@@ -272,6 +269,20 @@ export default function ExpensesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only `loadMore` (stable); re-runs per DOM mount/unmount, not per render
   }, [listState.loadMore]);
 
+  const byPersonSentinelObserverRef = useRef<IntersectionObserver | null>(null);
+  const byPersonSentinelRef = useCallback((el: HTMLDivElement | null) => {
+    byPersonSentinelObserverRef.current?.disconnect();
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMoreByPerson();
+      },
+      { rootMargin: "400px" }
+    );
+    observer.observe(el);
+    byPersonSentinelObserverRef.current = observer;
+  }, [loadMoreByPerson]);
+
   // Built-in tag keys translate; custom names render as-is.
   const tagLabel = (ns: string, v: string) => (t.has(`${ns}.${v}`) ? t(`${ns}.${v}`) : v);
   const brDate = (iso: string) => iso.split("-").reverse().join("/");
@@ -293,17 +304,19 @@ export default function ExpensesPage() {
   if (fromDate) filterChips.push({ key: "from", label: t("filterFrom"), value: brDate(fromDate), remove: () => setFromDate("") });
   if (toDate) filterChips.push({ key: "to", label: t("filterTo"), value: brDate(toDate), remove: () => setToDate("") });
 
-  const byPersonExpenses = useMemo(() => byPersonData?.expenses ?? [], [byPersonData]);
+  const byPersonExpenses = byPersonState.items;
+  const payerTotalById = useMemo(
+    () => new Map((byPersonState.payerTotals ?? []).map((row) => [row.payerId, money(row.totalAmount)])),
+    [byPersonState.payerTotals]
+  );
 
   // By person → grouped by month (newest first).
   const byPerson = useMemo<PersonGroup[]>(() => {
     return members.map((m) => {
       const monthsMap = new Map<string, MonthGroup>();
-      let total = 0;
       for (const e of byPersonExpenses) {
         if (e.payerId !== m.id) continue;
         const amt = money(e.amount);
-        total += amt;
         const d = new Date(e.date);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         let mg = monthsMap.get(key);
@@ -317,9 +330,9 @@ export default function ExpensesPage() {
       const monthsArr = Array.from(monthsMap.values()).sort((a, b) =>
         b.key.localeCompare(a.key)
       );
-      return { payerId: m.id, name: m.name, colorIndex: m.colorIndex, total, months: monthsArr };
+      return { payerId: m.id, name: m.name, colorIndex: m.colorIndex, total: payerTotalById.get(m.id) ?? 0, months: monthsArr };
     });
-  }, [byPersonExpenses, members, locale]);
+  }, [byPersonExpenses, members, locale, payerTotalById]);
 
   const byPersonEmpty = byPerson.every((p) => p.months.length === 0);
   // Mobile by-person shows one person at a time (desktop keeps both columns).
@@ -427,45 +440,52 @@ export default function ExpensesPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header — a real <h1> (was a SectionTitle/h2) so every page shares the same title tag
-          (U7/BL-33); kept at the same compact size since, unlike other pages, this row also
-          carries the CSV/New-expense actions and a 2xl title risks overflowing on mobile (the
-          same class of bug fixed in BL-12). */}
-      <div className="flex items-center gap-3">
-        <h1 className="font-display text-sm font-bold uppercase tracking-wider text-ink whitespace-nowrap">
-          {t("title")}{" "}
-          {!listState.initialLoading && (
-            <span className="font-normal text-faint">({total})</span>
-          )}
-        </h1>
-        <span className="flex-1 border-t border-dashed border-rule" aria-hidden />
-        <div className="flex items-center gap-2">
-          <Menu
-            align="end"
-            trigger={
-              <button className="inline-flex items-center gap-1.5 rounded-md border border-ink bg-card px-3 py-2 text-[0.7rem] font-display font-bold uppercase tracking-wider text-ink transition-colors hover:bg-panel">
-                CSV <span className="text-faint">▾</span>
-              </button>
-            }
-          >
-            <MenuItem onSelect={() => setImportOpen(true)}>{t("importCsv")}</MenuItem>
-            <MenuSeparator />
-            <MenuItem>
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API download endpoint, not a page route */}
-              <a href="/api/expenses/export" className="flex w-full items-center">
-                {t("exportCsv")}
-              </a>
-            </MenuItem>
-          </Menu>
-          <Button size="sm" onClick={openCreate}>
+      {/* Mobile gets one clear primary action and a square overflow control. Desktop preserves the
+          compact single-row ledger header. */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="flex min-w-0 items-center gap-3 md:flex-1">
+          <h1 className="whitespace-nowrap font-display text-sm font-bold uppercase tracking-wider text-ink">
+            {t("title")}{" "}
+            {!listState.initialLoading && (
+              <span className="font-normal text-faint">({total})</span>
+            )}
+          </h1>
+          <span className="flex-1 border-t border-dashed border-rule" aria-hidden />
+        </div>
+        <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] items-stretch gap-2 md:flex md:items-center">
+          <Button size="sm" onClick={openCreate} className="order-1 w-full md:order-2 md:w-auto">
             {t("newExpense")}
           </Button>
+          <div className="order-2 md:order-1">
+            <Menu
+              align="end"
+              trigger={
+                <button
+                  type="button"
+                  aria-label="CSV"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-md border border-ink bg-card px-2 text-[0.7rem] font-display font-bold uppercase tracking-wider text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper md:min-h-0 md:min-w-0 md:px-3 md:py-2"
+                >
+                  <span className="text-lg leading-none md:hidden" aria-hidden>⋮</span>
+                  <span className="hidden md:inline" aria-hidden>CSV <span className="text-faint">▾</span></span>
+                </button>
+              }
+            >
+              <MenuItem onSelect={() => setImportOpen(true)}>{t("importCsv")}</MenuItem>
+              <MenuSeparator />
+              <MenuItem>
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API download endpoint, not a page route */}
+                <a href="/api/expenses/export" className="flex w-full items-center">
+                  {t("exportCsv")}
+                </a>
+              </MenuItem>
+            </Menu>
+          </div>
         </div>
       </div>
 
       {/* View toggle + selection toggle */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1">
+        <div className="grid flex-1 grid-cols-2 items-center gap-1 md:flex md:flex-none">
           {(
             [
               { id: "list", label: t("viewList") },
@@ -485,7 +505,7 @@ export default function ExpensesPage() {
               className={cn(
                 // ring-inset (not offset): the offset ring was clipped by the rounded group so the
                 // toggle showed no keyboard focus at all (a11y WCAG 2.4.7).
-                "rounded-md border px-3 py-1.5 text-[0.7rem] font-display font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stamp",
+                "min-h-11 w-full rounded-md border px-3 py-1.5 text-[0.7rem] font-display font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stamp md:min-h-0 md:w-auto",
                 view === v.id
                   ? "border-ink bg-ink text-paper"
                   : "border-rule bg-card text-ink-soft hover:bg-panel"
@@ -529,7 +549,7 @@ export default function ExpensesPage() {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="label-mono shrink-0 rounded-md px-2 py-1.5 text-stamp transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+                className="label-mono inline-flex min-h-8 shrink-0 items-center rounded-md px-2 py-1.5 text-stamp-text transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
               >
                 {t("clearFilters")}
               </button>
@@ -540,7 +560,7 @@ export default function ExpensesPage() {
                 type="button"
                 onClick={c.remove}
                 aria-label={`${c.label}: ${c.value} — ${t("clearFilters")}`}
-                className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-rule bg-panel px-2 py-1 text-xs text-ink transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+                className="inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-md border border-rule bg-panel px-2 py-1 text-xs text-ink transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
               >
                 <span className="label-mono text-faint">{c.label}</span>
                 <span className="min-w-0 truncate">{c.value}</span>
@@ -585,7 +605,7 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {(view === "byPayer" ? byPersonData === null || byPersonLoading : listState.initialLoading) ? (
+      {(view === "byPayer" ? byPersonState.initialLoading : listState.initialLoading) ? (
         view === "byPayer" ? (
           <div className="grid gap-5 lg:grid-cols-2">
             <Card className="p-2"><SkeletonRows rows={6} /></Card>
@@ -741,6 +761,11 @@ export default function ExpensesPage() {
               );
             })}
           </div>
+          {byPersonState.hasMore && (
+            <div ref={byPersonSentinelRef} className="flex items-center justify-center py-4">
+              {byPersonState.loadingMore && <span className="label-mono text-faint">{t("loadingMore")}</span>}
+            </div>
+          )}
           </>
         )
       ) : (
@@ -1127,7 +1152,7 @@ const RowMenu = memo(function RowMenu({ onEdit, onDelete }: { onEdit: () => void
         <button
           aria-label={t("rowActions")}
           // min-h-11 min-w-11: 44px touch floor on mobile (D3 — was 31x26); sm:* restores compact desktop.
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 py-1 text-lg leading-none text-ink-soft transition-colors hover:bg-panel hover:text-ink sm:min-h-0 sm:min-w-0"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 py-1 text-lg leading-none text-ink-soft transition-colors hover:bg-panel hover:text-ink md:min-h-0 md:min-w-0"
         >
           ⋯
         </button>

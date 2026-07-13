@@ -9,7 +9,7 @@ export interface MemberStyle {
 
 const PALETTE: MemberStyle[] = [
   { bg: "#16140f", fg: "#f2f0e9" }, // 0 ink
-  { bg: "#d6452c", fg: "#f7e6e1" }, // 1 stamp red
+  { bg: "#b23a22", fg: "#f7e6e1" }, // 1 stamp red — darkened so initials meet WCAG AA
   { bg: "#2f6b4f", fg: "#eef5ef" }, // 2 pine
   { bg: "#b8801f", fg: "#1c1607" }, // 3 mustard
   { bg: "#3a5a8c", fg: "#eef2f8" }, // 4 slate blue

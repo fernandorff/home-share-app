@@ -27,7 +27,11 @@
     "categories": "Categorías",
     "catalogs": "Catálogos",
     "myAccount": "Mi cuenta",
-    "settings": "Configuración"
+    "settings": "Configuración",
+    "menu": "Menú",
+    "openMenu": "Abrir menú",
+    "back": "Volver",
+    "activeHouse": "Casa activa"
   },
   "Auth": {
     "brandTagline": "cuentas de la casa · extracto",

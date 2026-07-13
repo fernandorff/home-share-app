@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:full": "docker compose up -d && npx prisma db push && next dev",
     "build": "prisma db push && prisma generate && next build",
+    "analyze": "next experimental-analyze",
     "start": "next start",
     "lint": "eslint",
     "db:up": "docker compose up -d",

@@ -64,13 +64,14 @@ export async function GET(request: Request) {
     const pageSize = Number.isFinite(pageSizeRaw) && pageSizeRaw > 0 ? Math.min(pageSizeRaw, 100_000) : 10
     const sortField = searchParams.get('sortField') || 'date'
     const sortDirection = searchParams.get('sortDirection') === 'asc' ? 'asc' as const : 'desc' as const
+    const includePayerTotals = searchParams.get('includePayerTotals') === 'true'
 
     if (!(VALID_SORT_FIELDS as readonly string[]).includes(sortField)) {
       return NextResponse.json({ error: `Invalid sort field: ${sortField}` }, { status: 400 })
     }
 
     const filters = parseExpenseFilters(searchParams)
-    const result = await expenseService.list(check.groupId, { page, pageSize, sortField, sortDirection, filters })
+    const result = await expenseService.list(check.groupId, { page, pageSize, sortField, sortDirection, filters, includePayerTotals })
     return NextResponse.json(result)
   } catch (error) {
     return handleApiError(error, 'Failed to list expenses')

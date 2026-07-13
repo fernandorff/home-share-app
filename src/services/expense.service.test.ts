@@ -10,6 +10,7 @@ const { mockPrisma } = vi.hoisted(() => ({
       findMany: vi.fn(),
       count: vi.fn(),
       aggregate: vi.fn(),
+      groupBy: vi.fn(),
       delete: vi.fn(),
     },
     expenseParticipant: { deleteMany: vi.fn() },
@@ -249,6 +250,7 @@ describe("ExpenseService.list — server-side filters (BL-20/P3)", () => {
     mockPrisma.expense.findMany.mockResolvedValue([]);
     mockPrisma.expense.count.mockResolvedValue(0);
     mockPrisma.expense.aggregate.mockResolvedValue({ _sum: { amount: null } });
+    mockPrisma.expense.groupBy.mockResolvedValue([]);
   });
 
   const whereOfLastFindMany = () => mockPrisma.expense.findMany.mock.calls.at(-1)![0].where;
@@ -312,6 +314,33 @@ describe("ExpenseService.list — server-side filters (BL-20/P3)", () => {
     mockPrisma.expense.aggregate.mockResolvedValueOnce({ _sum: { amount: null } });
     const result = await expenseService.list(1, baseParams);
     expect(result.pagination.totalAmount).toBe("0");
+  });
+
+  it("returns exact filter-scoped payer totals only when requested", async () => {
+    mockPrisma.expense.groupBy.mockResolvedValueOnce([
+      { payerId: 3, _sum: { amount: { toString: () => "123.45" } } },
+      { payerId: 5, _sum: { amount: { toString: () => "0.05" } } },
+    ]);
+    const result = await expenseService.list(7, {
+      ...baseParams,
+      filters: { categories: ["groceries"] },
+      includePayerTotals: true,
+    });
+    expect(mockPrisma.expense.groupBy).toHaveBeenCalledWith({
+      by: ["payerId"],
+      where: { groupId: 7, categories: { hasSome: ["groceries"] } },
+      _sum: { amount: true },
+    });
+    expect(result.pagination.payerTotals).toEqual([
+      { payerId: 3, totalAmount: "123.45" },
+      { payerId: 5, totalAmount: "0.05" },
+    ]);
+  });
+
+  it("does not run the payer aggregate for ordinary list requests", async () => {
+    const result = await expenseService.list(1, baseParams);
+    expect(mockPrisma.expense.groupBy).not.toHaveBeenCalled();
+    expect(result.pagination).not.toHaveProperty("payerTotals");
   });
 });
 

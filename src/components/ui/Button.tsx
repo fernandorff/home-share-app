@@ -9,14 +9,14 @@ const VARIANTS: Record<Variant, string> = {
   primary: "bg-ink text-paper border-ink hover:bg-stamp hover:border-stamp",
   secondary: "bg-card text-ink border-ink hover:bg-panel",
   ghost: "bg-transparent text-ink-soft border-transparent hover:bg-panel hover:text-ink",
-  danger: "bg-stamp text-paper border-stamp hover:brightness-110",
+  danger: "bg-stamp-text text-paper border-stamp-text hover:brightness-110",
 };
 
 const SIZES: Record<Size, string> = {
-  // min-h-11 floors mobile touch height at 44px (D3/D8/BL-21 — was ~30px); sm:min-h-0 lets it
-  // shrink back to its natural compact height at the sm breakpoint (mouse input, no touch concern).
-  sm: "text-[0.7rem] px-3 py-1.5 gap-1.5 min-h-11 sm:min-h-0",
-  md: "text-[0.8rem] px-4 py-2.5 gap-2",
+  // The app shell stays in touch/mobile mode through 767px, so density switches at the same `md`
+  // breakpoint instead of mixing compact desktop buttons into the small-tablet layout.
+  sm: "text-[0.7rem] px-3 py-1.5 gap-1.5 min-h-11 md:min-h-0",
+  md: "text-[0.8rem] px-4 py-2.5 gap-2 min-h-11 md:min-h-0",
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

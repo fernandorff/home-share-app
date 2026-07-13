@@ -27,7 +27,11 @@
     "categories": "Categories",
     "catalogs": "Catalogs",
     "myAccount": "My account",
-    "settings": "Settings"
+    "settings": "Settings",
+    "menu": "Menu",
+    "openMenu": "Open menu",
+    "back": "Back",
+    "activeHouse": "Active house"
   },
   "Auth": {
     "brandTagline": "household accounts · ledger",

@@ -35,9 +35,9 @@ export function LanguageSelector() {
       trigger={
         <button
           aria-label={tc("language")}
-          // min-h-11: 44px floor on mobile touch (D3/BL-21 — was 32x28); sm:min-h-0 restores the
+          // min-h-11: 44px floor on mobile touch (D3/BL-21 — was 32x28); md:min-h-0 restores the
           // compact desktop size (mouse input).
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-rule bg-card px-2 py-1.5 text-xs uppercase tracking-wide text-ink-soft transition-colors hover:bg-panel sm:min-h-0"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-rule bg-card px-2 py-1.5 text-xs uppercase tracking-wide text-ink-soft transition-colors hover:bg-panel md:min-h-0"
         >
           <svg
             width="14"
@@ -60,7 +60,7 @@ export function LanguageSelector() {
       {LANGS.map((l) => (
         <MenuItem key={l.code} onSelect={() => pick(l.code)}>
           <span className="flex-1">{l.label}</span>
-          {l.code === locale && <span className="text-stamp">✓</span>}
+          {l.code === locale && <span className="text-stamp-text">✓</span>}
         </MenuItem>
       ))}
     </Menu>

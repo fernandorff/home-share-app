@@ -10,6 +10,7 @@ export interface UseInfiniteExpensesResult {
   items: Expense[];
   total: number;
   totalAmount: number;
+  payerTotals: NonNullable<ExpenseListResponse["pagination"]["payerTotals"]>;
   initialLoading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
@@ -28,12 +29,13 @@ export interface UseInfiniteExpensesResult {
  */
 export function useInfiniteExpenses(
   buildUrl: (page: number) => string,
-  opts: { onError?: (error: unknown) => void } = {}
+  opts: { onError?: (error: unknown) => void; enabled?: boolean } = {}
 ): UseInfiniteExpensesResult {
   const { activeGroup } = useSession();
   const [items, setItems] = useState<Expense[]>([]);
   const [total, setTotal] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
+  const [payerTotals, setPayerTotals] = useState<NonNullable<ExpenseListResponse["pagination"]["payerTotals"]>>([]);
   const [page, setPage] = useState(1);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -44,6 +46,7 @@ export function useInfiniteExpenses(
   buildUrlRef.current = buildUrl;
   const onErrorRef = useRef(opts.onError);
   onErrorRef.current = opts.onError;
+  const enabled = opts.enabled ?? true;
 
   const fetchPage = useCallback(async (targetPage: number, replace: boolean) => {
     const id = ++reqId.current;
@@ -55,6 +58,7 @@ export function useInfiniteExpenses(
       setItems((prev) => (replace ? res.expenses : [...prev, ...res.expenses]));
       setTotal(res.pagination.total);
       setTotalAmount(money(res.pagination.totalAmount));
+      setPayerTotals(res.pagination.payerTotals ?? []);
       setPage(targetPage);
       setError(null);
     } catch (e) {
@@ -72,11 +76,15 @@ export function useInfiniteExpenses(
   // Reset + refetch page 1 whenever the query shape (buildUrl identity) or the active house
   // changes — a stale page 2+ from the PREVIOUS filter/sort must never linger in `items`.
   useEffect(() => {
+    if (!enabled) return;
     setItems([]);
+    setTotal(0);
+    setTotalAmount(0);
+    setPayerTotals([]);
     setPage(1);
     fetchPage(1, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchPage is stable (empty deps); buildUrl's identity is the caller's signal to refetch
-  }, [buildUrl, activeGroup?.id]);
+  }, [buildUrl, activeGroup?.id, enabled]);
 
   const hasMore = items.length < total;
 
@@ -100,5 +108,5 @@ export function useInfiniteExpenses(
     fetchPage(1, true);
   }, [fetchPage]);
 
-  return { items, total, totalAmount, initialLoading, loadingMore, hasMore, error, loadMore, reload };
+  return { items, total, totalAmount, payerTotals, initialLoading, loadingMore, hasMore, error, loadMore, reload };
 }

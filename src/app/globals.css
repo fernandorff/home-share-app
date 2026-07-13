@@ -23,6 +23,9 @@
 
   /* Single stamp accent + semantic money colors */
   --color-stamp: #d6452c;
+  /* AA-safe companion for accent used as text or behind light text. Keep --color-stamp for
+     decorative marks/borders so the brand color itself does not change (issue #54). */
+  --color-stamp-text: #b23a22;
   --color-stamp-soft: #f7e6e1;
   --color-credit: #2f6b4f; /* a receber */
   --color-debt: #c0392b;   /* deve */
@@ -65,6 +68,7 @@ html[data-theme="bolitas"] {
 
   /* Terracotta accent + cozy money colors */
   --color-stamp: #a0553e;
+  --color-stamp-text: #944530;
   --color-stamp-soft: #f1e0d7;
   --color-credit: #3d7a4e; /* a receber — sage */
   --color-debt: #a44b2a;   /* deve — rust */
@@ -209,6 +213,10 @@ html[data-theme="bolitas"] .skeleton {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: none; }
 }
+@keyframes hs-drawer {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
 @keyframes hs-shimmer {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }
@@ -230,6 +238,9 @@ html[data-theme="bolitas"] .skeleton {
   }
   .anim-sheet {
     animation: hs-sheet 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .anim-drawer {
+    animation: hs-drawer 0.24s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
   .anim-toast {
     animation: hs-sheet 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both;
@@ -255,6 +266,7 @@ html[data-theme="bolitas"] .skeleton {
   .anim-overlay,
   .anim-pop,
   .anim-sheet,
+  .anim-drawer,
   .anim-toast,
   .skeleton {
     animation: none !important;

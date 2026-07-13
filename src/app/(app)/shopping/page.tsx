@@ -52,7 +52,10 @@ export default function ShoppingPage() {
   const [clearingPurchased, setClearingPurchased] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const errMsg = (e: unknown) => apiErr(e, t("genericError"));
+  const errMsg = useCallback(
+    (e: unknown) => apiErr(e, t("genericError")),
+    [apiErr, t]
+  );
 
   const setItemBusy = (publicId: string, on: boolean) =>
     setBusy((prev) => {
@@ -72,7 +75,7 @@ export default function ShoppingPage() {
     } finally {
       if (reqId.current === id) setLoading(false);
     }
-  }, [toast]);
+  }, [errMsg, toast]);
 
   // Reload whenever the active house changes (and on mount); reqId drops stale responses.
   useEffect(() => {
@@ -413,7 +416,7 @@ function ItemRow({
           // actual hit area grows to ~44x44+ (D8/BL-21 — was 29x16px).
           "-m-4 shrink-0 select-none p-4 font-mono text-base leading-none transition-colors",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-card rounded-sm",
-          item.isPurchased ? "text-stamp" : "text-ink-soft hover:text-ink"
+          item.isPurchased ? "text-stamp-text" : "text-ink-soft hover:text-ink"
         )}
       >
         {item.isPurchased ? "[x]" : "[ ]"}
@@ -448,7 +451,7 @@ function ItemRow({
             aria-label={t("itemActions")}
             disabled={busy}
             // min-h-11 min-w-11: 44px touch floor on mobile (D3 — was 31x26); sm:* restores compact desktop.
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink disabled:opacity-50 sm:min-h-0 sm:min-w-0"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink disabled:opacity-50 md:min-h-0 md:min-w-0"
           >
             ⋯
           </button>

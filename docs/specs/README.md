@@ -20,4 +20,6 @@ Rules that make specs work with AI agents:
 
 ## Index
 
-_(none yet)_
+- [001 — By-person infinite scroll](001-by-person-infinite-scroll/requirements.md)
+- [002 — Database balance aggregation](002-database-balance-aggregation/requirements.md)
+- [003 — Mobile navigation drawer](003-mobile-navigation-drawer/requirements.md)

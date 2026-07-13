@@ -8,65 +8,9 @@ import { api } from "@/lib/api";
 import { cn } from "@/components/ui/cn";
 import { MemberDot } from "@/components/ui/Member";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/Menu";
+import { MobileNavDrawer } from "@/components/app/MobileNavDrawer";
+import { APP_NAVIGATION } from "@/components/app/navigation";
 import { SettingsMenu } from "@/components/app/SettingsMenu";
-
-type IconProps = { className?: string };
-const ic = "h-[18px] w-[18px]";
-
-function ReceiptIcon({ className }: IconProps) {
-  return (
-    <svg aria-hidden className={cn(ic, className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 3v18l2-1.2L9 21l2-1.2L13 21l2-1.2L17 21l2-1.2V3l-2 1.2L15 3l-2 1.2L11 3 9 4.2 7 3 5 4.2Z" />
-      <path d="M8 8h8M8 12h8M8 16h5" />
-    </svg>
-  );
-}
-function ScaleIcon({ className }: IconProps) {
-  return (
-    <svg aria-hidden className={cn(ic, className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3v18M7 21h10M5 7h14M5 7l-3 6a3 3 0 0 0 6 0Zm14 0-3 6a3 3 0 0 0 6 0Z" />
-    </svg>
-  );
-}
-function CartIcon({ className }: IconProps) {
-  return (
-    <svg aria-hidden className={cn(ic, className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 4h2l2.4 12.3a1 1 0 0 0 1 .7h8.7a1 1 0 0 0 1-.8L21 8H6" />
-      <circle cx="9" cy="20" r="1.3" /><circle cx="18" cy="20" r="1.3" />
-    </svg>
-  );
-}
-function GridIcon({ className }: IconProps) {
-  return (
-    <svg aria-hidden className={cn(ic, className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-  );
-}
-function HomeIcon({ className }: IconProps) {
-  return (
-    <svg aria-hidden className={cn(ic, className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 11 12 4l8 7M6 10v9h12v-9" />
-    </svg>
-  );
-}
-function ClockIcon({ className }: IconProps) {
-  return (
-    <svg aria-hidden className={cn(ic, className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" />
-    </svg>
-  );
-}
-
-const NAV = [
-  { href: "/expenses", key: "expenses", Icon: ReceiptIcon },
-  { href: "/balances", key: "balances", Icon: ScaleIcon },
-  { href: "/shopping", key: "shopping", Icon: CartIcon },
-  { href: "/catalogs", key: "catalogs", Icon: GridIcon },
-  { href: "/activity", key: "activity", Icon: ClockIcon },
-  { href: "/house", key: "household", Icon: HomeIcon },
-] as const;
 
 function useIsActive() {
   const pathname = usePathname();
@@ -84,9 +28,9 @@ function HouseSelector() {
       align="start"
       trigger={
         <button
-          // min-h-11: 44px floor on mobile touch (D3/BL-21 — was h34); sm:min-h-0 restores the
+          // min-h-11: 44px floor on mobile touch (D3/BL-21 — was h34); md:min-h-0 restores the
           // compact desktop size (mouse input).
-          className="inline-flex min-h-11 min-w-0 max-w-[34vw] items-center gap-1.5 rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper sm:min-h-0 sm:max-w-[42vw]"
+          className="inline-flex min-h-11 min-w-0 max-w-[34vw] items-center gap-1.5 rounded-md border border-rule bg-card px-2.5 py-1.5 text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper md:min-h-0 md:max-w-[42vw]"
         >
           <MemberDot colorIndex={activeGroup.colorIndex} name={activeGroup.name} size={18} />
           <span className="min-w-0 flex-1 truncate font-medium">{activeGroup.name}</span>
@@ -99,7 +43,7 @@ function HouseSelector() {
         <MenuItem key={g.id} onSelect={() => g.id !== activeGroup.id && void switchGroup(g.id)}>
           <MemberDot colorIndex={g.colorIndex} name={g.name} size={18} />
           <span className="min-w-0 flex-1 truncate">{g.name}</span>
-          {g.id === activeGroup.id && <span className="text-stamp">✓</span>}
+          {g.id === activeGroup.id && <span className="text-stamp-text">✓</span>}
         </MenuItem>
       ))}
       <MenuSeparator />
@@ -127,9 +71,9 @@ function UserMenu() {
       align="end"
       trigger={
         <button
-          // min-h-11 min-w-11: 44px floor on mobile touch (D3/BL-21 — was h34); sm:min-h-0/min-w-0
+          // min-h-11 min-w-11: 44px floor on mobile touch (D3/BL-21 — was h34); md:min-h-0/min-w-0
           // restores the compact desktop size (mouse input).
-          className="inline-flex min-h-11 min-w-11 items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-panel sm:min-h-0 sm:min-w-0"
+          className="inline-flex min-h-11 min-w-11 items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-panel md:min-h-0 md:min-w-0"
         >
           <MemberDot colorIndex={activeGroup?.colorIndex ?? 0} name={me.user.name} size={26} />
           <span className="hidden max-w-28 truncate text-sm text-ink sm:inline">{me.user.name}</span>
@@ -156,14 +100,15 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   return (
     <div className="paper-grain min-h-dvh">
       <header className="sticky top-0 z-30 border-b border-rule bg-paper/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-1.5 md:py-3">
           <Link href="/expenses" className="shrink-0 font-display text-base font-bold tracking-tight text-ink">
             HOME<span className="text-stamp">SHARE</span>
           </Link>
-          <span className="hidden text-faint sm:inline" aria-hidden>·</span>
-          <HouseSelector />
+          <span className="hidden text-faint md:inline" aria-hidden>·</span>
+          <div className="hidden md:block"><HouseSelector /></div>
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <UserMenu />
+            <div className="hidden md:block"><UserMenu /></div>
+            <MobileNavDrawer isActive={isActive} />
           </div>
         </div>
       </header>
@@ -172,7 +117,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
         {/* Desktop sidebar */}
         <aside className="hidden w-44 shrink-0 md:block">
           <nav className="sticky top-20 flex flex-col gap-1">
-            {NAV.map(({ href, key, Icon }) => (
+            {APP_NAVIGATION.map(({ href, key, Icon }) => (
               <Link
                 key={href}
                 href={href}
@@ -193,29 +138,8 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           </nav>
         </aside>
 
-        <main className="min-w-0 flex-1 pb-24 md:pb-6">{children}</main>
+        <main className="min-w-0 flex-1 pb-6">{children}</main>
       </div>
-
-      {/* Mobile bottom nav — same 6 routes as the desktop sidebar above, just CSS-hidden per
-          breakpoint (both stay mounted). Left at Next's default prefetch there, so without this
-          every route got prefetched twice (12 requests for 6 routes, BL-32/P6); the desktop
-          sidebar's links keep prefetching. */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-rule bg-paper/95 backdrop-blur md:hidden">
-        {NAV.map(({ href, key, Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            prefetch={false}
-            className={cn(
-              "flex min-w-0 flex-col items-center gap-1 px-0.5 py-2 text-[0.75rem] uppercase tracking-tight transition-colors",
-              isActive(href) ? "text-stamp" : "text-ink-soft"
-            )}
-          >
-            <Icon />
-            <span className="block w-full truncate text-center">{t(key)}</span>
-          </Link>
-        ))}
-      </nav>
     </div>
   );
 }

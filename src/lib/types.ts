@@ -98,6 +98,9 @@ export interface Pagination {
   // Sum of `amount` across every row matching the current filters (not just the loaded page) —
   // lets the filtered-total widget stay correct while infinite scroll has only loaded some pages.
   totalAmount: Money;
+  // Opt-in aggregate used by the paged by-person view. It stays exact even while the client has
+  // loaded only the first pages; omitted for ordinary list requests to avoid an extra DB query.
+  payerTotals?: { payerId: number; totalAmount: Money }[];
 }
 
 export interface ExpenseListResponse {

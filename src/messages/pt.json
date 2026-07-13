@@ -27,7 +27,11 @@
     "categories": "Categorias",
     "catalogs": "Catálogos",
     "myAccount": "Minha conta",
-    "settings": "Configurações"
+    "settings": "Configurações",
+    "menu": "Menu",
+    "openMenu": "Abrir menu",
+    "back": "Voltar",
+    "activeHouse": "Casa ativa"
   },
   "Auth": {
     "brandTagline": "contas da casa · extrato",

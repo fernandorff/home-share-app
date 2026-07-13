@@ -16,6 +16,11 @@ function paramsOf(url: string): URLSearchParams {
 }
 
 describe("buildExpenseQuery", () => {
+  it("opts into exact payer totals for the by-person feed", () => {
+    const url = buildExpenseQuery({ page: 1, pageSize: 50, sortField: "date", sortDirection: "desc", filters: EMPTY_FILTERS, includePayerTotals: true });
+    expect(new URL(url, "http://localhost").searchParams.get("includePayerTotals")).toBe("true");
+  });
+
   it("builds the base page/pageSize/sort params with no filters set", () => {
     const url = buildExpenseQuery({ page: 2, pageSize: 50, sortField: "date", sortDirection: "desc", filters: EMPTY_FILTERS });
     expect(url.startsWith("/api/expenses?")).toBe(true);

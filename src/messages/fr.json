@@ -27,7 +27,11 @@
     "categories": "Catégories",
     "catalogs": "Catalogues",
     "myAccount": "Mon compte",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "menu": "Menu",
+    "openMenu": "Ouvrir le menu",
+    "back": "Retour",
+    "activeHouse": "Foyer actif"
   },
   "Auth": {
     "brandTagline": "comptes du foyer · grand livre",

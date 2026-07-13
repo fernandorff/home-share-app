@@ -6,9 +6,11 @@ import { settlementService } from "@/services/settlement.service";
 import { categoryService } from "@/services/category.service";
 import { groupService } from "@/services/group.service";
 import { authService } from "@/services/auth.service";
+import { balanceService } from "@/services/balance.service";
 import { allActiveGroupMembers, allGroupMembers } from "@/lib/api-helpers";
 import { runWithAuditContext } from "@/lib/audit-context";
 import { flushAudit } from "@/lib/prisma-audit";
+import { toCents } from "@/lib/currency";
 
 // Integration tests against a real (pglite) Postgres booted by test/global-setup.ts.
 // They exercise the actual Prisma queries to prove the groupId scoping really isolates houses —
@@ -94,6 +96,81 @@ describe("tenant isolation (integration, real pglite DB)", () => {
     const sumCents = e!.participants.reduce((a, p) => a + Math.round(Number(p.amount) * 100), 0);
     expect(sumCents).toBe(Math.round(Number(e!.amount) * 100));
     expect(sumCents).toBe(10000);
+  });
+});
+
+describe("balance aggregation (integration, real pglite DB)", () => {
+  beforeEach(reset);
+
+  const byName = (balances: Awaited<ReturnType<typeof balanceService.aggregate>>) =>
+    Object.fromEntries(balances.map((balance) => [balance.userName, balance.balance]));
+
+  async function createExpense(
+    groupId: number,
+    payerId: number,
+    amount: string,
+    shares: Array<{ userId: number; amount: string }>
+  ) {
+    return prisma.expense.create({
+      data: {
+        publicId: randomUUID(),
+        groupId,
+        payerId,
+        description: "Balance integration fixture",
+        amount,
+        participants: { create: shares },
+      },
+    });
+  }
+
+  it("uses PostgreSQL grouped sums and preserves uneven cents exactly", async () => {
+    const [ana, bob, carol] = await Promise.all([
+      prisma.user.create({ data: { publicId: randomUUID(), name: "Ana", username: "balance-ana" } }),
+      prisma.user.create({ data: { publicId: randomUUID(), name: "Bob", username: "balance-bob" } }),
+      prisma.user.create({ data: { publicId: randomUUID(), name: "Carol", username: "balance-carol" } }),
+    ]);
+    const house = await prisma.group.create({ data: { publicId: randomUUID(), name: "Balance House" } });
+    await createExpense(house.id, carol.id, "100.00", [
+      { userId: ana.id, amount: "33.34" },
+      { userId: bob.id, amount: "33.33" },
+      { userId: carol.id, amount: "33.33" },
+    ]);
+
+    const balances = await balanceService.aggregate(house.id);
+
+    expect(byName(balances)).toEqual({ Carol: 66.67, Bob: -33.33, Ana: -33.34 });
+    expect(balances.reduce((sum, balance) => sum + toCents(balance.balance), 0)).toBe(0);
+  });
+
+  it("sums repeated float-hostile decimal amounts without drift", async () => {
+    const [ana, bob] = await Promise.all([
+      prisma.user.create({ data: { publicId: randomUUID(), name: "Ana", username: "repeat-ana" } }),
+      prisma.user.create({ data: { publicId: randomUUID(), name: "Bob", username: "repeat-bob" } }),
+    ]);
+    const house = await prisma.group.create({ data: { publicId: randomUUID(), name: "Repeat House" } });
+    for (let index = 0; index < 30; index += 1) {
+      await createExpense(house.id, ana.id, "0.10", [
+        { userId: ana.id, amount: "0.05" },
+        { userId: bob.id, amount: "0.05" },
+      ]);
+    }
+
+    expect(byName(await balanceService.aggregate(house.id))).toEqual({ Ana: 1.5, Bob: -1.5 });
+  });
+
+  it("isolates every credit and debit to the requested group", async () => {
+    const { carol, houseA, houseB } = await seedTwoHouses();
+    await createExpense(houseB.id, carol.id, "900.00", [
+      { userId: carol.id, amount: "900.00" },
+    ]);
+
+    expect(byName(await balanceService.aggregate(houseA.id))).toEqual({ Ana: 50, Bob: -50 });
+    expect(byName(await balanceService.aggregate(houseB.id))).toEqual({ Carol: 0 });
+  });
+
+  it("returns no balances for a group without expenses", async () => {
+    const house = await prisma.group.create({ data: { publicId: randomUUID(), name: "Empty Balance House" } });
+    expect(await balanceService.aggregate(house.id)).toEqual([]);
   });
 });
 

@@ -89,7 +89,7 @@ export function MenuRadioItem({
     >
       <span className="min-w-0 flex-1">{children}</span>
       <DropdownMenu.ItemIndicator>
-        <span className="text-stamp">✓</span>
+        <span className="text-stamp-text">✓</span>
       </DropdownMenu.ItemIndicator>
     </DropdownMenu.RadioItem>
   );
