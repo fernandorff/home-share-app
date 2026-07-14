@@ -24,3 +24,4 @@ Rules that make specs work with AI agents:
 - [002 — Database balance aggregation](002-database-balance-aggregation/requirements.md)
 - [003 — Mobile navigation drawer](003-mobile-navigation-drawer/requirements.md)
 - [004 — List month groups](004-list-month-groups/requirements.md)
+- [005 — Shopping item expense links](005-shopping-item-expense-links/requirements.md)

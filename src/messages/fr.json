@@ -265,6 +265,9 @@
     },
     "noPlatform": "Sans plateforme",
     "selectPlaceholder": "Sélectionner…",
+    "searchTags": "Rechercher ou créer…",
+    "createTag": "Créer « {name} »",
+    "createTagError": "Impossible de créer cette option",
     "description": "Description",
     "descriptionPlaceholder": "Ex. : Courses de la semaine",
     "amountLabel": "Montant ({symbol})",
@@ -422,6 +425,18 @@
     "emptyHint": "Ajoutez le premier article.",
     "cleared": "{count, plural, one {# article supprimé.} other {# articles supprimés.}}",
     "clearConfirm": "{count, plural, one {Retirer # article acheté de la liste ?} other {Retirer les # articles achetés de la liste ?}}",
+    "linkExpensesTitle": "Lier des dépenses",
+    "linkExpensesDescription": "Choisissez les dépenses liées à {item}.",
+    "linkExpensesAction": "Lier des dépenses",
+    "linkedExpenseCount": "{count, plural, one {# dépense} other {# dépenses}}",
+    "searchExpenses": "Rechercher des dépenses…",
+    "selectedExpenses": "{count, plural, =0 {Aucune dépense sélectionnée} one {# dépense sélectionnée} other {# dépenses sélectionnées}}",
+    "noExpensesFound": "Aucune dépense trouvée",
+    "skipLinks": "Ignorer pour l'instant",
+    "saveLinks": "Enregistrer ({count})",
+    "linksSaved": "Liens enregistrés",
+    "linkLoadError": "Impossible de charger les dépenses",
+    "linkSaveError": "Impossible d'enregistrer les liens",
     "genericError": "Une erreur s'est produite. Veuillez réessayer."
   },
   "ApiErrors": {
@@ -473,7 +488,10 @@
     "STALE_EXPENSE": "Cette dépense a été modifiée par quelqu’un d’autre. Rechargez la page pour voir la dernière version.",
     "LAST_ADMIN": "Cette maison a besoin d'au moins un admin — promouvez quelqu'un d'autre avant.",
     "MEMBER_NOT_FOUND": "Cette personne n'est plus membre de cette maison.",
-    "CANNOT_REMOVE_SELF": "Utilisez « Quitter la maison » pour vous retirer vous-même."
+    "CANNOT_REMOVE_SELF": "Utilisez « Quitter la maison » pour vous retirer vous-même.",
+    "INVALID_EXPENSE_LINKS": "Choisissez des dépenses valides.",
+    "EXPENSE_NOT_FOUND": "Une des dépenses n'est plus disponible dans cette maison.",
+    "ITEM_NOT_PURCHASED": "Marquez l'article comme acheté avant de lier des dépenses."
   },
   "CsvErrors": {
     "EMPTY_DESCRIPTION": "Description vide",

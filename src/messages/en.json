@@ -265,6 +265,9 @@
     },
     "noPlatform": "No platform",
     "selectPlaceholder": "Select…",
+    "searchTags": "Search or create…",
+    "createTag": "Create “{name}”",
+    "createTagError": "Could not create this option",
     "description": "Description",
     "descriptionPlaceholder": "e.g. Weekly groceries",
     "amountLabel": "Amount ({symbol})",
@@ -422,6 +425,18 @@
     "emptyHint": "Add the first item.",
     "cleared": "{count, plural, one {# item removed.} other {# items removed.}}",
     "clearConfirm": "{count, plural, one {Remove # purchased item from the list?} other {Remove all # purchased items from the list?}}",
+    "linkExpensesTitle": "Link expenses",
+    "linkExpensesDescription": "Choose the expenses related to {item}.",
+    "linkExpensesAction": "Link expenses",
+    "linkedExpenseCount": "{count, plural, one {# expense} other {# expenses}}",
+    "searchExpenses": "Search expenses…",
+    "selectedExpenses": "{count, plural, =0 {No expenses selected} one {# expense selected} other {# expenses selected}}",
+    "noExpensesFound": "No expenses found",
+    "skipLinks": "Skip for now",
+    "saveLinks": "Save ({count})",
+    "linksSaved": "Expense links saved",
+    "linkLoadError": "Could not load expenses",
+    "linkSaveError": "Could not save expense links",
     "genericError": "Something went wrong. Please try again."
   },
   "ApiErrors": {
@@ -473,7 +488,10 @@
     "STALE_EXPENSE": "This expense was changed by someone else. Reload the page to see the latest version.",
     "LAST_ADMIN": "This house needs at least one admin — promote someone else first.",
     "MEMBER_NOT_FOUND": "This person is no longer a member of this house.",
-    "CANNOT_REMOVE_SELF": "Use \"Leave house\" to remove yourself."
+    "CANNOT_REMOVE_SELF": "Use \"Leave house\" to remove yourself.",
+    "INVALID_EXPENSE_LINKS": "Choose valid expenses.",
+    "EXPENSE_NOT_FOUND": "One of the expenses is no longer available in this house.",
+    "ITEM_NOT_PURCHASED": "Mark the item as purchased before linking expenses."
   },
   "CsvErrors": {
     "EMPTY_DESCRIPTION": "Empty description",

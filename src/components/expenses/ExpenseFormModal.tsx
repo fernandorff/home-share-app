@@ -8,8 +8,8 @@ import { Field, Input, Textarea, Select, Label } from "@/components/ui/Field";
 import { Money } from "@/components/ui/Money";
 import { MemberDot } from "@/components/ui/Member";
 import { ReceiptDivider } from "@/components/ui/Card";
-import type { TagTone } from "@/components/ui/Stamp";
 import { cn } from "@/components/ui/cn";
+import { MultiSelect } from "@/components/ui/MultiSelect";
 import { useToast } from "@/components/ui/Toast";
 import { useSession } from "@/lib/session";
 import { api } from "@/lib/api";
@@ -32,7 +32,7 @@ import { LIMITS } from "@/lib/constants";
 import { EXPENSE_CATEGORIES } from "@/lib/categories";
 import { DEFAULT_PLATFORMS } from "@/lib/platforms";
 import { DEFAULT_PAYMENT_METHODS } from "@/lib/payment-methods";
-import type { Expense, Platform, Member, Category, PaymentMethod } from "@/lib/types";
+import type { Expense, Platform, Category, PaymentMethod } from "@/lib/types";
 
 interface ExpenseFormModalProps {
   open: boolean;
@@ -46,49 +46,9 @@ interface ExpenseFormModalProps {
 
 type CustomMode = "amount" | "percent";
 
-/** Selected-chip fill per tag dimension (mirrors the Tag tones; color carries the dimension). */
-const CHIP_ON_TONES: Record<TagTone, string> = {
-  default: "border-ink bg-ink text-paper",
-  category: "border-cat bg-cat text-paper",
-  platform: "border-plat bg-plat text-paper",
-  payment: "border-pay bg-pay text-paper",
-};
-
-/** Toggle-chip multi-select for a tag dimension (system defaults + the house's custom entries). */
-function ChipMultiSelect({
-  options,
-  selected,
-  onToggle,
-  tone = "default",
-}: {
-  options: { value: string; label: string }[];
-  selected: Set<string>;
-  onToggle: (value: string) => void;
-  tone?: TagTone;
-}) {
-  if (options.length === 0) return null;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((o) => {
-        const on = selected.has(o.value);
-        return (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => onToggle(o.value)}
-            aria-pressed={on}
-            className={cn(
-              // Was px-2.5 py-1 (~27px tall) — D3/BL-21 flagged chips as an undersized touch target.
-              "rounded-md border px-3 py-2 text-[0.72rem] font-medium transition-colors",
-              on ? CHIP_ON_TONES[tone] : "border-rule bg-card text-ink-soft hover:bg-panel"
-            )}
-          >
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
+function customOptions(entries: Array<Category | Platform | PaymentMethod>) {
+  return [...new Map(entries.map((entry) => [entry.name, entry])).values()]
+    .map((entry) => ({ value: entry.name, label: entry.name }));
 }
 
 export function ExpenseFormModal({
@@ -125,6 +85,9 @@ export function ExpenseFormModal({
   const [selCategories, setSelCategories] = useState<Set<string>>(new Set());
   const [selPlatforms, setSelPlatforms] = useState<Set<string>>(new Set());
   const [selPayments, setSelPayments] = useState<Set<string>>(new Set());
+  const [createdCategories, setCreatedCategories] = useState<Category[]>([]);
+  const [createdPlatforms, setCreatedPlatforms] = useState<Platform[]>([]);
+  const [createdPayments, setCreatedPayments] = useState<PaymentMethod[]>([]);
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [amountMasked, setAmountMasked] = useState("");
@@ -166,16 +129,37 @@ export function ExpenseFormModal({
   // Options for each dimension: system defaults (i18n) + the house's custom entries (raw name).
   const categoryOptions = [
     ...EXPENSE_CATEGORIES.map((k) => ({ value: k, label: t(`category.${k}`) })),
-    ...categories.map((c) => ({ value: c.name, label: c.name })),
+    ...customOptions([...categories, ...createdCategories]),
   ];
   const platformOptions = [
     ...DEFAULT_PLATFORMS.map((k) => ({ value: k, label: t(`platform.${k}`) })),
-    ...platforms.map((p) => ({ value: p.name, label: p.name })),
+    ...customOptions([...platforms, ...createdPlatforms]),
   ];
   const paymentOptions = [
     ...DEFAULT_PAYMENT_METHODS.map((k) => ({ value: k, label: t(`payment.${k}`) })),
-    ...paymentMethods.map((p) => ({ value: p.name, label: p.name })),
+    ...customOptions([...paymentMethods, ...createdPayments]),
   ];
+
+  async function createTag(kind: "category" | "platform" | "payment", name: string) {
+    try {
+      if (kind === "category") {
+        const { category } = await api.post<{ category: Category }>("/api/categories", { name });
+        setCreatedCategories((previous) => [...previous, category]);
+        setSelCategories((previous) => new Set(previous).add(category.name));
+      } else if (kind === "platform") {
+        const { platform } = await api.post<{ platform: Platform }>("/api/platforms", { name });
+        setCreatedPlatforms((previous) => [...previous, platform]);
+        setSelPlatforms((previous) => new Set(previous).add(platform.name));
+      } else {
+        const { paymentMethod } = await api.post<{ paymentMethod: PaymentMethod }>("/api/payment-methods", { name });
+        setCreatedPayments((previous) => [...previous, paymentMethod]);
+        setSelPayments((previous) => new Set(previous).add(paymentMethod.name));
+      }
+    } catch (error) {
+      toast(apiErr(error, t("createTagError")), "error");
+      throw error;
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -411,15 +395,15 @@ export function ExpenseFormModal({
         </Field>
 
         <Field label={t("categoryLabel")}>
-          <ChipMultiSelect tone="category" options={categoryOptions} selected={selCategories} onToggle={toggleTag(setSelCategories)} />
+          <MultiSelect tone="category" options={categoryOptions} selected={selCategories} onToggle={toggleTag(setSelCategories)} placeholder={t("selectPlaceholder")} searchPlaceholder={t("searchTags")} createLabel={(name) => t("createTag", { name })} onCreate={(name) => createTag("category", name)} />
         </Field>
 
         <Field label={t("platformLabel")}>
-          <ChipMultiSelect tone="platform" options={platformOptions} selected={selPlatforms} onToggle={toggleTag(setSelPlatforms)} />
+          <MultiSelect tone="platform" options={platformOptions} selected={selPlatforms} onToggle={toggleTag(setSelPlatforms)} placeholder={t("selectPlaceholder")} searchPlaceholder={t("searchTags")} createLabel={(name) => t("createTag", { name })} onCreate={(name) => createTag("platform", name)} />
         </Field>
 
         <Field label={t("paymentLabel")}>
-          <ChipMultiSelect tone="payment" options={paymentOptions} selected={selPayments} onToggle={toggleTag(setSelPayments)} />
+          <MultiSelect tone="payment" options={paymentOptions} selected={selPayments} onToggle={toggleTag(setSelPayments)} placeholder={t("selectPlaceholder")} searchPlaceholder={t("searchTags")} createLabel={(name) => t("createTag", { name })} onCreate={(name) => createTag("payment", name)} />
         </Field>
 
         <Field label={t("description")} htmlFor="exp-desc" hint={`${description.length}/${LIMITS.DESCRIPTION}`}>

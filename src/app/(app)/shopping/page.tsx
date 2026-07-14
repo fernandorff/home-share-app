@@ -18,6 +18,7 @@ import { Menu, MenuItem, MenuSeparator } from "@/components/ui/Menu";
 import { useToast } from "@/components/ui/Toast";
 import { SkeletonRows } from "@/components/ui/Skeleton";
 import { revealDelay } from "@/components/ui/motion";
+import { ExpenseLinkModal } from "@/components/shopping/ExpenseLinkModal";
 
 const NAME_MAX = 200;
 
@@ -51,6 +52,7 @@ export default function ShoppingPage() {
   const [confirmDelete, setConfirmDelete] = useState<ShoppingItem | null>(null);
   const [clearingPurchased, setClearingPurchased] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [linking, setLinking] = useState<ShoppingItem | null>(null);
 
   const errMsg = useCallback(
     (e: unknown) => apiErr(e, t("genericError")),
@@ -110,9 +112,10 @@ export default function ShoppingPage() {
       )
     );
     try {
-      await api.patch<{ item: ShoppingItem }>(
+      const { item: updated } = await api.patch<{ item: ShoppingItem }>(
         `/api/shopping-items/${item.publicId}/toggle`
       );
+      if (!item.isPurchased && updated.isPurchased) setLinking(updated);
       // resync ordering (server reorders purchased to bottom)
       await load();
     } catch (e) {
@@ -248,6 +251,7 @@ export default function ShoppingPage() {
                         onToggle={() => void toggle(item)}
                         onEdit={() => openEdit(item)}
                         onDelete={() => setConfirmDelete(item)}
+                        onLink={() => setLinking(item)}
                       />
                     </li>
                   ))}
@@ -284,6 +288,7 @@ export default function ShoppingPage() {
                         onToggle={() => void toggle(item)}
                         onEdit={() => openEdit(item)}
                         onDelete={() => setConfirmDelete(item)}
+                        onLink={() => setLinking(item)}
                       />
                     </li>
                   ))}
@@ -331,6 +336,15 @@ export default function ShoppingPage() {
           />
         </form>
       </Modal>
+
+      <ExpenseLinkModal
+        item={linking}
+        onClose={() => setLinking(null)}
+        onSaved={(updated) => {
+          setItems((previous) => previous.map((item) => item.publicId === updated.publicId ? updated : item));
+          setLinking(null);
+        }}
+      />
 
       {/* Delete confirm modal */}
       <Modal
@@ -393,12 +407,14 @@ function ItemRow({
   onToggle,
   onEdit,
   onDelete,
+  onLink,
 }: {
   item: ShoppingItem;
   busy: boolean;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onLink: () => void;
 }) {
   const t = useTranslations("Shopping");
   const tc = useTranslations("Common");
@@ -433,6 +449,9 @@ function ItemRow({
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           {item.addedBy && <Tag>{t("addedBy", { name: item.addedBy.name })}</Tag>}
+          {item.linkedExpenses.length > 0 && (
+            <Tag tone="platform">{t("linkedExpenseCount", { count: item.linkedExpenses.length })}</Tag>
+          )}
           {/* Desktop shows the date in its own right-aligned column; surface it here on mobile. */}
           <span className="text-xs text-faint tnum sm:hidden">
             {formatDateLocale(item.createdAt)}
@@ -457,6 +476,8 @@ function ItemRow({
           </button>
         }
       >
+        {item.isPurchased && <MenuItem onSelect={onLink}>{t("linkExpensesAction")}</MenuItem>}
+        {item.isPurchased && <MenuSeparator />}
         <MenuItem onSelect={onEdit}>{tc("edit")}</MenuItem>
         <MenuSeparator />
         <MenuItem danger onSelect={onDelete}>

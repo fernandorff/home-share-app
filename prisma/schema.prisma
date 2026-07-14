@@ -8,27 +8,27 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  publicId  String   @unique @db.Uuid
-  name      String
-  username  String   @unique
-  password  String?
-  email     String?  @unique
+  id             Int       @id @default(autoincrement())
+  publicId       String    @unique @db.Uuid
+  name           String
+  username       String    @unique
+  password       String?
+  email          String?   @unique
   // True only when this address was attested by Google (or a trusted one-time backfill), never by
   // a plain self-service PATCH — the OAuth auto-link-by-email flow refuses to trust an unverified one.
-  emailVerified Boolean @default(false)
-  googleId  String?  @unique
+  emailVerified  Boolean   @default(false)
+  googleId       String?   @unique
   // Bumped on logout and on password change to invalidate every previously issued JWT for this
   // user at once (JWTs are otherwise stateless and would keep working until they expire on their
   // own) — the token carries the version it was signed with; a mismatch means it was revoked.
-  sessionVersion Int @default(0)
+  sessionVersion Int       @default(0)
   // Set on self-service account deletion (BL-23). The row is never hard-deleted — Expense/
   // Settlement/etc. FKs point straight at User.id and must survive so other members' history
   // stays intact. name/username/email/password/googleId are scrubbed at the same time; login is
   // naturally impossible afterwards (password and googleId are both null).
-  deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   expensesPaid          Expense[]            @relation("ExpensePayer")
   expenseParticipations ExpenseParticipant[]
@@ -52,9 +52,9 @@ model Group {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  expenses      Expense[]
-  shoppingItems ShoppingItem[]
-  members       GroupMember[]
+  expenses       Expense[]
+  shoppingItems  ShoppingItem[]
+  members        GroupMember[]
   settlements    Settlement[]
   auditLogs      AuditLog[]
   categories     Category[]
@@ -133,27 +133,28 @@ model PaymentMethod {
 }
 
 model Expense {
-  id          Int      @id @default(autoincrement())
-  publicId    String   @unique @db.Uuid
-  groupId     Int
-  payerId     Int
-  platformId  Int? // legacy single (vestigial; replaced by platforms[])
-  platformIds Int[]    @default([]) // vestigial intermediate (replaced by platforms[])
-  description String
-  notes       String?
-  category    String? // legacy single (vestigial; replaced by categories[])
+  id             Int      @id @default(autoincrement())
+  publicId       String   @unique @db.Uuid
+  groupId        Int
+  payerId        Int
+  platformId     Int? // legacy single (vestigial; replaced by platforms[])
+  platformIds    Int[]    @default([]) // vestigial intermediate (replaced by platforms[])
+  description    String
+  notes          String?
+  category       String? // legacy single (vestigial; replaced by categories[])
   // The three tag dimensions: each entry is a system-default key OR a house's custom name.
   categories     String[] @default([])
   platforms      String[] @default([])
   paymentMethods String[] @default([])
-  amount      Decimal  @db.Decimal(10, 2)
-  date        DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  amount         Decimal  @db.Decimal(10, 2)
+  date           DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  group        Group                @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  payer        User                 @relation("ExpensePayer", fields: [payerId], references: [id], onDelete: Cascade)
-  participants ExpenseParticipant[]
+  group             Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  payer             User                  @relation("ExpensePayer", fields: [payerId], references: [id], onDelete: Cascade)
+  participants      ExpenseParticipant[]
+  shoppingItemLinks ShoppingItemExpense[]
 
   @@index([publicId])
   @@index([groupId, date])
@@ -180,11 +181,24 @@ model ShoppingItem {
   createdAt   DateTime @default(now())
   addedById   Int?
 
-  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  addedBy User? @relation(fields: [addedById], references: [id])
+  group        Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  addedBy      User?                 @relation(fields: [addedById], references: [id])
+  expenseLinks ShoppingItemExpense[]
 
   @@index([publicId])
   @@index([groupId, isPurchased])
+}
+
+model ShoppingItemExpense {
+  shoppingItemId Int
+  expenseId      Int
+  linkedAt       DateTime @default(now())
+
+  shoppingItem ShoppingItem @relation(fields: [shoppingItemId], references: [id], onDelete: Cascade)
+  expense      Expense      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@id([shoppingItemId, expenseId])
+  @@index([expenseId])
 }
 
 // A recorded payment from one member to another that clears/reduces a balance.
@@ -235,12 +249,12 @@ model AuditLog {
 model EntityRevision {
   id         Int      @id @default(autoincrement())
   entityType String // Prisma model name (Expense, Settlement, …)
-  entityId   String   // stringified primary key of the affected row
-  groupId    Int?       // tenant, when the entity carries one (for scoping)
-  action     String           // CREATE | UPDATE | DELETE
-  actorId    Int?           // session user that triggered the write
-  before     Json?           // full row before (null for CREATE)
-  after      Json?          // full row after (null for DELETE)
+  entityId   String // stringified primary key of the affected row
+  groupId    Int? // tenant, when the entity carries one (for scoping)
+  action     String // CREATE | UPDATE | DELETE
+  actorId    Int? // session user that triggered the write
+  before     Json? // full row before (null for CREATE)
+  after      Json? // full row after (null for DELETE)
   createdAt  DateTime @default(now())
 
   @@index([entityType, entityId, createdAt])

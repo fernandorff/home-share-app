@@ -7,6 +7,7 @@ import { categoryService } from "@/services/category.service";
 import { groupService } from "@/services/group.service";
 import { authService } from "@/services/auth.service";
 import { balanceService } from "@/services/balance.service";
+import { shoppingItemService } from "@/services/shopping-item.service";
 import { allActiveGroupMembers, allGroupMembers } from "@/lib/api-helpers";
 import { runWithAuditContext } from "@/lib/audit-context";
 import { flushAudit } from "@/lib/prisma-audit";
@@ -96,6 +97,85 @@ describe("tenant isolation (integration, real pglite DB)", () => {
     const sumCents = e!.participants.reduce((a, p) => a + Math.round(Number(p.amount) * 100), 0);
     expect(sumCents).toBe(Math.round(Number(e!.amount) * 100));
     expect(sumCents).toBe(10000);
+  });
+});
+
+describe("shopping item expense links (integration, real pglite DB)", () => {
+  beforeEach(reset);
+
+  it("replaces multiple links and can unlink all", async () => {
+    const { ana, bob, houseA, expA } = await seedTwoHouses();
+    const exp2 = await expenseService.create(houseA.id, [ana.id, bob.id], {
+      payerId: bob.id,
+      description: "Second receipt",
+      amount: 25,
+      splitEqually: true,
+    });
+    const item = await shoppingItemService.create(houseA.id, "Weekly groceries", ana.id);
+    await shoppingItemService.togglePurchased(houseA.id, item.publicId);
+
+    const linked = await shoppingItemService.replaceExpenseLinks(
+      houseA.id,
+      item.publicId,
+      [expA.publicId, exp2.publicId]
+    );
+    expect(linked.linkedExpenses.map((expense) => expense.publicId).sort()).toEqual(
+      [expA.publicId, exp2.publicId].sort()
+    );
+
+    const unlinked = await shoppingItemService.replaceExpenseLinks(houseA.id, item.publicId, []);
+    expect(unlinked.linkedExpenses).toEqual([]);
+    expect(await prisma.shoppingItemExpense.count()).toBe(0);
+  });
+
+  it("rejects a foreign-house expense and preserves the existing link atomically", async () => {
+    const { ana, carol, houseA, houseB, expA } = await seedTwoHouses();
+    const foreignExpense = await expenseService.create(houseB.id, [carol.id], {
+      payerId: carol.id,
+      description: "Foreign receipt",
+      amount: 90,
+      splitEqually: true,
+    });
+    const item = await shoppingItemService.create(houseA.id, "Safe item", ana.id);
+    await shoppingItemService.togglePurchased(houseA.id, item.publicId);
+    await shoppingItemService.replaceExpenseLinks(houseA.id, item.publicId, [expA.publicId]);
+
+    await expect(
+      shoppingItemService.replaceExpenseLinks(houseA.id, item.publicId, [foreignExpense.publicId])
+    ).rejects.toMatchObject({ status: 404, code: "EXPENSE_NOT_FOUND" });
+
+    const after = (await shoppingItemService.list(houseA.id)).find((candidate) => candidate.publicId === item.publicId)!;
+    expect(after.linkedExpenses.map((expense) => expense.publicId)).toEqual([expA.publicId]);
+  });
+
+  it("requires a purchased item before linking", async () => {
+    const { ana, houseA, expA } = await seedTwoHouses();
+    const item = await shoppingItemService.create(houseA.id, "Not bought yet", ana.id);
+    await expect(
+      shoppingItemService.replaceExpenseLinks(houseA.id, item.publicId, [expA.publicId])
+    ).rejects.toMatchObject({ status: 409, code: "ITEM_NOT_PURCHASED" });
+  });
+
+  it("cascades only join rows when either parent is deleted", async () => {
+    const { ana, bob, houseA, expA } = await seedTwoHouses();
+    const item = await shoppingItemService.create(houseA.id, "Cascade item", ana.id);
+    await shoppingItemService.togglePurchased(houseA.id, item.publicId);
+    await shoppingItemService.replaceExpenseLinks(houseA.id, item.publicId, [expA.publicId]);
+
+    await expenseService.delete(houseA.id, expA.id, ana.id, true);
+    expect(await prisma.shoppingItemExpense.count()).toBe(0);
+    expect(await prisma.shoppingItem.count({ where: { id: item.id } })).toBe(1);
+
+    const exp2 = await expenseService.create(houseA.id, [ana.id, bob.id], {
+      payerId: ana.id,
+      description: "Kept expense",
+      amount: 12,
+      splitEqually: true,
+    });
+    await shoppingItemService.replaceExpenseLinks(houseA.id, item.publicId, [exp2.publicId]);
+    await shoppingItemService.delete(houseA.id, item.publicId);
+    expect(await prisma.shoppingItemExpense.count()).toBe(0);
+    expect(await prisma.expense.count({ where: { id: exp2.id } })).toBe(1);
   });
 });
 

@@ -201,6 +201,14 @@ export interface ShoppingItem {
   isPurchased: boolean;
   createdAt: string;
   addedBy: { id: number; name: string } | null;
+  linkedExpenses: ShoppingLinkedExpense[];
+}
+
+export interface ShoppingLinkedExpense {
+  publicId: string;
+  description: string;
+  amount: string;
+  date: string;
 }
 
 export interface InvalidRow {

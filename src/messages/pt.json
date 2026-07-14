@@ -265,6 +265,9 @@
     },
     "noPlatform": "Sem plataforma",
     "selectPlaceholder": "Selecione…",
+    "searchTags": "Buscar ou cadastrar…",
+    "createTag": "Cadastrar “{name}”",
+    "createTagError": "Não foi possível cadastrar esta opção",
     "description": "Descrição",
     "descriptionPlaceholder": "Ex.: Mercado da semana",
     "amountLabel": "Valor ({symbol})",
@@ -422,6 +425,18 @@
     "emptyHint": "Adicione o primeiro item.",
     "cleared": "{count, plural, one {# item removido.} other {# itens removidos.}}",
     "clearConfirm": "{count, plural, one {Remover # item comprado da lista?} other {Remover todos os # itens comprados da lista?}}",
+    "linkExpensesTitle": "Vincular despesas",
+    "linkExpensesDescription": "Escolha as despesas relacionadas a {item}.",
+    "linkExpensesAction": "Vincular despesas",
+    "linkedExpenseCount": "{count, plural, one {# despesa} other {# despesas}}",
+    "searchExpenses": "Buscar despesas…",
+    "selectedExpenses": "{count, plural, =0 {Nenhuma despesa selecionada} one {# despesa selecionada} other {# despesas selecionadas}}",
+    "noExpensesFound": "Nenhuma despesa encontrada",
+    "skipLinks": "Pular por enquanto",
+    "saveLinks": "Salvar ({count})",
+    "linksSaved": "Vínculos salvos",
+    "linkLoadError": "Não foi possível carregar as despesas",
+    "linkSaveError": "Não foi possível salvar os vínculos",
     "genericError": "Algo deu errado. Tente novamente."
   },
   "ApiErrors": {
@@ -473,7 +488,10 @@
     "STALE_EXPENSE": "Esta despesa foi alterada por outra pessoa. Recarregue a página para ver a versão mais recente.",
     "LAST_ADMIN": "Esta casa precisa de pelo menos um admin — promova outra pessoa antes.",
     "MEMBER_NOT_FOUND": "Esta pessoa não é mais membro desta casa.",
-    "CANNOT_REMOVE_SELF": "Use \"Sair da casa\" para remover a si mesmo."
+    "CANNOT_REMOVE_SELF": "Use \"Sair da casa\" para remover a si mesmo.",
+    "INVALID_EXPENSE_LINKS": "Escolha despesas válidas.",
+    "EXPENSE_NOT_FOUND": "Uma das despesas não está mais disponível nesta casa.",
+    "ITEM_NOT_PURCHASED": "Marque o item como comprado antes de vincular despesas."
   },
   "CsvErrors": {
     "EMPTY_DESCRIPTION": "Descrição vazia",
