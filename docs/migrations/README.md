@@ -1,5 +1,15 @@
 # One-time migrations (historical record)
 
+## 2026-07-14 — Legacy expense synchronization
+
+Imported expenses added to the still-active legacy `la-casa-das-bolitas` database after the
+initial Home Share migration, then reconciled the Home Share household to the exact legacy expense
+count and total. The script defaults to a rollback-only dry run, takes both URLs exclusively from
+the environment, locks the target expense tables during its short transaction, and refuses to
+commit unless expense ids, totals, payer totals, and participant sums validate exactly.
+
+- [sync-legacy-expenses-2026-07-14.mjs](sync-legacy-expenses-2026-07-14.mjs)
+
 ## 2026-07-11 — Portuguese → English database rename
 
 Applied to prod on 2026-07-11 as part of the English-only migration. **Already executed —
