@@ -394,18 +394,6 @@ export function ExpenseFormModal({
           </Select>
         </Field>
 
-        <Field label={t("categoryLabel")}>
-          <MultiSelect tone="category" options={categoryOptions} selected={selCategories} onToggle={toggleTag(setSelCategories)} placeholder={t("selectPlaceholder")} searchPlaceholder={t("searchTags")} createLabel={(name) => t("createTag", { name })} onCreate={(name) => createTag("category", name)} />
-        </Field>
-
-        <Field label={t("platformLabel")}>
-          <MultiSelect tone="platform" options={platformOptions} selected={selPlatforms} onToggle={toggleTag(setSelPlatforms)} placeholder={t("selectPlaceholder")} searchPlaceholder={t("searchTags")} createLabel={(name) => t("createTag", { name })} onCreate={(name) => createTag("platform", name)} />
-        </Field>
-
-        <Field label={t("paymentLabel")}>
-          <MultiSelect tone="payment" options={paymentOptions} selected={selPayments} onToggle={toggleTag(setSelPayments)} placeholder={t("selectPlaceholder")} searchPlaceholder={t("searchTags")} createLabel={(name) => t("createTag", { name })} onCreate={(name) => createTag("payment", name)} />
-        </Field>
-
         <Field label={t("description")} htmlFor="exp-desc" hint={`${description.length}/${LIMITS.DESCRIPTION}`}>
           <Input
             id="exp-desc"
@@ -641,6 +629,18 @@ export function ExpenseFormModal({
             )}
           </div>
         )}
+
+        <Field label={t("categoryLabel")}>
+          <MultiSelect tone="category" options={categoryOptions} selected={selCategories} onToggle={toggleTag(setSelCategories)} placeholder={t("selectPlaceholder")} searchPlaceholder={t("searchTags")} createLabel={(name) => t("createTag", { name })} onCreate={(name) => createTag("category", name)} />
+        </Field>
+
+        <Field label={t("platformLabel")}>
+          <MultiSelect tone="platform" options={platformOptions} selected={selPlatforms} onToggle={toggleTag(setSelPlatforms)} placeholder={t("selectPlaceholder")} searchPlaceholder={t("searchTags")} createLabel={(name) => t("createTag", { name })} onCreate={(name) => createTag("platform", name)} />
+        </Field>
+
+        <Field label={t("paymentLabel")}>
+          <MultiSelect tone="payment" options={paymentOptions} selected={selPayments} onToggle={toggleTag(setSelPayments)} placeholder={t("selectPlaceholder")} searchPlaceholder={t("searchTags")} createLabel={(name) => t("createTag", { name })} onCreate={(name) => createTag("payment", name)} />
+        </Field>
 
         {formError && <p role="alert" className="text-sm text-debt">{formError}</p>}
       </div>
