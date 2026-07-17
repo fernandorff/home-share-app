@@ -157,25 +157,21 @@ html[data-theme="bolitas"] .skeleton {
   }
 }
 
-/* On coarse touchscreens, a small finger drift while scrolling or starting a pinch used to select
-   labels, cards and table cells. Disable selection only for touch-first devices; keep editable
-   controls selectable so cursor placement, copy/paste and text editing continue to work. We do
-   not override `touch-action`, so native pan and pinch-to-zoom remain available. */
+/* On coarse touchscreens, a small finger drift while scrolling or starting a pinch must never
+   select labels, cards or form controls. Inputs remain focusable and editable; only text-range
+   selection and the long-press callout are disabled. We intentionally leave `touch-action`
+   untouched so native pan, form-control interaction and pinch-to-zoom remain available. */
 @media (hover: none) and (pointer: coarse) {
-  body {
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
-  }
-
+  body,
+  button,
   input,
   textarea,
   select,
   [contenteditable="true"],
   [role="textbox"] {
-    -webkit-user-select: text;
-    user-select: text;
-    -webkit-touch-callout: default;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
 }
 
