@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { cn } from "./cn";
 import { Spinner } from "./Feedback";
 import type { TagTone } from "./Stamp";
+import { useTouchSafeDropdown } from "./useTouchSafeDropdown";
 
 const TONE_DOT: Record<TagTone, string> = {
   default: "bg-ink",
@@ -34,6 +35,7 @@ export function MultiSelect({
 }) {
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
+  const dropdown = useTouchSafeDropdown(() => setQuery(""));
   const labels = options.filter((option) => selected.has(option.value)).map((option) => option.label);
   const summary = labels.length === 0
     ? placeholder
@@ -64,10 +66,11 @@ export function MultiSelect({
   };
 
   return (
-    <DropdownMenu.Root onOpenChange={(open) => !open && setQuery("")}>
+    <DropdownMenu.Root open={dropdown.open} onOpenChange={dropdown.onOpenChange}>
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
+          {...dropdown.triggerProps}
           className="flex min-h-11 w-full items-center gap-2 rounded-md border border-rule bg-card px-3 text-left text-sm text-ink transition-colors hover:border-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
         >
           <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", TONE_DOT[tone])} aria-hidden />

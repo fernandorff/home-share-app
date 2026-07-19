@@ -2,20 +2,26 @@
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "./cn";
-import type { ReactNode } from "react";
+import { cloneElement } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { useTouchSafeDropdown } from "./useTouchSafeDropdown";
 
 export function Menu({
   trigger,
   children,
   align = "end",
 }: {
-  trigger: ReactNode;
+  trigger: ReactElement;
   children: ReactNode;
   align?: "start" | "center" | "end";
 }) {
+  const dropdown = useTouchSafeDropdown();
+
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
+    <DropdownMenu.Root open={dropdown.open} onOpenChange={dropdown.onOpenChange}>
+      <DropdownMenu.Trigger asChild>
+        {cloneElement(trigger, dropdown.triggerProps)}
+      </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align={align}
