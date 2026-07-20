@@ -1,7 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { MouseEventHandler, PointerEventHandler } from "react";
+import { useRef, useState } from "react";
+import type { PointerEventHandler } from "react";
+
+const TAP_SLOP_PX = 10;
+
+interface TouchGesture {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  moved: boolean;
+  multiTouch: boolean;
+}
 
 /**
  * Radix opens dropdowns on pointerdown, before a touch browser knows whether the gesture is a tap,
@@ -10,12 +20,7 @@ import type { MouseEventHandler, PointerEventHandler } from "react";
  */
 export function useTouchSafeDropdown(onClosed?: () => void) {
   const [open, setOpen] = useState(false);
-  const touchPressRef = useRef(false);
-  const touchResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => {
-    if (touchResetRef.current) clearTimeout(touchResetRef.current);
-  }, []);
+  const touchGestureRef = useRef<TouchGesture | null>(null);
 
   const onOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -24,34 +29,53 @@ export function useTouchSafeDropdown(onClosed?: () => void) {
 
   const onPointerDownCapture: PointerEventHandler<HTMLElement> = (event) => {
     if (event.pointerType !== "touch") return;
-    touchPressRef.current = true;
+
+    if (touchGestureRef.current) {
+      touchGestureRef.current.multiTouch = true;
+    } else {
+      touchGestureRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        moved: false,
+        multiTouch: false,
+      };
+    }
+
     // Keep the native event/default behavior so pan and pinch remain available, but do not let
     // Radix's pointerdown handler open the dropdown before the gesture has been classified.
     event.stopPropagation();
   };
 
+  const onPointerMoveCapture: PointerEventHandler<HTMLElement> = (event) => {
+    const gesture = touchGestureRef.current;
+    if (event.pointerType !== "touch" || !gesture) return;
+    if (event.pointerId !== gesture.pointerId) {
+      gesture.multiTouch = true;
+      return;
+    }
+
+    const deltaX = event.clientX - gesture.startX;
+    const deltaY = event.clientY - gesture.startY;
+    if (deltaX * deltaX + deltaY * deltaY > TAP_SLOP_PX * TAP_SLOP_PX) {
+      gesture.moved = true;
+    }
+  };
+
   const onPointerUpCapture: PointerEventHandler<HTMLElement> = (event) => {
-    if (event.pointerType !== "touch") return;
-    if (touchResetRef.current) clearTimeout(touchResetRef.current);
-    // A real tap emits click immediately after pointerup. Scroll and pinch do not.
-    touchResetRef.current = setTimeout(() => {
-      touchPressRef.current = false;
-      touchResetRef.current = null;
-    }, 0);
+    const gesture = touchGestureRef.current;
+    if (event.pointerType !== "touch" || !gesture) return;
+    if (event.pointerId !== gesture.pointerId) {
+      gesture.multiTouch = true;
+      return;
+    }
+
+    touchGestureRef.current = null;
+    if (!gesture.moved && !gesture.multiTouch) onOpenChange(!open);
   };
 
   const onPointerCancelCapture: PointerEventHandler<HTMLElement> = () => {
-    touchPressRef.current = false;
-  };
-
-  const onClick: MouseEventHandler<HTMLElement> = () => {
-    if (!touchPressRef.current) return;
-    touchPressRef.current = false;
-    if (touchResetRef.current) {
-      clearTimeout(touchResetRef.current);
-      touchResetRef.current = null;
-    }
-    onOpenChange(!open);
+    touchGestureRef.current = null;
   };
 
   return {
@@ -59,9 +83,9 @@ export function useTouchSafeDropdown(onClosed?: () => void) {
     onOpenChange,
     triggerProps: {
       onPointerDownCapture,
+      onPointerMoveCapture,
       onPointerUpCapture,
       onPointerCancelCapture,
-      onClick,
     },
   };
 }
