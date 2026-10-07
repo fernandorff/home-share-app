@@ -48,7 +48,9 @@ prisma/                   # schema (User tem email/googleId p/ Google), prisma.c
 - UI retro editorial mono: monoespaçado, `tabular-nums`, regras pontilhadas, 1 acento "stamp".
   Mobile-first; animações de entrada (`reveal`/`revealDelay`) + skeletons, atrás de `prefers-reduced-motion`.
 - Validações de input nas rotas (limites: descrição 200, notas 1000, CSV 1000 linhas/1MB).
-- `npm run test` (vitest) é gate. `npm run build` = `prisma db push && prisma generate && next build` (SEM `--accept-data-loss`).
+- `npm run test` (vitest) é gate. `npm run build` = `prisma generate && next build` (nunca toca banco).
+- Schema só via **migrations** (`prisma/migrations`; CI falha sem migration), aplicadas à mão com `npm run db:migrate`:
+  **staging primeiro** (branch `dev` → dev.homeshare.fernandorffdev.com, Neon branch `dev`), depois produção (`main`).
 - Datas: convenção `T12:00:00` local na escrita; formata em UTC no export.
 - **Porquês de arquitetura** (auth, casa ativa, dinheiro — com alternativas rejeitadas):
   `docs/decisions/` (ADRs, MADR, append-only). Consultar antes de mexer nessas áreas.

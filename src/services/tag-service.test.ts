@@ -3,8 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
     category: { findFirst: vi.fn(), create: vi.fn() },
-    platform: { findFirst: vi.fn(), create: vi.fn() },
+    platform: { findFirst: vi.fn(), create: vi.fn(), findMany: vi.fn() },
     paymentMethod: { findFirst: vi.fn(), create: vi.fn() },
+    $queryRaw: vi.fn(),
   },
 }))
 vi.mock('@/lib/prisma', () => ({ prisma: mockPrisma }))
@@ -46,5 +47,43 @@ describe('tag services — reject a house-custom name that collides with a syste
   it('still rejects a house-vs-house duplicate (unrelated to system defaults)', async () => {
     mockPrisma.category.findFirst.mockResolvedValue({ id: 1, publicId: 'p1', groupId: 1, name: 'Streaming', createdAt: new Date() })
     await expect(categoryService.create(1, 'Streaming')).rejects.toMatchObject({ code: 'DUPLICATE_NAME' })
+  })
+})
+
+describe('tag services — case-insensitive alphabetical order (D9)', () => {
+  it('lists platforms sorted case-insensitively, not by raw DB byte order', async () => {
+    const names = ['Loja do bairro', 'VR', 'Vale', 'iFood']
+    mockPrisma.platform.findMany.mockResolvedValue(
+      names.map((name, i) => ({ id: i + 1, publicId: `p${i}`, groupId: 1, name, createdAt: new Date() }))
+    )
+    const rows = await platformService.list(1)
+    expect(rows.map((r) => r.name)).toEqual(['iFood', 'Loja do bairro', 'Vale', 'VR'])
+  })
+
+  it('lists platforms with counts sorted case-insensitively too, matching the ?counts=true call the Catalogs screen makes', async () => {
+    const names = ['Loja do bairro', 'VR', 'Vale', 'iFood']
+    mockPrisma.platform.findMany.mockResolvedValue(
+      names.map((name, i) => ({ id: i + 1, publicId: `p${i}`, groupId: 1, name, createdAt: new Date() }))
+    )
+    mockPrisma.$queryRaw.mockResolvedValue([
+      { tag: 'VR', count: BigInt(2) },
+      { tag: 'iFood', count: BigInt(5) },
+    ])
+    const rows = await platformService.listWithCounts(1)
+    expect(rows.map((r) => ({ name: r.name, count: r._count.expenses }))).toEqual([
+      { name: 'iFood', count: 5 },
+      { name: 'Loja do bairro', count: 0 },
+      { name: 'Vale', count: 0 },
+      { name: 'VR', count: 2 },
+    ])
+  })
+
+  it('breaks a case-only tie deterministically when both cases of a name coexist (e.g. "VR" and "vr", allowed since the duplicate check is case-sensitive)', async () => {
+    mockPrisma.platform.findMany.mockResolvedValue(
+      ['VR', 'vr'].map((name, i) => ({ id: i + 1, publicId: `p${i}`, groupId: 1, name, createdAt: new Date() }))
+    )
+    const rows = await platformService.list(1)
+    // pt-BR collation's case-sensitive tie-break sorts lowercase before uppercase.
+    expect(rows.map((r) => r.name)).toEqual(['vr', 'VR'])
   })
 })

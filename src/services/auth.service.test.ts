@@ -2,10 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
+    $transaction: vi.fn(),
     user: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
+    pushSubscription: { deleteMany: vi.fn() },
   },
 }))
 vi.mock('@/lib/prisma', () => ({ prisma: mockPrisma }))
+vi.mock('@/services/group.service', () => ({ groupService: { assertCanLeaveAllHouses: vi.fn() } }))
+// authService → pushService imports web-push: mocked so no test can reach the network (spec 010).
+vi.mock('web-push', () => ({ default: { sendNotification: vi.fn() } }))
 
 import { authService } from './auth.service'
 import { hashPassword } from '@/lib/auth'
@@ -16,6 +21,8 @@ beforeEach(() => {
   // into the NEXT test's unconfigured calls (e.g. uniqueUsernameFromEmail's internal uniqueness
   // loop) and turn a `while (await find(...))` into a genuine infinite loop.
   vi.resetAllMocks()
+  // A batch $transaction([...]) resolves its operations in order; an interactive one gets a test-provided tx.
+  mockPrisma.$transaction.mockImplementation(async (ops: unknown) => Promise.all(ops as unknown[]))
 })
 
 function baseUser(overrides: Partial<{ id: number; password: string | null; email: string | null; username: string; googleId: string | null; emailVerified: boolean; sessionVersion: number }> = {}) {
@@ -242,6 +249,94 @@ describe('bumpSessionVersion — revokes every previously issued JWT for a user 
       data: { sessionVersion: { increment: 1 } },
       select: { sessionVersion: true },
     })
+  })
+})
+
+// Spec 010, criterion 9: a sessionVersion bump signs every device out, so the member's push subscriptions go with it —
+// in the same transaction as the bump (a failed bump keeps them; a bump never leaves a signed-out device subscribed).
+// The bump comes FIRST: it locks the member's row, so a concurrent pushService.register (which locks that row and
+// re-reads the version before it writes) either commits before the deletion runs or sees the new version and stores
+// nothing.
+describe('sessionVersion bumps delete every push subscription of the member, in the same transaction (spec 010)', () => {
+  const DELETE_OP = { op: 'pushSubscription.deleteMany' }
+
+  /** The operations of the only batch transaction, after checking the deletion is its second (last) one. */
+  function batch(): unknown[] {
+    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+    const [ops] = mockPrisma.$transaction.mock.calls[0]
+    expect(ops).toHaveLength(2)
+    expect(ops[1]).toBe(DELETE_OP)
+    return ops
+  }
+
+  beforeEach(() => {
+    mockPrisma.pushSubscription.deleteMany.mockReturnValue(DELETE_OP)
+  })
+
+  it('logout (bumpSessionVersion): the bump, then the deletion, run as one batch transaction', async () => {
+    const update = Promise.resolve({ sessionVersion: 5 })
+    mockPrisma.user.update.mockReturnValue(update)
+
+    expect(await authService.bumpSessionVersion(1)).toBe(5)
+
+    expect(mockPrisma.pushSubscription.deleteMany).toHaveBeenCalledWith({ where: { userId: 1 } })
+    expect(batch()[0]).toBe(update)
+  })
+
+  it('password change: the password + bump update, then the deletion, run as one batch transaction', async () => {
+    const hash = await hashPassword('correct-pw')
+    mockPrisma.user.findUnique.mockResolvedValue(baseUser({ password: hash }))
+    const update = Promise.resolve({ sessionVersion: 2 })
+    mockPrisma.user.update.mockReturnValue(update)
+
+    expect(await authService.changePassword(1, 'correct-pw', 'new-password-123', Math.floor(Date.now() / 1000))).toEqual({
+      ok: true,
+      sessionVersion: 2,
+    })
+
+    expect(mockPrisma.pushSubscription.deleteMany).toHaveBeenCalledWith({ where: { userId: 1 } })
+    expect(batch()[0]).toBe(update)
+    expect(mockPrisma.user.update.mock.calls[0][0].data.sessionVersion).toEqual({ increment: 1 })
+  })
+
+  it('a refused password change deletes nothing', async () => {
+    const hash = await hashPassword('correct-pw')
+    mockPrisma.user.findUnique.mockResolvedValue(baseUser({ password: hash }))
+
+    expect(await authService.changePassword(1, 'wrong-pw', 'new-password-123', Math.floor(Date.now() / 1000))).toMatchObject({
+      code: 'CURRENT_PASSWORD_INVALID',
+    })
+
+    expect(mockPrisma.pushSubscription.deleteMany).not.toHaveBeenCalled()
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled()
+  })
+
+  it('account deletion: deleted inside the deletion transaction, through tx, after the bump, never the global client', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(baseUser({ id: 7, password: null }))
+    const tx = {
+      groupMember: { updateMany: vi.fn() },
+      notification: { deleteMany: vi.fn() },
+      notificationPreference: { deleteMany: vi.fn() },
+      pushSubscription: { deleteMany: vi.fn() },
+      user: { update: vi.fn() },
+    }
+    mockPrisma.$transaction.mockImplementation(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx))
+
+    expect(await authService.deleteAccount(7, undefined)).toEqual({ ok: true })
+
+    expect(tx.pushSubscription.deleteMany).toHaveBeenCalledWith({ where: { userId: 7 } })
+    expect(tx.user.update.mock.calls[0][0].data.sessionVersion).toEqual({ increment: 1 })
+    expect(tx.user.update.mock.invocationCallOrder[0]).toBeLessThan(tx.pushSubscription.deleteMany.mock.invocationCallOrder[0])
+    expect(mockPrisma.pushSubscription.deleteMany).not.toHaveBeenCalled()
+  })
+
+  it('a refused account deletion deletes nothing', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(baseUser({ id: 7 }))
+
+    expect(await authService.deleteAccount(7, undefined)).toMatchObject({ code: 'CURRENT_PASSWORD_REQUIRED' })
+
+    expect(mockPrisma.pushSubscription.deleteMany).not.toHaveBeenCalled()
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled()
   })
 })
 

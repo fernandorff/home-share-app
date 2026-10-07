@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { platformService } from '@/services/platform.service'
-import { handleApiError, requireActiveGroup } from '@/lib/api-helpers'
+import { handleApiError, requireActiveGroup, recordActivity } from '@/lib/api-helpers'
 import { LIMITS } from '@/lib/constants'
 
 export async function GET(request: Request) {
@@ -37,6 +37,16 @@ export async function POST(request: Request) {
     }
 
     const platform = await platformService.create(check.groupId, name)
+
+    await recordActivity({
+      groupId: check.groupId,
+      actorId: check.session.userId,
+      entityType: 'PLATFORM',
+      entityId: platform.publicId,
+      action: 'CREATE',
+      summary: platform.name,
+    })
+
     return NextResponse.json({ platform }, { status: 201 })
   } catch (error) {
     return handleApiError(error, 'Failed to create platform')

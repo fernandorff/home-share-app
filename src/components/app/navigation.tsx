@@ -12,6 +12,15 @@ function ReceiptIcon({ className }: IconProps) {
   );
 }
 
+function RepeatIcon({ className }: IconProps) {
+  return (
+    <svg aria-hidden className={cn(iconClass, className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 2.5 20.5 6 17 9.5" /><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13" />
+      <path d="M7 21.5 3.5 18 7 14.5" /><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13" />
+    </svg>
+  );
+}
+
 function ScaleIcon({ className }: IconProps) {
   return (
     <svg aria-hidden className={cn(iconClass, className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -56,6 +65,7 @@ function ClockIcon({ className }: IconProps) {
 
 export const APP_NAVIGATION = [
   { href: "/expenses", key: "expenses", Icon: ReceiptIcon },
+  { href: "/recurring", key: "recurring", Icon: RepeatIcon },
   { href: "/balances", key: "balances", Icon: ScaleIcon },
   { href: "/shopping", key: "shopping", Icon: CartIcon },
   { href: "/catalogs", key: "catalogs", Icon: GridIcon },

@@ -76,7 +76,9 @@ html[data-theme="bolitas"] {
   /* Tag dimensions — same hue roles as default, warmed for the cottage palette */
   --color-cat: #6e4a5e;       /* categoria — plum */
   --color-cat-soft: #ece0e6;
-  --color-plat: #4f6f86;      /* plataforma — dusty blue */
+  /* Darkened from #4f6f86 — that value read at 4.29:1 against --color-plat-soft, under the
+     4.5:1 WCAG AA floor for normal text (BL-22/D5). Same hue/saturation, ~4.74:1 now. */
+  --color-plat: #4a687e;      /* plataforma — dusty blue */
   --color-plat-soft: #e0e8ee;
   --color-pay: #7a5c0e;       /* forma de pagamento — amber (escurecido p/ contraste AA) */
   --color-pay-soft: #f0e7cf;
@@ -121,6 +123,9 @@ html[data-theme="bolitas"] .skeleton {
 
   html {
     -webkit-text-size-adjust: 100%;
+    /* Reserve the scrollbar's width whether or not it's needed, so pages with and without a
+       scrollbar (and modals that lock body scroll) keep the same content x position (U14). */
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -155,6 +160,24 @@ html[data-theme="bolitas"] .skeleton {
     caret-color: var(--color-ink);
     transition: background-color 9999s ease-in-out 0s;
   }
+}
+
+/* R2-05: the html gutter (U14) reserves the scrollbar space on every page. While a Radix
+   dialog, drawer or menu locks scrolling, drop that reserve instead: a reserved gutter sits
+   outside the viewport box fixed layers are sized against, so the overlay, the bottom sheet
+   and the drawer stopped ~15px short and left an un-dimmed stripe. <body> then takes a
+   margin-right equal to the dropped gutter, so the page content keeps its x — no U14 jump.
+   The width comes from --scrollbar-gutter-w (measured by the script in app/layout.tsx), not
+   from react-remove-scroll-bar: the library reads documentElement.clientWidth, which ignores
+   a gutter with no scrollbar in it, so on a page too short to scroll it compensated 0px and
+   the centered content moved half a gutter (round 3). `html >` outranks the library's
+   `body[data-scroll-locked]` rule (both !important). Unlayered, like the library's own rule. */
+html:has(> body[data-scroll-locked]) {
+  scrollbar-gutter: auto;
+}
+
+html > body[data-scroll-locked] {
+  margin-right: var(--scrollbar-gutter-w, 0px) !important;
 }
 
 /* On coarse touchscreens, a small finger drift while scrolling or starting a pinch must never
@@ -199,8 +222,13 @@ html[data-theme="bolitas"] .skeleton {
       rgba(22, 20, 15, 0.025) 28px
     );
   }
+}
 
-  /* Uppercase tracked label, like a column header on a receipt */
+@layer components {
+  /* Uppercase tracked label, like a column header on a receipt.
+     Lives in `components` (not `utilities`) so a `text-*` color/size utility placed alongside
+     it in a className always wins, per the cascade layer order (base, components, utilities)
+     — matching what `cn()` (a plain string join, no tailwind-merge) cannot enforce on its own. */
   .label-mono {
     /* Was 0.68rem (10.88px) — under the 12px floor for metadata/label text (BL-22/D6). */
     font-size: 0.75rem;
@@ -208,6 +236,19 @@ html[data-theme="bolitas"] .skeleton {
     text-transform: uppercase;
     /* ink-soft (not faint) so small uppercase labels/column headers clear WCAG AA */
     color: var(--color-ink-soft);
+  }
+
+  /* Base position, set here (not via a bottom-4 utility) so the dialog-open override below can
+     win by specificity within this same layer. */
+  .toast-region {
+    bottom: 1rem;
+  }
+
+  /* While any dialog is open, move the toast region to the top edge so it never sits over a
+     sheet's footer (U1/U2). More specific than the rule above, so it wins in the same layer. */
+  body:has([role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]) .toast-region {
+    top: 1rem;
+    bottom: auto;
   }
 }
 

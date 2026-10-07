@@ -11,13 +11,21 @@ import { AsyncLocalStorage } from "node:async_hooks";
 export interface AuditContext {
   actorId?: number;
   groupId?: number;
+  // Scheduled writes (spec 008, ADR 0010): the actor is the system, so revisions get actorId null —
+  // even when the same code runs inside a member's request and a session cookie is present.
+  system?: boolean;
 }
 
 const storage = new AsyncLocalStorage<AuditContext>();
 
-/** Run `fn` with the given audit context guaranteed visible to every write inside it. */
-export function runWithAuditContext<T>(ctx: AuditContext, fn: () => T): T {
-  return storage.run(ctx, fn);
+/**
+ * Run `fn` with the given audit context guaranteed visible to every write inside it. Always awaited
+ * inside the store: a lazy Prisma query returned un-awaited (`() => prisma.x.create(…)`) would
+ * otherwise execute after `storage.run` returns and lose the context — a type can't catch it,
+ * since PrismaPromise extends Promise.
+ */
+export function runWithAuditContext<T>(ctx: AuditContext, fn: () => T): Promise<Awaited<T>> {
+  return storage.run(ctx, async (): Promise<Awaited<T>> => await fn());
 }
 
 /** Best-effort: merge into the current context for the remainder of this async execution. */

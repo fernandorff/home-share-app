@@ -9,7 +9,16 @@ function currencyFormatter(currency: string, locale: string): Intl.NumberFormat 
   const key = `${locale}|${currency}`;
   let fmt = formatterCache.get(key);
   if (!fmt) {
-    fmt = new Intl.NumberFormat(locale, { style: "currency", currency });
+    // useGrouping "always" (I7): es/pt CLDR data skips the separator for 4-digit numbers (es
+    // "1234,56"); money always shows it ("1.234,56") so amounts line up and read the same everywhere.
+    fmt = new Intl.NumberFormat(locale, { style: "currency", currency, useGrouping: "always" });
+    // Some locales have no symbol for a currency and fall back to its ISO code (es → "8015,43 BRL"
+    // / "GBP"). Only then switch to the narrow symbol ("R$" / "£"); blindly using narrowSymbol would
+    // also flatten the disambiguating symbols other locales do have ("US$" in pt, "$US" in fr).
+    const showsIsoCode = fmt.formatToParts(0).some((p) => p.type === "currency" && p.value === currency);
+    if (showsIsoCode) {
+      fmt = new Intl.NumberFormat(locale, { style: "currency", currency, currencyDisplay: "narrowSymbol", useGrouping: "always" });
+    }
     formatterCache.set(key, fmt);
   }
   return fmt;
@@ -49,4 +58,14 @@ export function formatDateLocale(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return dateFormatter().format(d);
+}
+
+/** "dd/mm/yyyy HH:mm" on the 24h clock in every UI language (I11) — expense history and Activity.
+ *  Same fixed day-month order as formatDateLocale; the clock is the viewer's local time. */
+export function formatDateTimeLocale(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${dateFormatter().format(d)} ${hh}:${mm}`;
 }

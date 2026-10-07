@@ -1,7 +1,21 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { withSentryConfig } from "@sentry/nextjs/config";
+import { vapidConfigProblem } from "./src/lib/push/config";
+import { robotsHeaders } from "./src/lib/deploy/robots";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+
+// Web Push (spec 010, ADR 0011): all three VAPID variables or none. With only some of them the push switch would show
+// and the worker would register while the server refuses every subscription (503) — so the build, and `next dev`,
+// stop here instead. The message names the missing variables only, never a value.
+const missingVapid = vapidConfigProblem(process.env);
+if (missingVapid) {
+  throw new Error(
+    `Web Push is partly configured — missing: ${missingVapid.join(", ")}. ` +
+      "Set all three VAPID variables (NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT), or none to keep push off."
+  );
+}
 
 // CSP only in production: Turbopack's dev HMR needs 'unsafe-eval' + a ws:// connection that
 // would otherwise have to be special-cased here for no real security benefit in local dev.
@@ -57,8 +71,27 @@ const nextConfig: NextConfig = {
           ]
         : []),
     ];
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    // noindex on staging (Vercel Preview) and local dev; production stays indexable — see src/lib/deploy/robots.ts.
+    return [{ source: "/(.*)", headers: [...securityHeaders, ...robotsHeaders(process.env.VERCEL_ENV)] }];
   },
 };
 
-export default withNextIntl(nextConfig);
+const config = withNextIntl(nextConfig);
+
+// Observability (spec 007, ADR 0008): Sentry wraps the build ONLY when a DSN is configured, so a
+// build without Sentry env vars is exactly the config above. Source maps are uploaded only when
+// SENTRY_AUTH_TOKEN exists (the build never requires it). Browser envelopes go through the
+// same-origin tunnel /monitoring, so the CSP keeps connect-src 'self' and ad-blockers can't drop them.
+const sentryDsn = (process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN || "").trim();
+
+export default sentryDsn
+  ? withSentryConfig(config, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+      tunnelRoute: "/monitoring",
+      telemetry: false,
+      silent: !process.env.CI,
+    })
+  : config;

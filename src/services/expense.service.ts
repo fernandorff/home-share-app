@@ -3,6 +3,7 @@ import { uuidv7 } from '@/lib/uuid'
 import { parseCSVDetailed, ExpenseRow, InvalidRow } from '@/lib/csv-parser'
 import { toCents, fromCents, splitCents } from '@/lib/currency'
 import { ApiError } from '@/lib/errors'
+import { bucketMonthTotals } from '@/lib/month-totals'
 import type { Prisma } from '@/generated/prisma/client'
 
 // A cell starting with =, +, -, @ (or tab/CR) is parsed as a live formula by Excel/Sheets/LibreOffice
@@ -48,6 +49,16 @@ export interface UpdateExpenseInput {
   splitEqually?: boolean
 }
 
+/** Interactive-transaction client of the audited Prisma client — writes through it are still audited. */
+export type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+
+export interface CreateExpenseOptions {
+  /** Run the write inside the caller's transaction (default: the global client). */
+  db?: TransactionClient
+  /** Set only by the recurring poster (spec 008) — never from a request body. Default: null. */
+  recurringExpenseId?: number
+}
+
 export interface ImportExpenseResult {
   created: ExpenseRow[]
   invalidRows: InvalidRow[]
@@ -76,6 +87,7 @@ export interface PaginationParams {
   sortDirection: 'asc' | 'desc'
   filters?: ExpenseFilterParams
   includePayerTotals?: boolean
+  includeMonthTotals?: boolean
 }
 
 // Equal split in integer cents — parts always sum to the exact total.
@@ -87,7 +99,9 @@ function equalSplit(amount: number, memberIds: readonly number[]) {
   }))
 }
 
-const expenseInclude = {
+// Exported because the Expense snapshot in EntityRevision is the result of writes made with exactly this
+// include + legacyOmit: tag-service writes explicit revisions of the same shape for its raw-SQL removal (I3).
+export const expenseInclude = {
   payer: { select: { id: true, publicId: true, name: true, username: true } },
   participants: {
     include: {
@@ -105,11 +119,11 @@ const expenseListInclude = {
 
 // Vestigial legacy columns (kept in the DB as a safety net, superseded by the array columns).
 // Never read client-side — omit them from responses to trim the payload without dropping data.
-const legacyOmit = { category: true, platformId: true, platformIds: true } as const
+export const legacyOmit = { category: true, platformId: true, platformIds: true } as const
 
 export class ExpenseService {
   async list(groupId: number, params: PaginationParams) {
-    const { page, pageSize, sortField, sortDirection, filters, includePayerTotals = false } = params
+    const { page, pageSize, sortField, sortDirection, filters, includePayerTotals = false, includeMonthTotals = false } = params
 
     const where: Prisma.ExpenseWhereInput = { groupId }
     if (filters?.payerIds?.length) where.payerId = { in: filters.payerIds }
@@ -140,7 +154,7 @@ export class ExpenseService {
       ? [{ payer: { name: sortDirection } }, { id: sortDirection }]
       : [{ [sortField]: sortDirection }, { id: sortDirection }]
 
-    const [expenses, total, totalSum, payerTotals] = await Promise.all([
+    const [expenses, total, totalSum, payerTotals, payerDayTotals] = await Promise.all([
       prisma.expense.findMany({
         where,
         omit: legacyOmit,
@@ -153,6 +167,12 @@ export class ExpenseService {
       prisma.expense.aggregate({ where, _sum: { amount: true } }),
       includePayerTotals
         ? prisma.expense.groupBy({ by: ['payerId'], where, _sum: { amount: true } })
+        : Promise.resolve([]),
+      // B5: same `where` as the page, so the month totals honor every filter and the house scope.
+      // Grouped by (payer, date) because Prisma can't group by a date expression; the rows are
+      // bucketed into months in integer cents by bucketMonthTotals.
+      includeMonthTotals
+        ? prisma.expense.groupBy({ by: ['payerId', 'date'], where, _sum: { amount: true } })
         : Promise.resolve([])
     ])
 
@@ -171,7 +191,10 @@ export class ExpenseService {
             payerId: row.payerId,
             totalAmount: (row._sum.amount ?? 0).toString()
           }))
-        })
+        }),
+        ...(includeMonthTotals && bucketMonthTotals(
+          payerDayTotals.map(row => ({ payerId: row.payerId, date: row.date, amount: row._sum.amount }))
+        ))
       }
     }
   }
@@ -185,8 +208,9 @@ export class ExpenseService {
     })
   }
 
-  async create(groupId: number, memberIds: number[], input: CreateExpenseInput) {
+  async create(groupId: number, memberIds: number[], input: CreateExpenseInput, options: CreateExpenseOptions = {}) {
     const { payerId, platforms, paymentMethods, description, notes, categories, amount, date, participants, splitEqually } = input
+    const db: TransactionClient = options.db ?? prisma
 
     let participantData: { userId: number; amount: number }[]
     if (splitEqually || !participants || participants.length === 0) {
@@ -195,7 +219,7 @@ export class ExpenseService {
       participantData = participants
     }
 
-    return prisma.expense.create({
+    return db.expense.create({
       data: {
         publicId: uuidv7(),
         groupId,
@@ -207,6 +231,7 @@ export class ExpenseService {
         categories: categories ?? [],
         amount,
         date: date ?? new Date(),
+        recurringExpenseId: options.recurringExpenseId ?? null,
         participants: { create: participantData }
       },
       omit: legacyOmit,
@@ -323,16 +348,18 @@ export class ExpenseService {
     csvText: string,
     payerId: number,
     platform: string | null,
-    splitEqually: boolean
+    splitEqually: boolean,
+    /** Importer's local day (YYYY-MM-DD, already validated) for rows without a date. */
+    defaultDate?: string
   ): Promise<ImportExpenseResult> {
     // Invalid lines are reported (with line numbers) BEFORE anything is written.
-    const { expenses, invalidRows } = parseCSVDetailed(csvText)
+    const { expenses, invalidRows } = parseCSVDetailed(csvText, { defaultDate })
 
     if (expenses.length === 0) {
       const detail = invalidRows.length > 0
         ? ` Rows with errors: ${invalidRows.map(r => `${r.line} (${r.code})`).join(', ')}`
         : ''
-      throw new ApiError(`No valid expenses found in the CSV.${detail}`, 400)
+      throw new ApiError(`No valid expenses found in the CSV.${detail}`, 400, 'CSV_NO_VALID_ROWS')
     }
 
     const platforms = platform ? [platform] : []

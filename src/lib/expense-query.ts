@@ -19,18 +19,20 @@ export interface BuildExpenseQueryParams {
   sortDirection: "asc" | "desc";
   filters: ExpenseQueryFilters;
   includePayerTotals?: boolean;
+  includeMonthTotals?: boolean;
 }
 
 /** Builds the /api/expenses query string for a given page + sort + filter set (BL-20/P3 —
  *  infinite scroll needs the server to do the filtering it used to do client-side). Filters are
  *  only appended when non-empty, so an unfiltered request looks exactly like before. */
-export function buildExpenseQuery({ page, pageSize, sortField, sortDirection, filters, includePayerTotals = false }: BuildExpenseQueryParams): string {
+export function buildExpenseQuery({ page, pageSize, sortField, sortDirection, filters, includePayerTotals = false, includeMonthTotals = false }: BuildExpenseQueryParams): string {
   const sp = new URLSearchParams();
   sp.set("page", String(page));
   sp.set("pageSize", String(pageSize));
   sp.set("sortField", sortField);
   sp.set("sortDirection", sortDirection);
   if (includePayerTotals) sp.set("includePayerTotals", "true");
+  if (includeMonthTotals) sp.set("includeMonthTotals", "true");
   if (filters.query.trim()) sp.set("query", filters.query.trim());
   filters.payers.forEach((id) => sp.append("payerIds", String(id)));
   filters.platforms.forEach((v) => sp.append("platforms", v));

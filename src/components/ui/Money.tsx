@@ -22,7 +22,8 @@ export function Money({
   const currency = activeGroup?.currency ?? DEFAULT_CURRENCY;
 
   const n = money(value);
-  const tone = signed ? (n > 0 ? "text-credit" : n < 0 ? "text-debt" : "text-ink") : "text-ink";
+  const hasColor = /\btext-(ink|ink-soft|faint|debt|credit|stamp|stamp-text|paper)\b/.test(className ?? "");
+  const tone = hasColor ? undefined : signed ? (n > 0 ? "text-credit" : n < 0 ? "text-debt" : "text-ink") : "text-ink";
 
   return (
     <span className={cn("tnum tabular-nums whitespace-nowrap", tone, className)}>

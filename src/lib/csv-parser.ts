@@ -41,22 +41,48 @@ export interface ParsedCSV {
 export const CSV_MAX_LINES = 1000
 export const CSV_MAX_BYTES = 1024 * 1024 // 1MB
 
+export interface ParseCSVOptions {
+  /** YYYY-MM-DD given to rows without a date. Defaults to today's date in UTC (the server's clock). */
+  defaultDate?: string
+}
+
+const MS_PER_DAY = 86_400_000
+
+/**
+ * Validates the importer's local "today" sent by the browser (the server runs in UTC, so it cannot
+ * know the user's day). Returns it only when it is a strict, real YYYY-MM-DD within one day of the
+ * server's UTC date — time zones span UTC-12..+14, so a genuine local date is never further away.
+ * Anything else yields undefined: the import falls back to the UTC default instead of failing.
+ */
+export function sanitizeDefaultDate(raw: unknown, now: Date = new Date()): string | undefined {
+  if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return undefined
+  if (parseDate(raw) !== raw) return undefined // rolls over impossible dates like 2026-02-30
+
+  const [year, month, day] = raw.split('-').map(Number)
+  const utcToday = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  const dayOffset = Math.abs(Date.UTC(year, month - 1, day) - utcToday) / MS_PER_DAY
+  return dayOffset <= 1 ? raw : undefined
+}
+
 /**
  * Full parse with per-line error reporting — invalid lines are never silently
  * dropped; each one comes back with its 1-based line number and a reason code.
  */
-export function parseCSVDetailed(csvText: string): ParsedCSV {
+export function parseCSVDetailed(csvText: string, options: ParseCSVOptions = {}): ParsedCSV {
   // These are user-input errors (the caller uploaded a malformed file), so they carry a 400 —
   // a plain Error would bubble up as a generic 500 (found in QA: header/size/line-count issues
   // returned 500 instead of a helpful 400).
+  if (csvText.trim().length === 0) {
+    throw new ApiError('The CSV file is empty', 400, 'CSV_EMPTY')
+  }
   if (new TextEncoder().encode(csvText).length > CSV_MAX_BYTES) {
-    throw new ApiError('File too large (max. 1MB)', 400)
+    throw new ApiError('File too large (max. 1MB)', 400, 'CSV_TOO_LARGE')
   }
 
   const lines = csvText.trim().split('\n')
   if (lines.length < 2) return { expenses: [], invalidRows: [] }
   if (lines.length - 1 > CSV_MAX_LINES) {
-    throw new ApiError(`CSV has too many lines (max. ${CSV_MAX_LINES})`, 400)
+    throw new ApiError(`CSV has too many lines (max. ${CSV_MAX_LINES})`, 400, 'CSV_TOO_MANY_LINES')
   }
 
   // Detect the separator (comma or semicolon)
@@ -74,7 +100,7 @@ export function parseCSVDetailed(csvText: string): ParsedCSV {
   const platformIndex = headers.findIndex(h => h === 'plataforma' || h === 'platform')
 
   if (descriptionIndex === -1 || amountIndex === -1) {
-    throw new ApiError('CSV must contain "description" and "amount" columns', 400)
+    throw new ApiError('CSV must contain "description" and "amount" columns', 400, 'CSV_MISSING_COLUMNS')
   }
 
   const expenses: ExpenseRow[] = []
@@ -121,7 +147,7 @@ export function parseCSVDetailed(csvText: string): ParsedCSV {
     }
 
     // Parse the date
-    let date = new Date().toISOString().split('T')[0] // Default: today
+    let date = options.defaultDate ?? new Date().toISOString().split('T')[0] // Default: today
     if (dateStr) {
       const parsed = parseDate(dateStr)
       if (parsed) {

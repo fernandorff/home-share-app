@@ -10,3 +10,6 @@
       `src/app/(app)/expenses/page.tsx`, `src/components/ui/Button.tsx` _Requirements: 7, 9_
 - [x] 5. Verify TypeScript, tests, changed-file lint, production build, keyboard behavior, mobile drawer flow,
       and unchanged desktop shell _Requirements: 1-9_
+- [x] 6. Extend the 44px floor to text buttons, menu items and stand-alone links (loop round 2,
+      R2-06/R2-07) — `src/components/ui/Menu.tsx`, `src/app/(app)/expenses/page.tsx`,
+      `src/components/expenses/*.tsx`, `src/app/auth/*/page.tsx`, `src/components/app/AppChrome.tsx` _Requirements: 7_

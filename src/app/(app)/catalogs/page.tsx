@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { TagManager } from "@/components/app/TagManager";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { EXPENSE_CATEGORIES } from "@/lib/categories";
 import { DEFAULT_PLATFORMS } from "@/lib/platforms";
 import { DEFAULT_PAYMENT_METHODS } from "@/lib/payment-methods";
@@ -13,9 +14,7 @@ export default function CatalogsPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* h1 (was a SectionTitle/h2) so every page has the same title tag + hierarchy (U7/BL-33). */}
-      <h1 className="font-display text-2xl font-bold tracking-tight text-ink">{t("title")}</h1>
-      <p className="-mt-3 text-sm text-faint">{t("subtitle")}</p>
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
 
       <TagManager
         label={t("sectionCategories")}

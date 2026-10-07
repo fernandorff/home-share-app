@@ -3,7 +3,7 @@ export function GoogleButton({ label = "Sign in with Google" }: { label?: string
   return (
     <a
       href="/api/auth/google"
-      className="inline-flex w-full items-center justify-center gap-2.5 rounded-md border border-ink bg-card px-4 py-2.5 font-display text-[0.8rem] font-bold uppercase tracking-wider text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+      className="inline-flex min-h-11 w-full items-center justify-center gap-2.5 rounded-md border border-ink bg-card px-4 py-2.5 font-display text-[0.8rem] font-bold uppercase tracking-wider text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper md:min-h-0"
     >
       <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
         <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z" />

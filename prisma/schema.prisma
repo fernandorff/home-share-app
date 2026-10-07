@@ -30,14 +30,20 @@ model User {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  expensesPaid          Expense[]            @relation("ExpensePayer")
-  expenseParticipations ExpenseParticipant[]
-  shoppingItemsAdded    ShoppingItem[]
-  memberships           GroupMember[]
-  settlementsFrom       Settlement[]         @relation("SettlementFrom")
-  settlementsTo         Settlement[]         @relation("SettlementTo")
-  settlementsCreated    Settlement[]         @relation("SettlementCreatedBy")
-  auditEntries          AuditLog[]           @relation("AuditActor")
+  expensesPaid             Expense[]                @relation("ExpensePayer")
+  expenseParticipations    ExpenseParticipant[]
+  shoppingItemsAdded       ShoppingItem[]
+  memberships              GroupMember[]
+  settlementsFrom          Settlement[]             @relation("SettlementFrom")
+  settlementsTo            Settlement[]             @relation("SettlementTo")
+  settlementsCreated       Settlement[]             @relation("SettlementCreatedBy")
+  auditEntries             AuditLog[]               @relation("AuditActor")
+  recurringExpensesPaid    RecurringExpense[]       @relation("RecurringExpensePayer")
+  recurringExpensesCreated RecurringExpense[]       @relation("RecurringExpenseCreatedBy")
+  notifications            Notification[]           @relation("NotificationRecipient")
+  notificationsCaused      Notification[]           @relation("NotificationActor")
+  notificationPreferences  NotificationPreference[]
+  pushSubscriptions        PushSubscription[]
 
   @@index([publicId])
 }
@@ -52,14 +58,16 @@ model Group {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  expenses       Expense[]
-  shoppingItems  ShoppingItem[]
-  members        GroupMember[]
-  settlements    Settlement[]
-  auditLogs      AuditLog[]
-  categories     Category[]
-  platforms      Platform[]
-  paymentMethods PaymentMethod[]
+  expenses          Expense[]
+  shoppingItems     ShoppingItem[]
+  members           GroupMember[]
+  settlements       Settlement[]
+  auditLogs         AuditLog[]
+  categories        Category[]
+  platforms         Platform[]
+  paymentMethods    PaymentMethod[]
+  recurringExpenses RecurringExpense[]
+  notifications     Notification[]
 
   @@index([publicId])
 }
@@ -133,31 +141,37 @@ model PaymentMethod {
 }
 
 model Expense {
-  id             Int      @id @default(autoincrement())
-  publicId       String   @unique @db.Uuid
-  groupId        Int
-  payerId        Int
-  platformId     Int? // legacy single (vestigial; replaced by platforms[])
-  platformIds    Int[]    @default([]) // vestigial intermediate (replaced by platforms[])
-  description    String
-  notes          String?
-  category       String? // legacy single (vestigial; replaced by categories[])
+  id                 Int      @id @default(autoincrement())
+  publicId           String   @unique @db.Uuid
+  groupId            Int
+  payerId            Int
+  platformId         Int? // legacy single (vestigial; replaced by platforms[])
+  platformIds        Int[]    @default([]) // vestigial intermediate (replaced by platforms[])
+  description        String
+  notes              String?
+  category           String? // legacy single (vestigial; replaced by categories[])
   // The three tag dimensions: each entry is a system-default key OR a house's custom name.
-  categories     String[] @default([])
-  platforms      String[] @default([])
-  paymentMethods String[] @default([])
-  amount         Decimal  @db.Decimal(10, 2)
-  date           DateTime @default(now())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  categories         String[] @default([])
+  platforms          String[] @default([])
+  paymentMethods     String[] @default([])
+  amount             Decimal  @db.Decimal(10, 2)
+  date               DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  // Set only by the recurring poster (never from a request body); null after the rule is deleted.
+  recurringExpenseId Int?
 
-  group             Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  payer             User                  @relation("ExpensePayer", fields: [payerId], references: [id], onDelete: Cascade)
-  participants      ExpenseParticipant[]
-  shoppingItemLinks ShoppingItemExpense[]
+  group               Group                       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  payer               User                        @relation("ExpensePayer", fields: [payerId], references: [id], onDelete: Cascade)
+  participants        ExpenseParticipant[]
+  shoppingItemLinks   ShoppingItemExpense[]
+  recurringExpense    RecurringExpense?           @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+  recurringOccurrence RecurringExpenseOccurrence?
 
   @@index([publicId])
   @@index([groupId, date])
+  // Deleting a rule nulls its posted expenses (onDelete SetNull): without it, a scan of every expense.
+  @@index([recurringExpenseId])
 }
 
 model ExpenseParticipant {
@@ -225,6 +239,73 @@ model Settlement {
   @@index([groupId, date])
 }
 
+enum RecurringSplitMode {
+  ALL // every active member at posting time
+  SELECTED // exactly participantIds; all must still be active
+}
+
+enum RecurringPauseReason {
+  MANUAL // paused by a member
+  MEMBER_LEFT // auto-paused: the payer or a selected participant left the house
+}
+
+enum RecurringOccurrenceStatus {
+  POSTED
+  SKIPPED
+}
+
+// A monthly rule that posts an expense by itself (spec 008). Audited by the extension like any model.
+model RecurringExpense {
+  id             Int                   @id @default(autoincrement())
+  publicId       String                @unique @db.Uuid
+  groupId        Int
+  createdById    Int?
+  payerId        Int
+  description    String
+  amount         Decimal               @db.Decimal(10, 2)
+  // 1–31; clamped to the month's last day (31 → 30 Apr, 28/29 Feb). Weekends don't move it.
+  dayOfMonth     Int
+  splitMode      RecurringSplitMode    @default(ALL)
+  // SELECTED only (empty for ALL). No FK: users are never hard-deleted (BL-23); re-validated at posting.
+  participantIds Int[]                 @default([])
+  // IANA zone ("America/Sao_Paulo") that defines the rule's "today"; captured from the creator's browser.
+  timezone       String
+  // First local date eligible to post: creation date, reset on every resume (no back-fill).
+  activeFrom     DateTime              @db.Date
+  pausedAt       DateTime?
+  pauseReason    RecurringPauseReason?
+  // "YYYY-MM" periods the house chose not to post; an UPDATE of this row, so audited by construction.
+  skippedPeriods String[]              @default([])
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  group       Group                        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  payer       User                         @relation("RecurringExpensePayer", fields: [payerId], references: [id], onDelete: Cascade)
+  createdBy   User?                        @relation("RecurringExpenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  occurrences RecurringExpenseOccurrence[]
+  expenses    Expense[]
+
+  @@index([groupId])
+}
+
+// Idempotency ledger: one row per (rule, period) that reached its due date. Bookkeeping written by the
+// system — excluded from the audit extension (SKIP_MODELS); the audited effect is the Expense CREATE.
+model RecurringExpenseOccurrence {
+  id                 Int                       @id @default(autoincrement())
+  recurringExpenseId Int
+  period             String // "YYYY-MM"
+  dueOn              DateTime                  @db.Date
+  status             RecurringOccurrenceStatus
+  // Null for SKIPPED, and after the posted expense is deleted (the period stays closed: never re-posted).
+  expenseId          Int?                      @unique
+  createdAt          DateTime                  @default(now())
+
+  recurringExpense RecurringExpense @relation(fields: [recurringExpenseId], references: [id], onDelete: Cascade)
+  expense          Expense?         @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@unique([recurringExpenseId, period])
+}
+
 // Append-only activity/change log for the house (expenses, settlements, shopping, house/members).
 model AuditLog {
   id         Int      @id @default(autoincrement())
@@ -259,4 +340,63 @@ model EntityRevision {
 
   @@index([entityType, entityId, createdAt])
   @@index([groupId, createdAt])
+}
+
+enum NotificationType {
+  EXPENSE_NEW
+  PAYMENT_RECEIVED
+  DEBT_REMINDER
+  RECURRING_DUE
+}
+
+// One notice for one recipient in one house (spec 009). Personal data, not house activity:
+// excluded from the audit extension (SKIP_MODELS) — Activity › Detailed is readable by every member.
+model Notification {
+  id        Int              @id @default(autoincrement())
+  publicId  String           @unique @db.Uuid
+  userId    Int // recipient
+  groupId   Int
+  type      NotificationType
+  actorId   Int? // who caused it; null = automatic (cron / recurring rule)
+  params    Json // render parameters: ids, description snapshot, amounts as 2-decimal strings
+  dedupeKey String? // scheduled producers only; unique per recipient (NULLs never collide)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user  User  @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, groupId, createdAt])
+}
+
+// Only overrides are stored; a missing row means the type's default (on). Personal settings:
+// excluded from the audit extension (SKIP_MODELS) like Notification.
+model NotificationPreference {
+  userId    Int
+  type      NotificationType
+  enabled   Boolean
+  updatedAt DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, type])
+}
+
+// One browser push subscription per device (spec 010). Holds a per-subscription secret (`auth`):
+// excluded from the audit extension (SKIP_MODELS) and never returned by any API.
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  endpoint  String   @unique // push-service URL; https and allow-listed host only
+  p256dh    String // base64url, 65-byte P-256 public key
+  auth      String // base64url, 16-byte auth secret
+  locale    String   @default("en") // app locale of the device at (re)registration
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
