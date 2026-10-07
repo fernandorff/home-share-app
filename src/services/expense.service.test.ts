@@ -90,6 +90,37 @@ describe("ExpenseService.create — split math + persisted shape", () => {
   });
 });
 
+describe("ExpenseService.create — options for the recurring poster (spec 008)", () => {
+  const input = { payerId: 1, description: "Rent", amount: 100, splitEqually: true };
+
+  it("defaults to the global client with recurringExpenseId null", async () => {
+    mockPrisma.expense.create.mockResolvedValue({ id: 5 });
+    await expenseService.create(1, [1, 2, 3], input);
+    expect(dataOfLastCreate().recurringExpenseId).toBeNull();
+  });
+
+  it("writes through the given transaction client and stamps recurringExpenseId, with the same exact split", async () => {
+    const tx = { expense: { create: vi.fn().mockResolvedValue({ id: 6 }) } };
+    const created = await expenseService.create(1, [1, 2, 3], input, { db: tx as never, recurringExpenseId: 42 });
+
+    expect(created).toEqual({ id: 6 });
+    expect(mockPrisma.expense.create).not.toHaveBeenCalled();
+    const data = tx.expense.create.mock.calls[0][0].data;
+    expect(data.recurringExpenseId).toBe(42);
+    expect(data.participants.create).toEqual([
+      { userId: 1, amount: 33.34 },
+      { userId: 2, amount: 33.33 },
+      { userId: 3, amount: 33.33 },
+    ]);
+  });
+
+  it("an options object without recurringExpenseId still stores null", async () => {
+    const tx = { expense: { create: vi.fn().mockResolvedValue({ id: 7 }) } };
+    await expenseService.create(1, [1, 2], input, { db: tx as never });
+    expect(tx.expense.create.mock.calls[0][0].data.recurringExpenseId).toBeNull();
+  });
+});
+
 describe("ExpenseService.update — tenant isolation + ownership (C1)", () => {
   it("throws ApiError 404 when the expense is not in the active group", async () => {
     // $transaction(cb) → run cb with a tx whose findFirst returns null (not found in group)

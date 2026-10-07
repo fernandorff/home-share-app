@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { uuidv7 } from '@/lib/uuid'
 import { hashPassword, verifyPassword } from '@/lib/auth'
 import { groupService } from '@/services/group.service'
+import { pushService } from '@/services/push.service'
 import { ApiError } from '@/lib/errors'
 
 const USERNAME_REGEX = /^[a-z0-9._-]{3,30}$/
@@ -165,13 +166,18 @@ class AuthService {
   }
 
   /** Bumps a user's session version, immediately invalidating every previously issued JWT
-   *  (they carry the old version and requireSession() will reject them on their next request). */
+   *  (they carry the old version and requireSession() will reject them on their next request).
+   *  Every device is signed out, so its push subscriptions go in the same transaction (spec 010) —
+   *  after the bump, which locks the row pushService.register checks (see register). */
   async bumpSessionVersion(userId: number): Promise<number> {
-    const updated = await prisma.user.update({
-      where: { id: userId },
-      data: { sessionVersion: { increment: 1 } },
-      select: { sessionVersion: true },
-    })
+    const [updated] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: { sessionVersion: { increment: 1 } },
+        select: { sessionVersion: true },
+      }),
+      pushService.deleteAllForUser(userId),
+    ])
     return updated.sessionVersion
   }
 
@@ -308,12 +314,18 @@ class AuthService {
 
     // Bumping sessionVersion here kills every OTHER device's token immediately (standard practice
     // on password change). The route re-signs a fresh token for the CURRENT device so this one
-    // doesn't also get logged out by its own action.
-    const updated = await prisma.user.update({
-      where: { id: userId },
-      data: { password: await hashPassword(newPassword), sessionVersion: { increment: 1 } },
-      select: { sessionVersion: true },
-    })
+    // doesn't also get logged out by its own action. Push subscriptions go with the bump, in the same
+    // transaction and after it (spec 010; see pushService.register); the account page re-registers this
+    // device right away (syncPush after the change), other devices on their next sign-in.
+    const password = await hashPassword(newPassword)
+    const [updated] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: { password, sessionVersion: { increment: 1 } },
+        select: { sessionVersion: true },
+      }),
+      pushService.deleteAllForUser(userId),
+    ])
     return { ok: true, sessionVersion: updated.sessionVersion }
   }
 
@@ -347,6 +359,9 @@ class AuthService {
 
     await prisma.$transaction(async (tx) => {
       await tx.groupMember.updateMany({ where: { userId, leftAt: null }, data: { leftAt: new Date() } })
+      // Notices are personal (spec 009): the soft-deleted row keeps no inbox and no switches.
+      await tx.notification.deleteMany({ where: { userId } })
+      await tx.notificationPreference.deleteMany({ where: { userId } })
       await tx.user.update({
         where: { id: userId },
         data: {
@@ -360,6 +375,9 @@ class AuthService {
           sessionVersion: { increment: 1 },
         },
       })
+      // ...and no device keeps receiving pushes (spec 010: every sessionVersion bump) — after the bump,
+      // which locks the row pushService.register checks (see register).
+      await pushService.deleteAllForUser(userId, tx)
     })
 
     return { ok: true }

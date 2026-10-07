@@ -27,7 +27,9 @@ that navigation, house switching, account access, and settings do not compete wi
 6. WHEN a navigation destination is activated, THE SYSTEM SHALL navigate to it and close the
    dialog, with the current destination exposed through `aria-current`.
 7. WHILE the viewport is narrower than 768px, THE SYSTEM SHALL keep primary buttons, icon buttons,
-   and segmented controls at least 44px tall; removable filter chips SHALL be at least 32px tall.
+   segmented controls, text buttons, menu items and stand-alone links (the brand link, form
+   footer links, help links on a line of their own) at least 44px tall; removable filter chips
+   SHALL be at least 32px tall. Links inside running text are exempt (WCAG 2.5.8 inline exception).
 8. WHILE the viewport is at least 768px wide, THE SYSTEM SHALL preserve the existing desktop
    header, house selector, user menu, and left sidebar.
 9. WHILE viewing Expenses, THE SYSTEM SHALL display New expense as the primary action and expose

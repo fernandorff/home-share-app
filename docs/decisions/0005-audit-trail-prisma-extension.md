@@ -61,5 +61,9 @@ Hard-won constraints (violating these broke things during rollout):
 
 ### Confirmation
 
+- Update (spec 009 final review): every Prisma write operation is classified at compile time
+  (`WRITE_OPS` vs `Prisma.PrismaAction` in [src/lib/prisma-audit.test.ts](../../src/lib/prisma-audit.test.ts));
+  `createManyAndReturn` / `updateManyAndReturn` write one revision per returned row (`bulk:N` when rows carry no
+  `id`) — real-DB cases in [src/services/tenant-isolation.test.ts](../../src/services/tenant-isolation.test.ts).
 - `audit-diff` unit tests ([src/lib/audit-diff.test.ts](../../src/lib/audit-diff.test.ts));
   integration tests assert revisions appear for service writes with the right actor.

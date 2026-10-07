@@ -25,3 +25,8 @@ Rules that make specs work with AI agents:
 - [003 — Mobile navigation drawer](003-mobile-navigation-drawer/requirements.md)
 - [004 — List month groups](004-list-month-groups/requirements.md)
 - [005 — Shopping item expense links](005-shopping-item-expense-links/requirements.md)
+- [006 — Promote admin](006-promote-admin/requirements.md)
+- [007 — Observability with Sentry](007-observability-sentry/requirements.md)
+- [008 — Recurring expenses](008-recurring-expenses/requirements.md)
+- [009 — Installable app + notification center](009-pwa-notification-center/requirements.md)
+- [010 — Web Push notifications](010-web-push/requirements.md)

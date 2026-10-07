@@ -101,7 +101,7 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
           aria-describedby={undefined}
           className="anim-drawer fixed inset-y-0 right-0 z-50 flex h-dvh w-[88vw] max-w-sm flex-col border-l border-ink bg-card shadow-[-4px_0_0_rgba(22,20,15,0.16)] focus:outline-none md:hidden"
         >
-          <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-dashed border-rule px-3">
+          <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-dashed border-rule px-4">
             {panel !== "main" && (
               <button
                 type="button"
@@ -133,20 +133,20 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
                 </span>
               </div>
 
-              <div className="border-b border-dashed border-rule p-3">
-                <p className="label-mono px-2 pb-1.5">{t("activeHouse")}</p>
+              <div className="border-b border-dashed border-rule px-4 py-3">
+                <p className="label-mono pb-1.5">{t("activeHouse")}</p>
                 <button
                   type="button"
                   onClick={() => setPanel("houses")}
                   className="flex min-h-12 w-full min-w-0 items-center gap-2.5 rounded-md border border-rule bg-panel px-3 text-left text-ink transition-colors hover:border-ink hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink"
                 >
-                  <MemberDot colorIndex={activeGroup.colorIndex} name={activeGroup.name} size={22} />
+                  <MemberDot colorIndex={activeGroup.colorIndex} name={activeGroup.name} size={30} />
                   <span className="min-w-0 flex-1 truncate font-medium">{activeGroup.name}</span>
                   <span className="text-faint" aria-hidden>›</span>
                 </button>
               </div>
 
-              <nav aria-label={t("menu")} className="flex flex-col gap-1 p-3">
+              <nav aria-label={t("menu")} className="flex flex-col gap-1 px-4 py-3">
                 {APP_NAVIGATION.map(({ href, key, Icon }) => {
                   const active = isActive(href);
                   return (
@@ -164,13 +164,13 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
                       )}
                     >
                       <Icon />
-                      <span className="font-display font-bold uppercase tracking-wide text-[0.74rem]">{t(key)}</span>
+                      <span className="font-display font-bold uppercase tracking-wide text-xs">{t(key)}</span>
                     </Link>
                   );
                 })}
               </nav>
 
-              <div className="mt-auto border-t border-dashed border-rule p-3">
+              <div className="mt-auto border-t border-dashed border-rule px-4 py-3">
                 <Link
                   href="/account"
                   onClick={() => setOpen(false)}
@@ -211,7 +211,8 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
                       onClick={() => void pickGroup(group.id)}
                       className="flex min-h-12 min-w-0 items-center gap-3 rounded-md px-3 text-left text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink disabled:opacity-50"
                     >
-                      <MemberDot colorIndex={group.colorIndex} name={group.name} size={22} />
+                      {/* R3-29: 30px = two initials at the 12px floor (avatarLabel), as on the House page — at 22px every "Casa …" read "C". */}
+                      <MemberDot colorIndex={group.colorIndex} name={group.name} size={30} />
                       <span className="min-w-0 flex-1 truncate">{group.name}</span>
                       {active && <span className="text-stamp-text" aria-hidden>✓</span>}
                     </button>

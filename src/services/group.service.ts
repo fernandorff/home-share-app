@@ -30,8 +30,18 @@ class GroupService {
     }))
   }
 
+  /**
+   * Returns the group alongside the currency it replaced, so callers can log the {from, to}.
+   * Picking the already-active currency is a no-op (R2-08): nothing is written — so neither a Group
+   * revision nor an activity entry follows — and `changed` is false.
+   */
   async updateCurrency(groupId: number, currency: string) {
-    return prisma.group.update({ where: { id: groupId }, data: { currency } })
+    const current = await prisma.group.findUniqueOrThrow({ where: { id: groupId } })
+    if (current.currency === currency) {
+      return { group: current, previousCurrency: current.currency, changed: false }
+    }
+    const group = await prisma.group.update({ where: { id: groupId }, data: { currency } })
+    return { group, previousCurrency: current.currency, changed: true }
   }
 
   async create(userId: number, name: string) {
@@ -50,12 +60,21 @@ class GroupService {
     })
   }
 
+  /** Role for someone joining or rejoining: MEMBER, except a house with no active admin must never
+   *  stay that way (every admin left; the join code stays valid), so the joiner becomes its admin. */
+  private async roleForJoiner(groupId: number): Promise<'ADMIN' | 'MEMBER'> {
+    const activeAdmins = await prisma.groupMember.count({ where: { groupId, role: 'ADMIN', leftAt: null } })
+    return activeAdmins > 0 ? 'MEMBER' : 'ADMIN'
+  }
+
   /**
    * Join by code. Idempotent: joining a house you're already in just returns it.
    * Rejoining a house you previously left/were removed from (BL-16) reactivates the SAME
    * membership row instead of creating a new one — expenses/settlements always pointed at
    * User.id directly (never at GroupMember), so nothing needs "reconnecting"; just clearing
-   * `leftAt` makes them show up as active again with all their history intact.
+   * `leftAt` makes them show up as active again with all their history intact. The role is reset
+   * to MEMBER on rejoin, and a brand-new member also starts as MEMBER, unless the house has no
+   * active admin (then the joiner becomes ADMIN).
    */
   async joinByCode(userId: number, rawCode: string) {
     const code = normalizeJoinCode(rawCode)
@@ -67,7 +86,13 @@ class GroupService {
     })
     if (existing) {
       if (existing.leftAt !== null) {
-        await prisma.groupMember.update({ where: { id: existing.id }, data: { leftAt: null } })
+        // The old role does not survive a rejoin (spec 006): an admin who was kicked must not get
+        // ADMIN back just by using the join code. Exception: a house with no active admin must
+        // never stay that way, so the rejoining person becomes its admin.
+        await prisma.groupMember.update({
+          where: { id: existing.id },
+          data: { leftAt: null, role: await this.roleForJoiner(group.id) },
+        })
       }
       return { group }
     }
@@ -80,7 +105,7 @@ class GroupService {
         data: {
           userId,
           groupId: group.id,
-          role: 'MEMBER',
+          role: await this.roleForJoiner(group.id),
           colorIndex: memberCount % MEMBER_COLORS_COUNT,
         },
       })
@@ -168,10 +193,16 @@ class GroupService {
    */
   async removeMember(groupId: number, userId: number): Promise<void> {
     await this.assertCanLeave(groupId, userId)
-    await prisma.groupMember.update({
-      where: { userId_groupId: { userId, groupId } },
-      data: { leftAt: new Date() },
-    })
+    // Notices are personal and belong to the membership (spec 009): they go with it, atomically, so a rejoin never
+    // brings the old ones back. A batch transaction (not an interactive one — see above). The self-heal below
+    // restores the membership only; notices lost in that rare race are an accepted, harmless loss.
+    await prisma.$transaction([
+      prisma.groupMember.update({
+        where: { userId_groupId: { userId, groupId } },
+        data: { leftAt: new Date() },
+      }),
+      prisma.notification.deleteMany({ where: { userId, groupId } }),
+    ])
     try {
       await this.assertHasAdminIfNeeded(groupId)
     } catch (e) {
@@ -201,6 +232,52 @@ class GroupService {
     for (const m of memberships) {
       await this.assertCanLeave(m.groupId, userId)
     }
+  }
+
+  /**
+   * Admin makes another active member of the same house an admin (spec 006). The actor is
+   * re-checked here (403 NOT_ADMIN) and the target is resolved by publicId AND an active membership
+   * in `groupId`, so another house's user or an ex-member is a 404 — tenant isolation by
+   * construction. Idempotent for someone who is already an admin. The audit extension records the
+   * GroupMember UPDATE revision (ADR 0005).
+   */
+  async promoteToAdmin(groupId: number, actorUserId: number, targetPublicId: string): Promise<void> {
+    const actor = await prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId: actorUserId, groupId } },
+      select: { role: true, leftAt: true },
+    })
+    if (!actor || actor.leftAt !== null || actor.role !== 'ADMIN') {
+      throw new ApiError('Only the house admin can change roles', 403, 'NOT_ADMIN')
+    }
+    const target = await prisma.groupMember.findFirst({
+      where: { groupId, leftAt: null, user: { publicId: targetPublicId } },
+      select: { id: true, role: true },
+    })
+    if (!target) {
+      throw new ApiError('This person is no longer a member of this house', 404, 'MEMBER_NOT_FOUND')
+    }
+    if (target.role === 'ADMIN') return
+    await prisma.groupMember.update({ where: { id: target.id }, data: { role: 'ADMIN' } })
+  }
+
+  /** Houses where `userId` is the only active admin while other active members remain — exactly
+   *  what assertCanLeave refuses with LAST_ADMIN. Drives the "make another member an admin first"
+   *  warning in the leave-house and delete-account dialogs (spec 006). */
+  async lastAdminGroupIds(userId: number): Promise<number[]> {
+    const memberships = await prisma.groupMember.findMany({
+      where: { userId, leftAt: null, role: 'ADMIN' },
+      select: { groupId: true },
+    })
+    const blocked: number[] = []
+    for (const m of memberships) {
+      try {
+        await this.assertCanLeave(m.groupId, userId)
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'LAST_ADMIN') blocked.push(m.groupId)
+        else throw e
+      }
+    }
+    return blocked
   }
 }
 

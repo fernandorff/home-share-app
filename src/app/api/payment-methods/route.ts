@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { paymentMethodService } from '@/services/payment-method.service'
-import { handleApiError, requireActiveGroup } from '@/lib/api-helpers'
+import { handleApiError, requireActiveGroup, recordActivity } from '@/lib/api-helpers'
 import { LIMITS } from '@/lib/constants'
 
 export async function GET(request: Request) {
@@ -40,6 +40,16 @@ export async function POST(request: Request) {
     }
 
     const paymentMethod = await paymentMethodService.create(check.groupId, name)
+
+    await recordActivity({
+      groupId: check.groupId,
+      actorId: check.session.userId,
+      entityType: 'PAYMENT_METHOD',
+      entityId: paymentMethod.publicId,
+      action: 'CREATE',
+      summary: paymentMethod.name,
+    })
+
     return NextResponse.json({ paymentMethod }, { status: 201 })
   } catch (error) {
     return handleApiError(error, 'Failed to create payment method')

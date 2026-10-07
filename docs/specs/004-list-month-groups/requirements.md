@@ -14,8 +14,10 @@ monthly subtotals without switching to By person.
 
 1. WHILE the List view contains expenses, THE SYSTEM SHALL group loaded expenses by calendar month
    and display a localized month/year header before each group on desktop and mobile.
-2. WHILE month groups are displayed, THE SYSTEM SHALL show the subtotal of the loaded expenses in
-   each month using exact cent arithmetic.
+2. WHILE month groups are displayed, THE SYSTEM SHALL show each month's subtotal across the
+   complete filtered result (every page, not only the loaded expenses), as aggregated by the
+   server with exact cent arithmetic; a month without a server total SHALL fall back to the sum
+   of its loaded expenses.
 3. WHEN more expenses load through infinite scroll, THE SYSTEM SHALL merge them into their matching
    month group without changing selection, row numbering, filters, or row actions.
 4. WHILE a non-date column sort is active, THE SYSTEM SHALL keep months newest-first and preserve
@@ -24,6 +26,5 @@ monthly subtotals without switching to By person.
 
 ## Out of scope
 
-- New API aggregates or database queries for full-month totals beyond the currently loaded feed.
 - Collapsible month sections.
 - Changes to the By person layout.

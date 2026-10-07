@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { expenseService, VALID_SORT_FIELDS, type ExpenseFilterParams } from '@/services/expense.service'
 import { groupService } from '@/services/group.service'
+import { notificationService } from '@/services/notification.service'
 import { LIMITS } from '@/lib/constants'
 import {
   validateExpenseInput,
@@ -10,6 +11,8 @@ import {
   allActiveGroupMembers,
   recordActivity,
   assertExpectedGroup,
+  afterResponse,
+  notifySafely,
 } from '@/lib/api-helpers'
 
 // Defensive cap on how many chip values a single filter dimension can carry — a house never
@@ -65,13 +68,14 @@ export async function GET(request: Request) {
     const sortField = searchParams.get('sortField') || 'date'
     const sortDirection = searchParams.get('sortDirection') === 'asc' ? 'asc' as const : 'desc' as const
     const includePayerTotals = searchParams.get('includePayerTotals') === 'true'
+    const includeMonthTotals = searchParams.get('includeMonthTotals') === 'true'
 
     if (!(VALID_SORT_FIELDS as readonly string[]).includes(sortField)) {
       return NextResponse.json({ error: `Invalid sort field: ${sortField}` }, { status: 400 })
     }
 
     const filters = parseExpenseFilters(searchParams)
-    const result = await expenseService.list(check.groupId, { page, pageSize, sortField, sortDirection, filters, includePayerTotals })
+    const result = await expenseService.list(check.groupId, { page, pageSize, sortField, sortDirection, filters, includePayerTotals, includeMonthTotals })
     return NextResponse.json(result)
   } catch (error) {
     return handleApiError(error, 'Failed to list expenses')
@@ -115,6 +119,9 @@ export async function POST(request: Request) {
       summary: expense.description,
       changes: { amount: String(expense.amount) },
     })
+    // After the response (criterion 10: a notice never slows the action down); after() keeps the function alive
+    // until it finishes, like the audit writes (prisma-audit.ts).
+    afterResponse(() => notifySafely('EXPENSE_NEW', () => notificationService.expenseCreated(expense, check.session.userId)))
 
     return NextResponse.json({ expense }, { status: 201 })
   } catch (error) {

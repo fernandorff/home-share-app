@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatMoney, formatMoneySigned, formatDateLocale } from '@/lib/money'
+import { formatMoney, formatMoneySigned, formatDateLocale, formatDateTimeLocale } from '@/lib/money'
 import { maskAmountInput, parseAmountInput } from '@/lib/format'
 
 // ICU inserts NBSP / narrow-NBSP around symbols; normalize so assertions are readable.
@@ -11,6 +11,15 @@ describe('formatMoney — per-house currency × per-user locale', () => {
   it('EUR in fr', () => expect(norm(formatMoney(1234.56, 'EUR', 'fr'))).toBe('1 234,56 €'))
   it('USD in pt (foreign currency keeps its code, BR grouping)', () =>
     expect(norm(formatMoney(342.8, 'USD', 'pt'))).toBe('US$ 342,80'))
+  it('BRL in es shows the R$ symbol, never the BRL code (I3)', () => {
+    const out = formatMoney(8015.43, 'BRL', 'es')
+    expect(out).toContain('R$')
+    expect(out).not.toContain('BRL')
+  })
+  it('the ISO-code fallback is per currency: GBP in es shows £, while pt/fr keep their own USD symbols', () => {
+    expect(formatMoney(1, 'GBP', 'es')).toContain('£')
+    expect(norm(formatMoney(342.8, 'USD', 'fr'))).toBe('342,80 $US')
+  })
 })
 
 describe('formatMoneySigned — explicit sign, never double-signs zero', () => {
@@ -57,4 +66,22 @@ describe('formatDateLocale — always DD/MM/YYYY, independent of the UI language
   it('returns an em dash for an unparseable date', () => {
     expect(formatDateLocale('not-a-date')).toBe('—')
   })
+})
+
+describe('formatMoney — thousands always grouped (I7)', () => {
+  it('groups a 4-digit amount in es', () => {
+    expect(norm(formatMoney(1234.56, 'BRL', 'es'))).toBe('1.234,56 R$')
+    expect(norm(formatMoney(1234.56, 'EUR', 'es'))).toBe('1.234,56 €')
+  })
+  it('the es amount mask groups too, and still round-trips', () => {
+    expect(maskAmountInput('123456', 'es')).toBe('1.234,56')
+    expect(parseAmountInput('1.234,56', 'es')).toBe(1234.56)
+  })
+})
+
+describe('formatDateTimeLocale — dd/mm/yyyy HH:mm, 24h, any UI language (I11)', () => {
+  it('formats an afternoon time on the 24h clock', () =>
+    expect(formatDateTimeLocale('2026-07-08T14:05:00')).toBe('08/07/2026 14:05'))
+  it('pads midnight', () => expect(formatDateTimeLocale('2026-01-02T00:07:00')).toBe('02/01/2026 00:07'))
+  it('returns an em dash for an unparseable date', () => expect(formatDateTimeLocale('nope')).toBe('—'))
 })

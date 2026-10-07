@@ -1,8 +1,16 @@
 import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@/generated/prisma/client'
 
-export type AuditEntityType = 'EXPENSE' | 'SETTLEMENT' | 'SHOPPING_ITEM' | 'GROUP' | 'PLATFORM'
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE'
+export type AuditEntityType =
+  | 'EXPENSE'
+  | 'SETTLEMENT'
+  | 'SHOPPING_ITEM'
+  | 'GROUP'
+  | 'PLATFORM'
+  | 'CATEGORY'
+  | 'PAYMENT_METHOD'
+  | 'RECURRING_EXPENSE'
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'CLEAR' | 'PAUSE' | 'RESUME' | 'SKIP' | 'UNSKIP'
 
 export interface AuditEntry {
   groupId: number

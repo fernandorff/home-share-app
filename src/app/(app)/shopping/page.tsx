@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/Feedback";
 import { Tag } from "@/components/ui/Stamp";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/Menu";
@@ -52,7 +53,11 @@ export default function ShoppingPage() {
   const [confirmDelete, setConfirmDelete] = useState<ShoppingItem | null>(null);
   const [clearingPurchased, setClearingPurchased] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [linking, setLinking] = useState<ShoppingItem | null>(null);
+  // justPurchased tells ExpenseLinkModal which flow opened it (B8): the footer's secondary
+  // button reads "Skip for now" right after marking an item purchased, "Cancel" when editing
+  // links from the item menu — the item's own data can't tell the two flows apart (an item can
+  // reach the menu's "Link expenses" action with zero links too).
+  const [linking, setLinking] = useState<{ item: ShoppingItem; justPurchased: boolean } | null>(null);
 
   const errMsg = useCallback(
     (e: unknown) => apiErr(e, t("genericError")),
@@ -115,7 +120,7 @@ export default function ShoppingPage() {
       const { item: updated } = await api.patch<{ item: ShoppingItem }>(
         `/api/shopping-items/${item.publicId}/toggle`
       );
-      if (!item.isPurchased && updated.isPurchased) setLinking(updated);
+      if (!item.isPurchased && updated.isPurchased) setLinking({ item: updated, justPurchased: true });
       // resync ordering (server reorders purchased to bottom)
       await load();
     } catch (e) {
@@ -196,12 +201,7 @@ export default function ShoppingPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
-          {t("title")}
-        </h1>
-        <p className="text-sm text-faint">{t("subtitle")}</p>
-      </header>
+      <PageHeader title={t("title")} subtitle={t("subtitle")} />
 
       {/* Quick-add bar */}
       <form
@@ -228,7 +228,7 @@ export default function ShoppingPage() {
         <SkeletonRows rows={5} />
       ) : items.length === 0 ? (
         <Card>
-          <EmptyState title={t("emptyTitle")} hint={t("emptyHint")} icon="🛒" />
+          <EmptyState title={t("emptyTitle")} hint={t("emptyHint")} icon="[ ]" />
         </Card>
       ) : (
         <div className="flex flex-col gap-6">
@@ -238,7 +238,8 @@ export default function ShoppingPage() {
               {t("toBuy")}
             </SectionTitle>
             {toBuy.length === 0 ? (
-              <p className="px-1 text-sm text-faint">{t("allBought")}</p>
+              /* R3-33: no px-1 — the line starts on the cards' edge (was 4px in). */
+              <p className="text-sm text-faint">{t("allBought")}</p>
             ) : (
               <Card>
                 <ul>
@@ -251,7 +252,7 @@ export default function ShoppingPage() {
                         onToggle={() => void toggle(item)}
                         onEdit={() => openEdit(item)}
                         onDelete={() => setConfirmDelete(item)}
-                        onLink={() => setLinking(item)}
+                        onLink={() => setLinking({ item, justPurchased: false })}
                       />
                     </li>
                   ))}
@@ -263,10 +264,11 @@ export default function ShoppingPage() {
           {/* Purchased */}
           {purchased.length > 0 && (
             <section className="flex flex-col gap-3">
+              {/* R3-16: bordered like R2-13's text buttons — its edge sits on the cards' edge (ghost padding ended the text 12px short). */}
               <SectionTitle
                 right={
                   <Button
-                    variant="ghost"
+                    variant="secondary"
                     size="sm"
                     loading={clearingPurchased}
                     onClick={() => setConfirmClear(true)}
@@ -288,7 +290,7 @@ export default function ShoppingPage() {
                         onToggle={() => void toggle(item)}
                         onEdit={() => openEdit(item)}
                         onDelete={() => setConfirmDelete(item)}
-                        onLink={() => setLinking(item)}
+                        onLink={() => setLinking({ item, justPurchased: false })}
                       />
                     </li>
                   ))}
@@ -306,11 +308,10 @@ export default function ShoppingPage() {
         title={t("editTitle")}
         footer={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setEditing(null)}>
+            <Button variant="ghost" onClick={() => setEditing(null)}>
               {tc("cancel")}
             </Button>
             <Button
-              size="sm"
               loading={saving}
               disabled={!editName.trim()}
               onClick={saveEdit}
@@ -338,7 +339,8 @@ export default function ShoppingPage() {
       </Modal>
 
       <ExpenseLinkModal
-        item={linking}
+        item={linking?.item ?? null}
+        justPurchased={linking?.justPurchased ?? false}
         onClose={() => setLinking(null)}
         onSaved={(updated) => {
           setItems((previous) => previous.map((item) => item.publicId === updated.publicId ? updated : item));
@@ -353,12 +355,11 @@ export default function ShoppingPage() {
         title={t("deleteTitle")}
         footer={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(null)}>
+            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
               {tc("cancel")}
             </Button>
             <Button
               variant="danger"
-              size="sm"
               onClick={() => confirmDelete && void remove(confirmDelete)}
             >
               {tc("delete")}
@@ -378,15 +379,14 @@ export default function ShoppingPage() {
       <Modal
         open={confirmClear}
         onOpenChange={(o) => !o && setConfirmClear(false)}
-        title={t("clearPurchased")}
+        title={t("clearPurchasedConfirmTitle")}
         footer={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setConfirmClear(false)}>
+            <Button variant="ghost" onClick={() => setConfirmClear(false)}>
               {tc("cancel")}
             </Button>
             <Button
               variant="danger"
-              size="sm"
               loading={clearingPurchased}
               onClick={() => void clearPurchased()}
             >
@@ -418,6 +418,9 @@ function ItemRow({
 }) {
   const t = useTranslations("Shopping");
   const tc = useTranslations("Common");
+  // B9: an item unchecked after being linked still has links — keep "Link expenses" so the
+  // "N expenses" chip never points at links nobody can see or remove.
+  const canLink = item.isPurchased || item.linkedExpenses.length > 0;
   return (
     <div className={cn("flex items-center gap-3 px-4 py-3", busy && "opacity-60")}>
       {/* Checkbox-style toggle — [ ] / [x] in mono */}
@@ -435,27 +438,33 @@ function ItemRow({
           item.isPurchased ? "text-stamp-text" : "text-ink-soft hover:text-ink"
         )}
       >
-        {item.isPurchased ? "[x]" : "[ ]"}
+        {/* Fixed-width, centered box (D10): on the Bolitas skin --font-mono is a proportional
+            font, so "[x]" and "[ ]" render at different natural widths (18px vs 14px) and
+            misalign the rows below. The `ch` unit is set by the font's "0" glyph, so the box
+            stays the same size no matter which glyph is inside. */}
+        <span className="inline-block w-[3ch] text-center">{item.isPurchased ? "[x]" : "[ ]"}</span>
       </button>
 
       <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "truncate text-sm",
+            // U4 → R3-01: up to 3 lines before the ellipsis (was 2) — same rule as the expense cards.
+            "line-clamp-3 break-words text-pretty text-sm",
             item.isPurchased ? "text-faint line-through" : "text-ink"
           )}
         >
           {item.name}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
+          {/* D14: date first so it's never the sole item wrapped onto its own trailing line —
+              it always shares the first line of the wrap with at least the next chip. */}
+          <span className="text-xs text-faint tnum sm:hidden">
+            {formatDateLocale(item.createdAt)}
+          </span>
           {item.addedBy && <Tag>{t("addedBy", { name: item.addedBy.name })}</Tag>}
           {item.linkedExpenses.length > 0 && (
             <Tag tone="platform">{t("linkedExpenseCount", { count: item.linkedExpenses.length })}</Tag>
           )}
-          {/* Desktop shows the date in its own right-aligned column; surface it here on mobile. */}
-          <span className="text-xs text-faint tnum sm:hidden">
-            {formatDateLocale(item.createdAt)}
-          </span>
         </div>
       </div>
 
@@ -476,8 +485,8 @@ function ItemRow({
           </button>
         }
       >
-        {item.isPurchased && <MenuItem onSelect={onLink}>{t("linkExpensesAction")}</MenuItem>}
-        {item.isPurchased && <MenuSeparator />}
+        {canLink && <MenuItem onSelect={onLink}>{t("linkExpensesAction")}</MenuItem>}
+        {canLink && <MenuSeparator />}
         <MenuItem onSelect={onEdit}>{tc("edit")}</MenuItem>
         <MenuSeparator />
         <MenuItem danger onSelect={onDelete}>

@@ -69,6 +69,7 @@ export function maskAmountInput(raw: string, locale = "pt-BR"): string {
   return (cents / 100).toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+    useGrouping: "always", // I7: same grouping as the displayed money
   });
 }
 

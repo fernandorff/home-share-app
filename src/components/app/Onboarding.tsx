@@ -56,7 +56,8 @@ export function Onboarding() {
   };
 
   return (
-    <main className="paper-grain relative min-h-dvh px-4 py-10">
+    <main className="paper-grain relative min-h-dvh px-4 py-8 md:py-10">
+      {/* R2-20: py-8 below md — the page was 6px taller than a 390x844 screen. */}
       <div className="absolute right-4 top-4">
         <LanguageSelector />
       </div>
@@ -70,8 +71,8 @@ export function Onboarding() {
         </header>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Card className="p-5">
-            <form onSubmit={createCasa} className="flex flex-col gap-4">
+          <Card className="flex h-full flex-col p-5">
+            <form onSubmit={createCasa} className="flex flex-1 flex-col gap-4">
               <h2 className="font-display text-base font-bold uppercase tracking-wide text-ink">
                 {t("createTitle")}
               </h2>
@@ -85,15 +86,16 @@ export function Onboarding() {
                   placeholder={t("houseNamePlaceholder")}
                 />
               </Field>
-              <Button type="submit" loading={creating} disabled={!name.trim()} className="w-full">
+              <Button type="submit" loading={creating} disabled={!name.trim()} className="mt-auto w-full">
                 {t("createButton")}
               </Button>
-              <p className="text-xs text-faint">{t("createHint")}</p>
+              {/* R3-34: text-pretty — no single word on the last line ("…for the / code"). */}
+              <p className="text-pretty text-xs text-faint">{t("createHint")}</p>
             </form>
           </Card>
 
-          <Card className="p-5">
-            <form onSubmit={joinCasa} className="flex flex-col gap-4">
+          <Card className="flex h-full flex-col p-5">
+            <form onSubmit={joinCasa} className="flex flex-1 flex-col gap-4">
               <h2 className="font-display text-base font-bold uppercase tracking-wide text-ink">
                 {t("joinTitle")}
               </h2>
@@ -113,17 +115,20 @@ export function Onboarding() {
                 variant="secondary"
                 loading={joining}
                 disabled={code.trim().length !== 6}
-                className="w-full"
+                className="mt-auto w-full"
               >
                 {t("joinButton")}
               </Button>
-              <p className="text-xs text-faint">{t("joinHint")}</p>
+              <p className="text-pretty text-xs text-faint">{t("joinHint")}</p>
             </form>
           </Card>
         </div>
 
         <div className="mt-8 text-center">
-          <button onClick={logout} className="label-mono underline underline-offset-2 hover:text-ink">
+          <button
+            onClick={logout}
+            className="label-mono inline-flex min-h-11 items-center justify-center px-3 underline underline-offset-2 hover:text-ink md:min-h-0 md:px-0"
+          >
             {t("logout")}
           </button>
         </div>

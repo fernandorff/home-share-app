@@ -34,13 +34,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4">
+      <div className="toast-region pointer-events-none fixed inset-x-0 z-[60] flex flex-col items-center gap-2 px-4">
         {toasts.map((t) => (
           <div
             key={t.id}
             role="status"
             className={cn(
-              "anim-toast pointer-events-auto w-full max-w-sm rounded-md border border-rule border-l-4 bg-card px-4 py-3 text-sm text-ink shadow-[3px_3px_0_rgba(22,20,15,0.14)]",
+              // No interactive content, so no pointer-events-auto — a toast never intercepts taps
+              // meant for whatever is underneath it (e.g. a dialog footer button, U1).
+              "anim-toast w-full max-w-sm rounded-md border border-rule border-l-4 bg-card px-4 py-3 text-sm text-ink shadow-[3px_3px_0_rgba(22,20,15,0.14)]",
               TONE[t.type]
             )}
           >

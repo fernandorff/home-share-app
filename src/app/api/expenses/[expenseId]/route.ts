@@ -16,6 +16,30 @@ interface RouteParams {
   params: Promise<{ expenseId: string }>
 }
 
+// Used by the edit form's "Load latest" action (B12): after a 409 STALE_EXPENSE, it refetches
+// the current row instead of forcing a full page reload.
+export async function GET(request: Request, { params }: RouteParams) {
+  try {
+    const check = await requireActiveGroup()
+    if (!check.ok) return check.response
+
+    const { expenseId: expensePublicId } = await params
+
+    if (!isValidUUID(expensePublicId)) {
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
+    }
+
+    const expense = await expenseService.findByPublicId(check.groupId, expensePublicId)
+    if (!expense) {
+      return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ expense })
+  } catch (error) {
+    return handleApiError(error, 'Failed to load expense')
+  }
+}
+
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
     const check = await requireActiveGroup()

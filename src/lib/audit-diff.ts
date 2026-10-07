@@ -2,6 +2,9 @@
 // The audit extension stores only the post-state (`after`) on updates, so the "before" of each
 // change is simply the previous revision's `after` (CREATE seeds the chain; DELETE ends it).
 
+import { actorLabelKey } from './activity-format'
+import { toCents } from './currency'
+
 export interface RawRevision {
   id: number
   action: string // CREATE | UPDATE | DELETE (Prisma extension writes these)
@@ -22,6 +25,8 @@ export interface RevisionEntry {
   id: number
   action: 'CREATE' | 'UPDATE' | 'DELETE'
   actorName: string | null
+  /** What to call an entry with no `actorName`: "automatic" for a recurring posting, else "system" ("Someone"). */
+  actorLabel: 'automatic' | 'system'
   createdAt: string
   changes: FieldChange[] // only for UPDATE (fields that actually changed)
 }
@@ -46,6 +51,43 @@ function valuesEqual(a: unknown, b: unknown): boolean {
   return a === b
 }
 
+/** One participant's share, normalized for comparing/displaying a split (BL-B1). */
+export interface SplitShare {
+  userId: number
+  name: string
+  amount: string
+}
+
+interface RawParticipant {
+  userId: number
+  amount: unknown
+  user?: { name?: string | null } | null
+}
+
+function isRawParticipant(v: unknown): v is RawParticipant {
+  return typeof v === 'object' && v !== null && typeof (v as { userId?: unknown }).userId === 'number'
+}
+
+/**
+ * Normalizes a revision's `participants` into a stable, userId-sorted shape.
+ * Returns null when the field is absent — older revisions (e.g. bulk CSV imports) never
+ * captured participants, and that's not the same as "split changed to nothing".
+ */
+function normalizeParticipants(value: unknown): SplitShare[] | null {
+  if (!Array.isArray(value)) return null
+  return value
+    .filter(isRawParticipant)
+    .map((p) => ({ userId: p.userId, name: p.user?.name ?? '', amount: String(p.amount) }))
+    .sort((a, b) => a.userId - b.userId)
+}
+
+/** Compares two normalized splits by userId/cents. Missing on either side = "no change" (older revisions). */
+function splitsEqual(a: SplitShare[] | null, b: SplitShare[] | null): boolean {
+  if (a === null || b === null) return true
+  if (a.length !== b.length) return false
+  return a.every((share, i) => share.userId === b[i].userId && toCents(share.amount) === toCents(b[i].amount))
+}
+
 /**
  * Build the display history for one expense from its raw revisions.
  * UPDATE rows diff against the previous revision's `after`; when there is no prior revision
@@ -66,8 +108,15 @@ export function buildExpenseHistory(revisions: RawRevision[]): RevisionEntry[] {
       changes = EXPENSE_HISTORY_FIELDS
         .filter((f) => !valuesEqual(base[f], r.after![f]))
         .map((f) => ({ field: f, from: base[f] ?? null, to: r.after![f] ?? null }))
+
+      const fromSplit = normalizeParticipants(base.participants)
+      const toSplit = normalizeParticipants(r.after.participants)
+      if (!splitsEqual(fromSplit, toSplit)) {
+        changes.push({ field: 'participants', from: fromSplit, to: toSplit })
+      }
     }
-    entries.push({ id: r.id, action, actorName: r.actorName, createdAt: r.createdAt, changes })
+    const actorLabel = actorLabelKey({ actorId: r.actorId, entityType: 'Expense', action, after: r.after })
+    entries.push({ id: r.id, action, actorName: r.actorName, actorLabel, createdAt: r.createdAt, changes })
     if (r.after) prevAfter = r.after
   }
 

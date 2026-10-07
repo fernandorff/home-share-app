@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { shoppingItemService } from '@/services/shopping-item.service'
 import { isValidUUID } from '@/lib/uuid'
-import { handleApiError, requireActiveGroup } from '@/lib/api-helpers'
+import { handleApiError, requireActiveGroup, recordActivity } from '@/lib/api-helpers'
 
 export async function PUT(
   request: Request,
@@ -23,7 +23,23 @@ export async function PUT(
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
     }
 
+    const existing = await shoppingItemService.findByPublicId(check.groupId, itemId)
+    if (!existing) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
+
     const item = await shoppingItemService.update(check.groupId, itemId, name)
+
+    await recordActivity({
+      groupId: check.groupId,
+      actorId: check.session.userId,
+      entityType: 'SHOPPING_ITEM',
+      entityId: item.publicId,
+      action: 'UPDATE',
+      summary: item.name,
+      changes: existing.name !== item.name ? { name: { from: existing.name, to: item.name } } : undefined,
+    })
+
     return NextResponse.json({ item })
   } catch (error) {
     return handleApiError(error, 'Failed to update item')
@@ -43,7 +59,17 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid item ID' }, { status: 400 })
     }
 
-    await shoppingItemService.delete(check.groupId, itemId)
+    const deleted = await shoppingItemService.delete(check.groupId, itemId)
+
+    await recordActivity({
+      groupId: check.groupId,
+      actorId: check.session.userId,
+      entityType: 'SHOPPING_ITEM',
+      entityId: deleted.publicId,
+      action: 'DELETE',
+      summary: deleted.name,
+    })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     return handleApiError(error, 'Failed to delete item')

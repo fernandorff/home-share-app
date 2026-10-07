@@ -1,18 +1,18 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: homecare-postgres
+    container_name: homeshare-dev-pg
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: nextjs_cep
+      POSTGRES_DB: homeshare_dev
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d nextjs_cep"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d homeshare_dev"]
       interval: 5s
       timeout: 5s
       retries: 5

@@ -24,3 +24,8 @@ Conventions:
 - [0005 — Audit trail via Prisma extension writing EntityRevision rows](0005-audit-trail-prisma-extension.md)
 - [0006 — Optimistic concurrency via expected-state tokens → 409](0006-optimistic-concurrency-expected-state-tokens.md)
 - [0007 — English-only codebase and database](0007-english-only-codebase-and-database.md)
+- [0008 — Observability via Sentry with privacy-first defaults](0008-observability-sentry.md)
+- [0009 — Activity › Detailed derives `before` on read; writes the audit extension cannot see record an explicit revision](0009-derived-before-and-explicit-revisions.md)
+- [0010 — Scheduled jobs: daily Vercel Cron → secret-guarded route → idempotent reconciliation](0010-scheduled-jobs-vercel-cron.md)
+- [0011 — Installable PWA with a static manifest; notices in Postgres; optional standard Web Push from a push-only service worker](0011-pwa-web-push.md)
+- [0012 — Sensitive fields: an audit revision records that they changed, never their value](0012-sensitive-field-change-markers.md)
