@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { LanguageSelector } from "@/components/app/LanguageSelector";
+import { logout } from "@/lib/logout";
 
 export function Onboarding() {
   const { me, refresh } = useSession();
@@ -46,14 +47,6 @@ export function Onboarding() {
       setJoining(false);
     }
   }
-
-  const logout = async () => {
-    try {
-      await api.post("/api/auth/logout");
-    } finally {
-      window.location.href = "/auth/login";
-    }
-  };
 
   return (
     <main className="paper-grain relative min-h-dvh px-4 py-8 md:py-10">

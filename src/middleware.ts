@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifySession, SESSION_COOKIE } from '@/lib/auth'
+import { verifySession, renewedSessionToken, sessionCookieOptions, groupCookieOptions, SESSION_COOKIE, GROUP_COOKIE } from '@/lib/auth'
 import { stampRequestContext } from '@/lib/observability/request-context'
 
 const PUBLIC_PAGE_PREFIXES = ['/auth']
@@ -44,7 +44,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  return pass(request)
+  // Sliding session (ADR 0013): at most once a day, a PAGE request re-signs the cookie for another 30 days (the
+  // active-house preference goes with it). Never on /api: requireSession answers a revoked token with a cookie
+  // delete, which a renewal on the same response would race. No DB read here — a revoked token renews too, and
+  // the page's first API call still clears it.
+  const response = pass(request)
+  if (pathname.startsWith('/api')) return response
+  const renewed = await renewedSessionToken(session)
+  if (renewed) {
+    response.cookies.set(SESSION_COOKIE, renewed, sessionCookieOptions())
+    const group = request.cookies.get(GROUP_COOKIE)?.value
+    if (group) response.cookies.set(GROUP_COOKIE, group, groupCookieOptions())
+  }
+  return response
 }
 
 export const config = {
