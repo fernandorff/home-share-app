@@ -1,6 +1,6 @@
 # Installable PWA with a static manifest; notices in Postgres; optional standard Web Push from a push-only service worker
 
-- Status: accepted
+- Status: accepted — refined by [0013](0013-sliding-session-per-device-logout.md) (a plain logout deletes only this device's subscription)
 - Date: 2026-10-04
 - Specs: [009 — Installable app + notification center](../specs/009-pwa-notification-center/design.md),
   [010 — Web Push](../specs/010-web-push/design.md)

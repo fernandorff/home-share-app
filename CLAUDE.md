@@ -13,8 +13,9 @@
   `code` que o client traduz (namespaces `ApiErrors`/`CsvErrors`, hook `useApiError`).
 - **Auth**: **cookie httpOnly** `homeshare_session` (JWT HS256, jose) — **NÃO** Bearer. Login/
   register/set-password setam o cookie e retornam só `{ user }` (token vai no cookie).
-  Existe `POST /api/auth/logout`. **Login com Google** (OAuth) em `/api/auth/google[/callback]`,
-  guarded por `GOOGLE_CLIENT_ID/SECRET` (reusa `signSession` + mesmo cookie).
+  Sessão deslizante de 30 dias (ADR 0013): `POST /api/auth/logout` sai só deste aparelho;
+  `POST /api/auth/logout-all` revoga todos (bump de `sessionVersion`).
+  **Login com Google** (OAuth) em `/api/auth/google[/callback]`, guarded por `GOOGLE_CLIENT_ID/SECRET` (reusa `signSession` + mesmo cookie).
 - **Casa ativa**: cookie httpOnly `homeshare_group` (preferência; a membership no banco é a
   autoridade). Trocar de casa = `POST /api/groups/active` `{ groupId }`. **Sem header X-Group-Id.**
   Helpers em `lib/api-helpers` (`requireSession`, `requireActiveGroup`, `allGroupMembers`).

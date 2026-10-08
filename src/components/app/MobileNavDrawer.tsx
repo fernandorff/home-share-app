@@ -8,10 +8,10 @@ import { useEffect, useState } from "react";
 import { APP_NAVIGATION } from "@/components/app/navigation";
 import { MemberDot } from "@/components/ui/Member";
 import { cn } from "@/components/ui/cn";
-import { api } from "@/lib/api";
 import { LANGUAGES, applyLocalePreference, applyThemePreference } from "@/lib/client-preferences";
 import { useSession } from "@/lib/session";
 import { DEFAULT_THEME, THEMES, isTheme, type Theme } from "@/lib/theme";
+import { logout } from "@/lib/logout";
 
 type DrawerPanel = "main" | "houses" | "settings";
 
@@ -68,14 +68,6 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
   function pickLocale(code: string) {
     applyLocalePreference(code);
     router.refresh();
-  }
-
-  async function logout() {
-    try {
-      await api.post("/api/auth/logout");
-    } finally {
-      window.location.href = "/auth/login";
-    }
   }
 
   const title = panel === "houses" ? t("yourHouses") : panel === "settings" ? t("settings") : t("menu");

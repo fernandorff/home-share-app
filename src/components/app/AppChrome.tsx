@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useSession } from "@/lib/session";
-import { api } from "@/lib/api";
 import { cn } from "@/components/ui/cn";
 import { MemberDot } from "@/components/ui/Member";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/Menu";
@@ -14,6 +13,7 @@ import { APP_NAVIGATION } from "@/components/app/navigation";
 import { SettingsMenu } from "@/components/app/SettingsMenu";
 import { Spinner } from "@/components/ui/Feedback";
 import { useHouseParam } from "@/lib/use-house-param";
+import { logout } from "@/lib/logout";
 
 function useIsActive() {
   const pathname = usePathname();
@@ -60,14 +60,6 @@ function UserMenu() {
   const router = useRouter();
   const t = useTranslations("Nav");
   if (!me) return null;
-
-  const logout = async () => {
-    try {
-      await api.post("/api/auth/logout");
-    } finally {
-      window.location.href = "/auth/login";
-    }
-  };
 
   return (
     <Menu

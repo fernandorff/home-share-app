@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: passwordError.error, code: passwordError.code }, { status: 400 })
     }
 
-    const result = await authService.changePassword(check.session.userId, currentPassword, newPassword, check.session.iat)
+    const result = await authService.changePassword(check.session.userId, currentPassword, newPassword, check.session.authAt)
     if ('error' in result) {
       const status = result.code === 'NOT_FOUND' ? 404 : 401
       return NextResponse.json({ error: result.error, code: result.code }, { status })
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       publicId: check.session.publicId,
       name: check.session.name,
       sessionVersion: result.sessionVersion,
-    })
+    }, check.session.authAt) // same login time: changing the password is not a new login
     const response = NextResponse.json({ ok: true })
     response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions())
     return response

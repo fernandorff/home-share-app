@@ -3,9 +3,11 @@ import { SignJWT, jwtVerify } from 'jose'
 
 export const SESSION_COOKIE = 'homeshare_session'
 export const GROUP_COOKIE = 'homeshare_group'
-// Shortened from 30 days — bounds how long a leaked/stolen token stays usable. Real revocation
-// (logout / password change) now also happens immediately via sessionVersion, below.
-export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7 // 7 days
+// Sliding session (ADR 0013): the cookie lives 30 days after the LAST use, not after the login — the
+// middleware re-signs it at most once per SESSION_RENEW_AFTER_SECONDS. "Log out of all devices" and a
+// password change revoke every token immediately via sessionVersion, below.
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days
+export const SESSION_RENEW_AFTER_SECONDS = 60 * 60 * 24 // 1 day
 
 export interface SessionPayload {
   userId: number
@@ -17,11 +19,12 @@ export interface SessionPayload {
   sessionVersion: number
 }
 
-// verifySession's return also carries the JWT's issued-at time (unix seconds) so callers can
-// gate step-up-sensitive actions (e.g. defining a password on a passwordless account) on how
-// recently the session was actually established, not just whether the cookie is still valid.
+// verifySession's return also carries two unix-second times: `iat`, when THIS token was signed (renewals
+// move it), and `authAt`, when the member actually logged in (renewals keep it). Step-up-sensitive actions
+// (e.g. defining a password on a passwordless account) gate on authAt — a renewed cookie is not a recent login.
 export interface VerifiedSession extends SessionPayload {
   iat: number
+  authAt: number
 }
 
 function getSecret(): Uint8Array {
@@ -43,8 +46,9 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash)
 }
 
-export async function signSession(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ ...payload })
+/** `authAt` defaults to now (a login); a renewal passes the session's own authAt to keep it. */
+export async function signSession(payload: SessionPayload, authAt = Math.floor(Date.now() / 1000)): Promise<string> {
+  return new SignJWT({ ...payload, authAt })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
@@ -57,16 +61,26 @@ export async function verifySession(token: string): Promise<VerifiedSession | nu
     if (typeof payload.userId !== 'number' || typeof payload.publicId !== 'string') {
       return null
     }
+    const iat = typeof payload.iat === 'number' ? payload.iat : 0
     return {
       userId: payload.userId,
       publicId: payload.publicId,
       name: typeof payload.name === 'string' ? payload.name : '',
       sessionVersion: typeof payload.sessionVersion === 'number' ? payload.sessionVersion : 0,
-      iat: typeof payload.iat === 'number' ? payload.iat : 0,
+      iat,
+      // Tokens signed before ADR 0013 carry no authAt: their iat WAS the login time.
+      authAt: typeof payload.authAt === 'number' ? payload.authAt : iat,
     }
   } catch {
     return null
   }
+}
+
+/** A fresh token for the same session (same claims and login time), or null when it is not due yet. */
+export async function renewedSessionToken(session: VerifiedSession, now = Math.floor(Date.now() / 1000)): Promise<string | null> {
+  if (now - session.iat < SESSION_RENEW_AFTER_SECONDS) return null
+  const { userId, publicId, name, sessionVersion, authAt } = session
+  return signSession({ userId, publicId, name, sessionVersion }, authAt)
 }
 
 export function sessionCookieOptions() {

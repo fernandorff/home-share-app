@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import * as nextStaticInfo from "next/dist/build/analysis/get-page-static-info";
 import { getMiddlewareRouteMatcher } from "next/dist/shared/lib/router/utils/middleware-route-matcher";
 import { config, middleware } from "./middleware";
-import { SESSION_COOKIE, signSession } from "@/lib/auth";
+import { GROUP_COOKIE, SESSION_COOKIE, signSession, verifySession } from "@/lib/auth";
 import { REQUEST_ID_HEADER, REQUEST_PATH_HEADER, REQUEST_START_HEADER } from "@/lib/observability/request-context";
 
 const matches = (pathname: string) => new RegExp(`^${config.matcher[0]}$`).test(pathname);
@@ -236,5 +236,69 @@ describe("middleware session gate (unchanged by spec 007)", () => {
     const response = await middleware(new NextRequest("http://localhost/auth/login", { headers: { cookie: await sessionCookie() } }));
     expect(response.status).toBe(307);
     expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/expenses");
+  });
+});
+
+describe("middleware sliding session (ADR 0013)", () => {
+  const claims = { userId: 1, publicId: "pub-1", name: "Test", sessionVersion: 2 };
+  const DAY = 24 * 60 * 60;
+
+  /** A cookie whose token was signed `ageSeconds` ago, for a login `authAgeSeconds` ago. */
+  async function agedCookie(ageSeconds: number, authAgeSeconds = ageSeconds) {
+    const now = Math.floor(Date.now() / 1000);
+    const { SignJWT } = await import("jose");
+    const token = await new SignJWT({ ...claims, authAt: now - authAgeSeconds })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt(now - ageSeconds)
+      .setExpirationTime(now - ageSeconds + 30 * DAY)
+      .sign(new TextEncoder().encode(process.env.JWT_SECRET || "dev-only-insecure-secret"));
+    return `${SESSION_COOKIE}=${token}`;
+  }
+
+  const setSession = (response: Response) =>
+    response.headers.getSetCookie().find((line) => line.startsWith(`${SESSION_COOKIE}=`)) ?? null;
+
+  it("a token signed less than a day ago is passed through untouched (at most one renewal a day)", async () => {
+    const res = await middleware(new NextRequest("http://localhost/expenses", { headers: { cookie: await agedCookie(DAY - 60) } }));
+    expect(res.status).toBe(200);
+    expect(setSession(res)).toBeNull();
+  });
+
+  it("a day-old token on a page request is re-signed for 30 more days, keeping the claims and the login time", async () => {
+    const res = await middleware(new NextRequest("http://localhost/expenses", { headers: { cookie: await agedCookie(DAY + 60, 20 * DAY) } }));
+    const line = setSession(res);
+    expect(line).toMatch(/Max-Age=2592000/i);
+    expect(line).toMatch(/HttpOnly/i);
+    const renewed = await verifySession(line!.slice(SESSION_COOKIE.length + 1, line!.indexOf(";")));
+    const now = Math.floor(Date.now() / 1000);
+    expect(renewed).toMatchObject(claims);
+    expect(renewed!.iat).toBeGreaterThanOrEqual(now - 5);
+    expect(renewed!.authAt).toBeLessThanOrEqual(now - 20 * DAY);
+  });
+
+  it("the active-house cookie is renewed with it (same 30 days), so the house preference does not expire first", async () => {
+    const cookie = `${await agedCookie(2 * DAY)}; ${GROUP_COOKIE}=house-42`;
+    const res = await middleware(new NextRequest("http://localhost/balances", { headers: { cookie } }));
+    const line = res.headers.getSetCookie().find((l) => l.startsWith(`${GROUP_COOKIE}=`));
+    expect(line).toMatch(new RegExp(`^${GROUP_COOKIE}=house-42;`));
+    expect(line).toMatch(/Max-Age=2592000/i);
+  });
+
+  it("API requests are never renewed: requireSession's cookie delete on a revoked token must not be raced", async () => {
+    const res = await middleware(new NextRequest("http://localhost/api/expenses", { headers: { cookie: await agedCookie(2 * DAY) } }));
+    expect(res.status).toBe(200);
+    expect(setSession(res)).toBeNull();
+  });
+
+  it("an expired token (30 days unused) is not renewed: the page goes to the login", async () => {
+    const res = await middleware(new NextRequest("http://localhost/expenses", { headers: { cookie: await agedCookie(31 * DAY) } }));
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("http://localhost/auth/login");
+    expect(setSession(res)).toBeNull();
+  });
+
+  it("public API routes (login, logout) never get a renewed cookie", async () => {
+    const res = await middleware(new NextRequest("http://localhost/api/auth/logout", { method: "POST", headers: { cookie: await agedCookie(2 * DAY) } }));
+    expect(setSession(res)).toBeNull();
   });
 });
