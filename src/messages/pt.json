@@ -917,7 +917,13 @@
     "deleteAccountSuccess": "Conta excluída",
     "deleteAccountError": "Erro ao excluir a conta",
     "deleteAccountLastAdmin": "Você é o único admin de {houses} — torne outro membro admin lá antes",
-    "deletedUserLabel": "Usuário excluído"
+    "deletedUserLabel": "Usuário excluído",
+    "sessionsTitle": "Sessões",
+    "logoutAllTitle": "Sair de todos os aparelhos",
+    "logoutAllHint": "Desconecta todos os celulares e computadores logados na sua conta, inclusive este. Use se esqueceu um aparelho logado ou acha que alguém tem acesso.",
+    "logoutAllButton": "Sair de todos os aparelhos",
+    "logoutAllConfirmTitle": "Sair de todos os aparelhos?",
+    "logoutAllError": "Não foi possível sair de todos os aparelhos"
   },
   "NotFound": {
     "title": "Página não encontrada",

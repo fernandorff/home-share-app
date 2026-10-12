@@ -170,7 +170,7 @@ export type PushSyncOutcome = "unavailable" | "inactive" | "released" | "registe
  * permission granted and a browser subscription — a subscription the marker does not attribute to this member (another
  * member, none, or unreadable storage) is unsubscribed and push stays off (a shared browser never inherits an opt-in);
  * one made with another VAPID key is replaced; this member's is POSTed again, refreshing owner and locale (and bringing
- * the device back after a logout deleted every row, criterion 9). Never prompts. Rejects on failures (best effort for
+ * the device back after "log out of all devices" or a password change deleted every row, criterion 9). Never prompts. Rejects on failures (best effort for
  * the caller).
  */
 export async function syncPush({ owner, locale }: PushMember): Promise<PushSyncOutcome> {

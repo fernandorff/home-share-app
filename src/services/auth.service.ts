@@ -280,14 +280,14 @@ class AuthService {
   }
 
   /**
-   * @param sessionIssuedAt the caller's JWT `iat` (unix seconds) — only consulted when DEFINING a
-   *   password for the first time (see REAUTH_WINDOW_SECONDS below).
+   * @param sessionAuthAt when the caller actually logged in (the JWT's `authAt`, unix seconds; cookie renewals
+   *   keep it) — only consulted when DEFINING a password for the first time (see REAUTH_WINDOW_SECONDS below).
    */
   async changePassword(
     userId: number,
     currentPassword: string | undefined,
     newPassword: string,
-    sessionIssuedAt: number
+    sessionAuthAt: number
   ): Promise<ChangePasswordResult> {
     const user = await prisma.user.findUnique({ where: { id: userId } })
     if (!user) return { error: 'User not found', code: 'NOT_FOUND' }
@@ -303,10 +303,10 @@ class AuthService {
     } else {
       // Defining a password for the very first time (Google-only account) has no prior secret to
       // confirm — narrow the risk instead by requiring a RECENT login. A stolen/borrowed session
-      // cookie can still be valid for up to 30 days (SESSION_MAX_AGE_SECONDS); without this check
+      // cookie stays valid while it is used (sliding SESSION_MAX_AGE_SECONDS); without this check
       // it could be silently upgraded into a permanent, independent credential the real owner
       // never notices. This does not apply once a password already exists (branch above).
-      const ageSeconds = Math.floor(Date.now() / 1000) - sessionIssuedAt
+      const ageSeconds = Math.floor(Date.now() / 1000) - sessionAuthAt
       if (ageSeconds > REAUTH_WINDOW_SECONDS) {
         return { error: 'Log in again to set a password', code: 'REAUTH_REQUIRED' }
       }

@@ -917,7 +917,13 @@
     "deleteAccountSuccess": "Account deleted",
     "deleteAccountError": "Error deleting account",
     "deleteAccountLastAdmin": "You're the only admin of {houses} — make another member an admin there first",
-    "deletedUserLabel": "Deleted user"
+    "deletedUserLabel": "Deleted user",
+    "sessionsTitle": "Sessions",
+    "logoutAllTitle": "Log out of all devices",
+    "logoutAllHint": "Signs out every phone and computer logged in to your account, this one included. Use it if you forgot a device logged in or think someone has access.",
+    "logoutAllButton": "Log out of all devices",
+    "logoutAllConfirmTitle": "Log out of all devices?",
+    "logoutAllError": "Could not log out of all devices"
   },
   "NotFound": {
     "title": "Page not found",

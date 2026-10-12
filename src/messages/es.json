@@ -917,7 +917,13 @@
     "deleteAccountSuccess": "Cuenta eliminada",
     "deleteAccountError": "Error al eliminar la cuenta",
     "deleteAccountLastAdmin": "Eres el único admin de {houses} — haz admin a otro miembro allí antes",
-    "deletedUserLabel": "Usuario eliminado"
+    "deletedUserLabel": "Usuario eliminado",
+    "sessionsTitle": "Sesiones",
+    "logoutAllTitle": "Cerrar sesión en todos los dispositivos",
+    "logoutAllHint": "Desconecta todos los teléfonos y computadoras con sesión iniciada en tu cuenta, incluido este. Úsalo si olvidaste un dispositivo con la sesión abierta o crees que alguien tiene acceso.",
+    "logoutAllButton": "Cerrar sesión en todos",
+    "logoutAllConfirmTitle": "¿Cerrar sesión en todos los dispositivos?",
+    "logoutAllError": "No se pudo cerrar sesión en todos los dispositivos"
   },
   "NotFound": {
     "title": "Página no encontrada",

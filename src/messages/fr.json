@@ -917,7 +917,13 @@
     "deleteAccountSuccess": "Compte supprimé",
     "deleteAccountError": "Erreur lors de la suppression du compte",
     "deleteAccountLastAdmin": "Vous êtes le seul admin de {houses} — nommez d'abord un autre membre admin",
-    "deletedUserLabel": "Utilisateur supprimé"
+    "deletedUserLabel": "Utilisateur supprimé",
+    "sessionsTitle": "Sessions",
+    "logoutAllTitle": "Se déconnecter de tous les appareils",
+    "logoutAllHint": "Déconnecte tous les téléphones et ordinateurs connectés à votre compte, y compris celui-ci. À utiliser si vous avez oublié un appareil connecté ou pensez que quelqu’un y a accès.",
+    "logoutAllButton": "Se déconnecter partout",
+    "logoutAllConfirmTitle": "Se déconnecter de tous les appareils ?",
+    "logoutAllError": "Impossible de se déconnecter de tous les appareils"
   },
   "NotFound": {
     "title": "Page introuvable",
