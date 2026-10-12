@@ -50,7 +50,7 @@ describe("expense History verbs (M9)", () => {
 
 // M10: the delete-account dialog states the effect before the irreversibility sentence.
 describe("delete-account dialog body (M10)", () => {
-  const source = readFileSync(join(process.cwd(), "src/app/(app)/account/page.tsx"), "utf8");
+  const source = readFileSync(join(process.cwd(), "src/app/(app)/settings/account/page.tsx"), "utf8");
 
   it("renders the effect (the hint) and then the irreversibility sentence in the confirmation body", () => {
     const body = source.slice(source.indexOf('t("deleteAccountLastAdmin"'));

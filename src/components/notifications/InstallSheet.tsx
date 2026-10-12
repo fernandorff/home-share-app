@@ -8,6 +8,7 @@ import { Stamp } from "@/components/ui/Stamp";
 import { cn } from "@/components/ui/cn";
 import { AppIcon } from "@/components/notifications/InstallBanner";
 import type { InstallSheetAndroid } from "@/lib/notification-view";
+import { useInstallPrompt } from "@/lib/use-install-prompt";
 
 export type InstallSheetView = "steps" | "installed";
 type Platform = "android" | "ios";
@@ -128,4 +129,60 @@ export function InstallSheet({
       )}
     </Modal>
   );
+}
+
+/**
+ * The install flow shared by the Notices banner and the Settings › Notifications card (spec 011): the device's install
+ * state, `startInstall` (criterion 2: the deferred prompt; criterion 3: on iPhone/iPad the manual steps) and the sheet
+ * to render. `fallbackFocus` is where focus goes when the control that started it is gone.
+ */
+export function useInstallFlow(fallbackFocus: () => HTMLElement | null) {
+  const install = useInstallPrompt();
+  // The sheet remounts (new key) on every open, so its platform starts from the device each time.
+  const [sheet, setSheet] = useState<{ open: boolean; key: number; view: InstallSheetView }>({ open: false, key: 0, view: "steps" });
+
+  const openSheet = (view: InstallSheetView) => setSheet((s) => ({ open: true, key: s.key + 1, view }));
+
+  async function startInstall() {
+    if (install.canPrompt) {
+      // Spending the one-time prompt removes the control that has focus (the banner, the card's Install button).
+      const trigger = document.activeElement;
+      const outcome = await install.prompt();
+      // Before the sheet opens, so the sheet hands focus back to the fallback when it closes.
+      if (trigger instanceof HTMLElement && !trigger.isConnected) fallbackFocus()?.focus();
+      if (outcome === "accepted") openSheet("installed");
+      // The event was already used (single use): offer the manual paths.
+      else if (outcome === "unavailable") openSheet("steps");
+      return;
+    }
+    openSheet("steps");
+  }
+
+  async function promptFromSheet() {
+    const outcome = await install.prompt();
+    setSheet((s) => (outcome === "accepted" ? { ...s, view: "installed" } : { ...s, open: false }));
+  }
+
+  function iosDone() {
+    // They added it by hand: no banner on this device for the next 30 days.
+    install.dismiss();
+    setSheet((s) => ({ ...s, view: "installed" }));
+  }
+
+  const sheetElement = (
+    <InstallSheet
+      key={sheet.key}
+      open={sheet.open}
+      onOpenChange={(open) => setSheet((s) => ({ ...s, open }))}
+      view={sheet.view}
+      android={install.sheetAndroid}
+      ios={install.ios}
+      onPrompt={() => void promptFromSheet()}
+      onIosDone={iosDone}
+      // Closed after its opener left (Android prompt accepted in the sheet, iOS "I've added it").
+      fallbackFocus={fallbackFocus}
+    />
+  );
+
+  return { install, startInstall, sheet: sheetElement };
 }

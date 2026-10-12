@@ -48,7 +48,9 @@ const nextConfig: NextConfig = {
       ["catalogos", "catalogs"],
       ["atividade", "activity"],
       ["casa", "house"],
-      ["conta", "account"],
+      // Spec 011: account settings moved into /settings — no redirect chain through /account.
+      ["conta", "settings/account"],
+      ["account", "settings/account"],
     ];
     return renames.map(([from, to]) => ({
       source: `/${from}`,

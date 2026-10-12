@@ -496,10 +496,6 @@
     "subtitle": "What happened in the house that concerns you",
     "bell": "Notices",
     "bellCount": "{count, plural, =0 {No unread notices} one {# unread notice} other {# unread notices}}",
-    "tabs": {
-      "notices": "Notices",
-      "preferences": "Preferences"
-    },
     "filter": {
       "all": "All",
       "unread": "Unread"
@@ -559,7 +555,7 @@
       "bannerBodyPush": "Opens full screen, without the browser bar, and receives the house's notices.",
       "install": "Install",
       "notNow": "Not now",
-      "notNowToast": "No problem. You can install later in Preferences.",
+      "notNowToast": "No problem. You can install later in Settings › Notifications.",
       "sheetTitle": "Install the app",
       "android": "Android",
       "iphone": "iPhone",
@@ -594,7 +590,8 @@
       "toastOff": "Push is off. The center still receives notices.",
       "toastDenied": "Blocked. The browser won't ask again.",
       "toastTestSent": "{sent, plural, one {Sent to # device} other {Sent to # devices}}{failed, plural, =0 {} other {, # failed}}."
-    }
+    },
+    "settingsLink": "Notification settings"
   },
   "Push": {
     "EXPENSE_NEW": "{actor} added “{description}”",
@@ -880,9 +877,38 @@
     "default": "Default",
     "bolitas": "La Casa das Bolitas"
   },
+  "Settings": {
+    "title": "Settings",
+    "subtitle": "Appearance, notifications and your account",
+    "back": "All settings",
+    "chooseCategory": "Choose a category on the left.",
+    "theme": "Theme",
+    "themeHint": "Tap a theme to apply it right away.",
+    "categories": {
+      "appearance": {
+        "label": "Appearance",
+        "hint": "Theme and language"
+      },
+      "notifications": {
+        "label": "Notifications",
+        "hint": "Notices and push on this device"
+      },
+      "account": {
+        "label": "Account",
+        "hint": "Profile, password and account deletion"
+      },
+      "security": {
+        "label": "Security",
+        "hint": "Log out of every device"
+      }
+    },
+    "preview": {
+      "groceries": "Groceries",
+      "power": "Electricity",
+      "owed": "You are owed"
+    }
+  },
   "Account": {
-    "title": "My account",
-    "subtitle": "Your access details",
     "profileTitle": "Personal details",
     "name": "Name",
     "email": "E-mail",

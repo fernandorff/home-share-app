@@ -10,7 +10,6 @@ import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/Menu";
 import { MobileNavDrawer } from "@/components/app/MobileNavDrawer";
 import { NotificationBell } from "@/components/app/NotificationBell";
 import { APP_NAVIGATION } from "@/components/app/navigation";
-import { SettingsMenu } from "@/components/app/SettingsMenu";
 import { Spinner } from "@/components/ui/Feedback";
 import { useHouseParam } from "@/lib/use-house-param";
 import { logout } from "@/lib/logout";
@@ -80,10 +79,10 @@ function UserMenu() {
       <MenuLabel>
         <span className="normal-case">@{me.user.username}</span>
       </MenuLabel>
-      <MenuItem onSelect={() => router.push("/account")}>{t("myAccount")}</MenuItem>
+      <MenuItem onSelect={() => router.push("/settings/account")}>{t("myAccount")}</MenuItem>
       <MenuItem onSelect={() => router.push("/house")}>{t("houseAndMembers")}</MenuItem>
-      <MenuSeparator />
-      <SettingsMenu />
+      {/* Spec 011: theme and language live on the Settings page (with live previews), no longer in this menu. */}
+      <MenuItem onSelect={() => router.push("/settings/appearance")}>{t("settings")}</MenuItem>
       <MenuSeparator />
       <MenuItem danger onSelect={logout}>
         {t("logout")}

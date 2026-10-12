@@ -45,12 +45,50 @@
 }
 
 /* ============================================================
+   Theme selectors match ANY element, not only <html>: the
+   Settings page previews each theme inside a `[data-theme]`
+   wrapper (spec 011). They are unlayered, so they outrank the
+   layered @theme on :root whatever the order.
+   The default palette is re-declared here because a default
+   preview inside a bolitas page would otherwise inherit bolitas
+   values; theme-tokens.test.ts keeps it equal to @theme.
+   ============================================================ */
+[data-theme="default"] {
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: var(--font-space-mono), ui-monospace, monospace;
+
+  --color-paper: #f2f0e9;
+  --color-card: #fbfaf4;
+  --color-panel: #e9e4d6;
+  --color-ink: #16140f;
+  --color-ink-soft: #54503f;
+  --color-faint: #655f4f;
+  --color-rule: #cbc4b1;
+
+  --color-stamp: #d6452c;
+  --color-stamp-text: #b23a22;
+  --color-stamp-soft: #f7e6e1;
+  --color-credit: #2f6b4f;
+  --color-debt: #c0392b;
+
+  --color-cat: #6b4a7a;
+  --color-cat-soft: #ece4ef;
+  --color-plat: #4a6173;
+  --color-plat-soft: #e4e9ee;
+  --color-pay: #75591f;
+  --color-pay-soft: #efe7d6;
+
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+}
+
+/* ============================================================
    Theme: bolitas — cozy cottage-ledger (parchment, terracotta,
    sage, amber; friendly rounded sans). Overrides ONLY token
    VALUES + texture colors, so the layout stays byte-identical.
-   `html[data-theme]` outranks :root, so order is irrelevant.
    ============================================================ */
-html[data-theme="bolitas"] {
+[data-theme="bolitas"] {
   /* Friendly sans + rounded display replace the mono families */
   --font-mono: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fredoka), var(--font-nunito), ui-sans-serif, sans-serif;
@@ -90,7 +128,7 @@ html[data-theme="bolitas"] {
 }
 
 /* Bolitas re-skins the two textures whose mid-tones are hardcoded (color only). */
-html[data-theme="bolitas"] .paper-grain {
+[data-theme="bolitas"] .paper-grain {
   background-image: repeating-linear-gradient(
     0deg,
     transparent 0,
@@ -99,7 +137,7 @@ html[data-theme="bolitas"] .paper-grain {
     rgba(74, 53, 32, 0.04) 28px
   );
 }
-html[data-theme="bolitas"] .skeleton {
+[data-theme="bolitas"] .skeleton {
   background: linear-gradient(
     90deg,
     var(--color-panel) 25%,
