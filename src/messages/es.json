@@ -496,10 +496,6 @@
     "subtitle": "Lo que pasó en la casa y te concierne",
     "bell": "Avisos",
     "bellCount": "{count, plural, =0 {Ningún aviso sin leer} one {# aviso sin leer} other {# avisos sin leer}}",
-    "tabs": {
-      "notices": "Avisos",
-      "preferences": "Preferencias"
-    },
     "filter": {
       "all": "Todos",
       "unread": "Sin leer"
@@ -559,7 +555,7 @@
       "bannerBodyPush": "Se abre a pantalla completa, sin la barra del navegador, y recibe los avisos de la casa.",
       "install": "Instalar",
       "notNow": "Ahora no",
-      "notNowToast": "Sin problema. Puedes instalarla más tarde en Preferencias.",
+      "notNowToast": "Sin problema. Puedes instalarla más tarde en Configuración › Notificaciones.",
       "sheetTitle": "Instalar la app",
       "android": "Android",
       "iphone": "iPhone",
@@ -594,7 +590,8 @@
       "toastOff": "Push desactivado. Los avisos siguen llegando aquí en la app.",
       "toastDenied": "Bloqueado. El navegador no volverá a preguntar.",
       "toastTestSent": "{sent, plural, one {Enviado a # dispositivo} other {Enviado a # dispositivos}}{failed, plural, =0 {} one {, # falló} other {, # fallaron}}."
-    }
+    },
+    "settingsLink": "Configuración de notificaciones"
   },
   "Push": {
     "EXPENSE_NEW": "{actor} añadió “{description}”",
@@ -880,9 +877,38 @@
     "default": "Predeterminado",
     "bolitas": "La Casa das Bolitas"
   },
+  "Settings": {
+    "title": "Configuración",
+    "subtitle": "Apariencia, notificaciones y tu cuenta",
+    "back": "Toda la configuración",
+    "chooseCategory": "Elige una categoría a la izquierda.",
+    "theme": "Tema",
+    "themeHint": "Toca un tema para aplicarlo al instante.",
+    "categories": {
+      "appearance": {
+        "label": "Apariencia",
+        "hint": "Tema e idioma"
+      },
+      "notifications": {
+        "label": "Notificaciones",
+        "hint": "Avisos y push en este dispositivo"
+      },
+      "account": {
+        "label": "Cuenta",
+        "hint": "Perfil, contraseña y eliminación de la cuenta"
+      },
+      "security": {
+        "label": "Seguridad",
+        "hint": "Cerrar sesión en todos los dispositivos"
+      }
+    },
+    "preview": {
+      "groceries": "Supermercado",
+      "power": "Luz",
+      "owed": "Te deben"
+    }
+  },
   "Account": {
-    "title": "Mi cuenta",
-    "subtitle": "Tus datos de acceso",
     "profileTitle": "Datos personales",
     "name": "Nombre",
     "email": "Correo electrónico",

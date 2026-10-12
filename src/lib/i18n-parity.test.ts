@@ -274,8 +274,8 @@ describe("Recurring day of month reads as monthly, not daily", () => {
 // The keys spec 009 adds (design.md › i18n keys), by namespace.
 const SPEC_009_KEYS: Record<string, string[]> = {
   Notifications: [
+    // The Notices / Preferences tabs left with spec 011 (the preferences moved to Settings › Notifications).
     "title", "subtitle", "bell", "bellCount",
-    "tabs.notices", "tabs.preferences",
     "filter.all", "filter.unread",
     "markAllRead",
     "group.today", "group.yesterday", "group.earlier",
@@ -326,7 +326,7 @@ describe("i18n — spec 009 (notification center) keys", () => {
   // Review of cycle E: fr "avis" reads as "reviews", so the notice list is "les notifications" (feminine).
   it("fr names the notice list 'notification(s)', never 'avis'", () => {
     expect(SPEC_009_PATHS.filter((p) => /\bavis\b/i.test(FLAT.fr[p]))).toEqual([]);
-    for (const key of ["title", "bell", "tabs.notices"]) expect(FLAT.fr[`Notifications.${key}`]).toBe("Notifications");
+    for (const key of ["title", "bell"]) expect(FLAT.fr[`Notifications.${key}`]).toBe("Notifications");
   });
 
   it("fr quotes the iOS menu item in guillemets with non-breaking spaces (like ApiErrors.CANNOT_REMOVE_SELF)", () => {

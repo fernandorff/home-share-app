@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { api, ApiError } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { useSession } from "@/lib/session";
 import { useNotifications } from "@/lib/notifications-context";
-import { useInstallPrompt } from "@/lib/use-install-prompt";
 import { groupByDay, notificationHref } from "@/lib/notifications";
 import {
   answeredForOtherHouse,
@@ -35,13 +35,12 @@ import { Stamp } from "@/components/ui/Stamp";
 import { useToast } from "@/components/ui/Toast";
 import { revealDelay } from "@/components/ui/motion";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
-import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 import { InstallBanner } from "@/components/notifications/InstallBanner";
-import { InstallSheet, type InstallSheetView } from "@/components/notifications/InstallSheet";
+import { useInstallFlow } from "@/components/notifications/InstallSheet";
 
-type Tab = "notices" | "preferences";
-const TAB_ORDER: Tab[] = ["notices", "preferences"];
 const FILTERS: NoticeFilter[] = ["all", "unread"];
+// Where focus goes when the control that had it disappears (a removed row, the install banner).
+const noticesList = () => document.getElementById("notices-list");
 
 /** The list as loaded for one house and filter — a list from another house is never shown after a switch. */
 interface Loaded {
@@ -55,10 +54,9 @@ interface Loaded {
   loadedAt: Date;
 }
 
-// `padding` is a parameter (cn() only joins strings: two px-* under one breakpoint would both apply).
-const segment = (active: boolean, padding = "px-3") =>
+const segment = (active: boolean) =>
   cn(
-    padding,
+    "px-3",
     // ring-inset: an offset ring is clipped by the neighbours (same as the other segmented toggles).
     "min-h-11 rounded-md border py-1.5 text-xs font-display font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stamp md:min-h-0",
     active ? "border-ink bg-ink text-paper" : "border-rule bg-card text-ink-soft hover:bg-panel"
@@ -73,9 +71,8 @@ export default function NotificationsPage() {
   const { activeGroup, membersLoading, refresh: refreshSession } = useSession();
   const groupId = activeGroup?.id;
   const { unreadCount, returnCount, setUnreadCount, refreshUnread } = useNotifications();
-  const install = useInstallPrompt();
+  const { install, startInstall, sheet } = useInstallFlow(noticesList);
 
-  const [tab, setTab] = useState<Tab>("notices");
   const [filter, setFilter] = useState<NoticeFilter>("all");
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const reqId = useRef(0);
@@ -87,8 +84,6 @@ export default function NotificationsPage() {
   const mutationSeq = useRef(0);
   // Row to focus once a remove has re-rendered the list (null = the panel); undefined = nothing pending.
   const pendingFocus = useRef<string | null | undefined>(undefined);
-  // The sheet remounts (new key) on every open, so its platform starts from the device each time.
-  const [sheet, setSheet] = useState<{ open: boolean; key: number; view: InstallSheetView }>({ open: false, key: 0, view: "steps" });
 
   const load = useCallback(async () => {
     const id = ++reqId.current;
@@ -126,7 +121,7 @@ export default function NotificationsPage() {
     if (pendingFocus.current === undefined) return;
     const target = pendingFocus.current;
     pendingFocus.current = undefined;
-    (target ? document.getElementById(`notice-${target}`) : document.getElementById("notices-panel-notices"))?.focus();
+    (target ? document.getElementById(`notice-${target}`) : noticesList())?.focus();
   }, [loaded]);
 
   const current = loaded?.groupId === groupId && loaded?.filter === filter ? loaded : null;
@@ -206,63 +201,12 @@ export default function NotificationsPage() {
     }
   }
 
-  const openSheet = (view: InstallSheetView) => setSheet((s) => ({ open: true, key: s.key + 1, view }));
-  // Where focus goes when the install control that had it disappears (banner hidden, card button gone).
-  const selectedTab = () => document.getElementById(`notices-tab-${tab}`);
-
-  // Criterion 2: Install calls the deferred prompt(); criterion 3: on iPhone/iPad the manual steps instead.
-  async function startInstall() {
-    if (install.canPrompt) {
-      // Spending the one-time prompt removes the control that has focus (the banner, the card's Install button).
-      const trigger = document.activeElement;
-      const outcome = await install.prompt();
-      // Before the sheet opens, so the sheet hands focus back to the tab when it closes.
-      if (trigger instanceof HTMLElement && !trigger.isConnected) selectedTab()?.focus();
-      if (outcome === "accepted") openSheet("installed");
-      // The event was already used (single use): offer the manual paths.
-      else if (outcome === "unavailable") openSheet("steps");
-      return;
-    }
-    openSheet("steps");
-  }
-
-  async function promptFromSheet() {
-    const outcome = await install.prompt();
-    setSheet((s) => (outcome === "accepted" ? { ...s, view: "installed" } : { ...s, open: false }));
-  }
-
-  function iosDone() {
-    // They added it by hand: no banner on this device for the next 30 days.
-    install.dismiss();
-    setSheet((s) => ({ ...s, view: "installed" }));
-  }
-
   function notNow() {
     install.dismiss();
     toast(t("install.notNowToast"), "info");
     // The banner (and the focused button) is gone: keep keyboard focus on the page.
-    selectedTab()?.focus();
+    noticesList()?.focus();
   }
-
-  // Arrow keys move between the tabs (WAI-ARIA tabs pattern); only the selected tab is in the Tab order.
-  function onTabKey(e: KeyboardEvent<HTMLButtonElement>) {
-    const i = TAB_ORDER.indexOf(tab);
-    const next =
-      e.key === "ArrowRight" ? TAB_ORDER[(i + 1) % TAB_ORDER.length]
-      : e.key === "ArrowLeft" ? TAB_ORDER[(i + TAB_ORDER.length - 1) % TAB_ORDER.length]
-      : e.key === "Home" ? TAB_ORDER[0]
-      : e.key === "End" ? TAB_ORDER[TAB_ORDER.length - 1]
-      : null;
-    if (!next) return;
-    e.preventDefault();
-    setTab(next);
-    document.getElementById(`notices-tab-${next}`)?.focus();
-  }
-
-  const tabs = [
-    { id: "notices", label: t("tabs.notices") },
-    { id: "preferences", label: t("tabs.preferences") },
-  ] as const;
 
   return (
     <div className="flex flex-col gap-5">
@@ -279,33 +223,26 @@ export default function NotificationsPage() {
           </span>
         }
         subtitle={t("subtitle")}
+        actions={
+          // Spec 011 (criterion 9): the preferences moved to Settings › Notifications.
+          <Link
+            href="/settings/notifications"
+            aria-label={t("settingsLink")}
+            title={t("settingsLink")}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-rule bg-card text-lg text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+          >
+            {/* U+FE0E: text presentation, so it takes the ink color instead of rendering as an emoji. */}
+            <span aria-hidden>{"⚙︎"}</span>
+          </Link>
+        }
       />
 
       {install.bannerVisible && (
         <InstallBanner onInstall={() => void startInstall()} onNotNow={notNow} />
       )}
 
-      <div role="tablist" aria-label={t("title")} className="grid grid-cols-2 gap-1 md:flex">
-        {tabs.map(({ id, label }) => (
-          <button
-            key={id}
-            id={`notices-tab-${id}`}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            aria-controls={`notices-panel-${id}`}
-            tabIndex={tab === id ? 0 : -1}
-            onClick={() => setTab(id)}
-            onKeyDown={onTabKey}
-            className={segment(tab === id, "px-2 md:px-3")}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* tabIndex 0 on both panels (WAI-ARIA tabs): an empty list holds nothing focusable. */}
-      <section id="notices-panel-notices" role="tabpanel" aria-labelledby="notices-tab-notices" tabIndex={0} hidden={tab !== "notices"}>
+      {/* tabIndex -1: the focus target when a removed row or the banner leaves (an empty list holds nothing focusable). */}
+      <section id="notices-list" aria-label={t("title")} tabIndex={-1} className="focus:outline-none">
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex gap-1">
@@ -381,22 +318,7 @@ export default function NotificationsPage() {
         </div>
       </section>
 
-      <section id="notices-panel-preferences" role="tabpanel" aria-labelledby="notices-tab-preferences" tabIndex={0} hidden={tab !== "preferences"}>
-        <NotificationPreferences installState={install.cardState} onInstall={() => void startInstall()} />
-      </section>
-
-      <InstallSheet
-        key={sheet.key}
-        open={sheet.open}
-        onOpenChange={(open) => setSheet((s) => ({ ...s, open }))}
-        view={sheet.view}
-        android={install.sheetAndroid}
-        ios={install.ios}
-        onPrompt={() => void promptFromSheet()}
-        onIosDone={iosDone}
-        // Opened from the banner, which an Android prompt in the sheet or "I've added it" hides meanwhile.
-        fallbackFocus={selectedTab}
-      />
+      {sheet}
     </div>
   );
 }

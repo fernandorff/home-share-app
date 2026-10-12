@@ -496,10 +496,6 @@
     "subtitle": "Ce qui s'est passé dans la maison et qui vous concerne",
     "bell": "Notifications",
     "bellCount": "{count, plural, =0 {Aucune notification non lue} one {# notification non lue} other {# notifications non lues}}",
-    "tabs": {
-      "notices": "Notifications",
-      "preferences": "Préférences"
-    },
     "filter": {
       "all": "Toutes",
       "unread": "Non lues"
@@ -559,7 +555,7 @@
       "bannerBodyPush": "S'ouvre en plein écran, sans la barre du navigateur, et reçoit les notifications de la maison.",
       "install": "Installer",
       "notNow": "Pas maintenant",
-      "notNowToast": "Pas de souci. Vous pourrez l'installer plus tard dans Préférences.",
+      "notNowToast": "Pas de souci. Vous pourrez l'installer plus tard dans Paramètres › Notifications.",
       "sheetTitle": "Installer l'application",
       "android": "Android",
       "iphone": "iPhone",
@@ -594,7 +590,8 @@
       "toastOff": "Push désactivé. Les notifications restent visibles dans l'application.",
       "toastDenied": "Bloqué. Le navigateur ne demandera plus.",
       "toastTestSent": "{sent, plural, one {Envoyé à # appareil} other {Envoyé à # appareils}}{failed, plural, =0 {} one {, # échec} other {, # échecs}}."
-    }
+    },
+    "settingsLink": "Paramètres des notifications"
   },
   "Push": {
     "EXPENSE_NEW": "{actor} a ajouté “{description}”",
@@ -880,9 +877,38 @@
     "default": "Par défaut",
     "bolitas": "La Casa das Bolitas"
   },
+  "Settings": {
+    "title": "Paramètres",
+    "subtitle": "Apparence, notifications et votre compte",
+    "back": "Tous les paramètres",
+    "chooseCategory": "Choisissez une catégorie à gauche.",
+    "theme": "Thème",
+    "themeHint": "Touchez un thème pour l'appliquer tout de suite.",
+    "categories": {
+      "appearance": {
+        "label": "Apparence",
+        "hint": "Thème et langue"
+      },
+      "notifications": {
+        "label": "Notifications",
+        "hint": "Types de notifications et push sur cet appareil"
+      },
+      "account": {
+        "label": "Compte",
+        "hint": "Profil, mot de passe et suppression du compte"
+      },
+      "security": {
+        "label": "Sécurité",
+        "hint": "Se déconnecter de tous les appareils"
+      }
+    },
+    "preview": {
+      "groceries": "Courses",
+      "power": "Électricité",
+      "owed": "On vous doit"
+    }
+  },
   "Account": {
-    "title": "Mon compte",
-    "subtitle": "Vos informations de connexion",
     "profileTitle": "Informations personnelles",
     "name": "Nom",
     "email": "E-mail",

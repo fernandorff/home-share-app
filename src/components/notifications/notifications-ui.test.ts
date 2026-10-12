@@ -14,6 +14,7 @@ const FILES = {
   chrome: "src/components/app/AppChrome.tsx",
   layout: "src/app/(app)/layout.tsx",
   page: "src/app/(app)/notifications/page.tsx",
+  settings: "src/app/(app)/settings/notifications/page.tsx",
   item: "src/components/notifications/NotificationItem.tsx",
   prefs: "src/components/notifications/NotificationPreferences.tsx",
   banner: "src/components/notifications/InstallBanner.tsx",
@@ -212,13 +213,9 @@ describe("header bell (task 18, criterion 14)", () => {
 describe("Notices page (task 19, criterion 15)", () => {
   const page = src.page;
 
-  it("two real tabs with roving tabindex, arrow/Home/End keys and focusable panels", () => {
-    expect(page).toContain('role="tablist"');
-    expect(page.match(/role="tab"/g)).toHaveLength(1); // one mapped button
-    expect(page).toContain("tabIndex={tab === id ? 0 : -1}");
-    for (const key of ['"ArrowRight"', '"ArrowLeft"', '"Home"', '"End"']) expect(page).toContain(key);
-    expect(page.match(/role="tabpanel"[^>]*tabIndex=\{0\}/g)).toHaveLength(2);
-    for (const label of ['t("tabs.notices")', 't("tabs.preferences")']) expect(page).toContain(label);
+  it("the list only — the Preferences tab moved to Settings › Notifications (spec 011); the list is focusable", () => {
+    expect(page).not.toContain('role="tab');
+    expect(page).toContain('<section id="notices-list" aria-label={t("title")} tabIndex={-1}');
   });
 
   it("All / Unread filter (pressed toggles) loads through the API filter", () => {
@@ -288,18 +285,21 @@ describe("Notices page (task 19, criterion 15)", () => {
     expect(page).toContain("current === null || membersPending ?");
   });
 
-  it("focus lands on the selected tab when the install control that had it goes away", () => {
-    expect(page).toContain("const selectedTab = () => document.getElementById(`notices-tab-${tab}`);");
-    const start = page.slice(page.indexOf("async function startInstall"), page.indexOf("async function promptFromSheet"));
+  it("focus lands on the list when the install control that had it goes away", () => {
+    // Spec 011: the flow lives in useInstallFlow (shared with Settings › Notifications); each screen names its fallback.
+    expect(page).toContain('const noticesList = () => document.getElementById("notices-list");');
+    expect(page).toContain("useInstallFlow(noticesList)");
+    const flow = src.sheet.slice(src.sheet.indexOf("export function useInstallFlow"));
+    const start = flow.slice(flow.indexOf("async function startInstall"), flow.indexOf("async function promptFromSheet"));
     // Captured before the one-time prompt removes the banner / the card's button; moved before the sheet opens,
-    // so the sheet hands focus back to the tab.
+    // so the sheet hands focus back to the fallback.
     expect(start.indexOf("const trigger = document.activeElement;")).toBeLessThan(start.indexOf("await install.prompt()"));
-    expect(start).toContain("if (trigger instanceof HTMLElement && !trigger.isConnected) selectedTab()?.focus();");
-    expect(start.indexOf("selectedTab()?.focus()")).toBeLessThan(start.indexOf('openSheet("installed")'));
+    expect(start).toContain("if (trigger instanceof HTMLElement && !trigger.isConnected) fallbackFocus()?.focus();");
+    expect(start.indexOf("fallbackFocus()?.focus()")).toBeLessThan(start.indexOf('openSheet("installed")'));
     // Sheet closed after its opener left (Android prompt accepted in the sheet, iOS "I've added it").
-    expect(page).toContain("fallbackFocus={selectedTab}");
+    expect(flow).toContain("fallbackFocus={fallbackFocus}");
     const notNow = page.slice(page.indexOf("function notNow"));
-    expect(notNow).toContain("selectedTab()?.focus();");
+    expect(notNow).toContain("noticesList()?.focus();");
   });
 
   it("Today / Yesterday / Earlier through groupByDay, relative to the moment the list loaded", () => {
@@ -358,7 +358,7 @@ describe("Notices page (task 19, criterion 15)", () => {
   });
 
   it("Install calls the deferred prompt when the browser has one, otherwise opens the manual steps", () => {
-    const start = page.slice(page.indexOf("async function startInstall"));
+    const start = src.sheet.slice(src.sheet.indexOf("async function startInstall"));
     expect(start).toContain("if (install.canPrompt)");
     expect(start).toContain("await install.prompt()");
     expect(start).toContain('openSheet("steps")');
@@ -481,13 +481,14 @@ describe("install banner and sheet (task 19, criteria 2–3)", () => {
   });
 
   it("sheet, Android tab: native prompt, else the browser-menu step; 'can't install' only where it never can", () => {
-    const sheet = src.sheet;
+    // The component only (useInstallFlow, below it in the same module, decides from canPrompt — spec 011).
+    const sheet = src.sheet.slice(0, src.sheet.indexOf("export function useInstallFlow"));
     expect(sheet).toContain('android === "prompt" ? (');
     expect(sheet).toContain('android === "menu" ? (');
     expect(sheet).toContain('t("install.androidMenu")');
     expect(sheet).toContain('t("install.unsupported")');
     expect(sheet).not.toContain("canPrompt");
-    expect(src.page).toContain("android={install.sheetAndroid}");
+    expect(src.sheet).toContain("android={install.sheetAndroid}");
   });
 
   it("sheet: focus goes to the caller's fallback when the control that opened it is gone", () => {
@@ -517,14 +518,14 @@ describe("push card (spec 010, task 16; criteria 3, 10, 11)", () => {
   const toggle = card.slice(card.indexOf("async function toggle"), card.indexOf("\n  }\n", card.indexOf("async function toggle")));
   const sendTest = card.slice(card.indexOf("async function sendTest"), card.indexOf("\n  }\n", card.indexOf("async function sendTest")));
 
-  it("sits at the top of the Preferences tab; its iPhone link reuses the install action (the sheet opens on the iPhone tab)", () => {
+  it("sits at the top of the preferences (Settings › Notifications); its iPhone link reuses the install action (the sheet opens on the iPhone tab)", () => {
     expect(src.prefs).toContain('import { PushCard } from "@/components/notifications/PushCard";');
     const at = src.prefs.indexOf("<PushCard onIosHowTo={onInstall} />");
     expect(at).toBeGreaterThan(-1);
     expect(at).toBeLessThan(src.prefs.indexOf('t("prefsTypes")'));
     // On iPhone/iPad there is never a deferred prompt: Install opens the steps sheet, which starts on the device's tab.
-    expect(src.page).toContain("<NotificationPreferences installState={install.cardState} onInstall={() => void startInstall()} />");
-    expect(src.page).toContain("ios={install.ios}");
+    expect(src.settings).toContain("<NotificationPreferences installState={install.cardState} onInstall={() => void startInstall()} />");
+    expect(src.sheet).toContain("ios={install.ios}");
   });
 
   it("the state comes from push-view; nothing renders while push is unconfigured (criterion 1)", () => {

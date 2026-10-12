@@ -496,10 +496,6 @@
     "subtitle": "O que aconteceu na casa e envolve você",
     "bell": "Avisos",
     "bellCount": "{count, plural, =0 {Nenhum aviso não lido} one {# aviso não lido} other {# avisos não lidos}}",
-    "tabs": {
-      "notices": "Avisos",
-      "preferences": "Preferências"
-    },
     "filter": {
       "all": "Todos",
       "unread": "Não lidos"
@@ -559,7 +555,7 @@
       "bannerBodyPush": "Abre em tela cheia, sem a barra do navegador, e recebe os avisos da casa.",
       "install": "Instalar",
       "notNow": "Agora não",
-      "notNowToast": "Sem problema. Você pode instalar depois em Preferências.",
+      "notNowToast": "Sem problema. Você pode instalar depois em Configurações › Notificações.",
       "sheetTitle": "Instalar o app",
       "android": "Android",
       "iphone": "iPhone",
@@ -594,7 +590,8 @@
       "toastOff": "Push desativado. Os avisos continuam chegando aqui no app.",
       "toastDenied": "Bloqueado. O navegador não vai perguntar de novo.",
       "toastTestSent": "{sent, plural, =0 {Enviado para 0 dispositivos} one {Enviado para # dispositivo} other {Enviado para # dispositivos}}{failed, plural, =0 {} one {, # falhou} other {, # falharam}}."
-    }
+    },
+    "settingsLink": "Configurações de notificações"
   },
   "Push": {
     "EXPENSE_NEW": "{actor} adicionou “{description}”",
@@ -880,9 +877,38 @@
     "default": "Padrão",
     "bolitas": "La Casa das Bolitas"
   },
+  "Settings": {
+    "title": "Configurações",
+    "subtitle": "Aparência, notificações e sua conta",
+    "back": "Todas as configurações",
+    "chooseCategory": "Escolha uma categoria à esquerda.",
+    "theme": "Tema",
+    "themeHint": "Toque em um tema para aplicar na hora.",
+    "categories": {
+      "appearance": {
+        "label": "Aparência",
+        "hint": "Tema e idioma"
+      },
+      "notifications": {
+        "label": "Notificações",
+        "hint": "Avisos e push neste aparelho"
+      },
+      "account": {
+        "label": "Conta",
+        "hint": "Perfil, senha e exclusão da conta"
+      },
+      "security": {
+        "label": "Segurança",
+        "hint": "Sair de todos os aparelhos"
+      }
+    },
+    "preview": {
+      "groceries": "Mercado",
+      "power": "Energia",
+      "owed": "Você tem a receber"
+    }
+  },
   "Account": {
-    "title": "Minha conta",
-    "subtitle": "Seus dados de acesso",
     "profileTitle": "Dados pessoais",
     "name": "Nome",
     "email": "E-mail",

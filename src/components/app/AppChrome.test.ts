@@ -6,7 +6,6 @@ import { join } from "node:path";
 // the chrome contracts on the source instead.
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 const chrome = read("src/components/app/AppChrome.tsx");
-const settingsMenu = read("src/components/app/SettingsMenu.tsx");
 const menu = read("src/components/ui/Menu.tsx");
 // Joined so the removed name itself never appears in src (a grep for it must come back empty).
 const REMOVED_SUBMENU = ["Menu", "Sub"].join("");
@@ -19,13 +18,11 @@ describe("desktop sidebar offset (R3-08)", () => {
   });
 });
 
-describe("user menu settings (R3-31)", () => {
-  it("renders the theme and language pickers as sections of the menu, not a submenu", () => {
-    expect(settingsMenu).not.toContain(REMOVED_SUBMENU);
-    expect(settingsMenu).not.toContain('useTranslations("Nav")');
-    expect(settingsMenu).toContain("<>");
-    expect(settingsMenu.match(/<MenuRadioGroup /g)).toHaveLength(2);
-    expect(settingsMenu.match(/<MenuLabel>/g)).toHaveLength(2);
+describe("user menu settings (R3-31; spec 011)", () => {
+  it("opens the Settings page instead of holding the theme and language pickers", () => {
+    expect(chrome).toContain('<MenuItem onSelect={() => router.push("/settings/appearance")}>{t("settings")}</MenuItem>');
+    expect(chrome).not.toContain("MenuRadioGroup");
+    expect(chrome).not.toContain(REMOVED_SUBMENU);
   });
 
   it("caps the menu at the room Radix has left and scrolls, so Log out stays reachable on a short viewport", () => {

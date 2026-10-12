@@ -2,35 +2,25 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { APP_NAVIGATION } from "@/components/app/navigation";
 import { MemberDot } from "@/components/ui/Member";
 import { cn } from "@/components/ui/cn";
-import { LANGUAGES, applyLocalePreference, applyThemePreference } from "@/lib/client-preferences";
 import { useSession } from "@/lib/session";
-import { DEFAULT_THEME, THEMES, isTheme, type Theme } from "@/lib/theme";
 import { logout } from "@/lib/logout";
 
-type DrawerPanel = "main" | "houses" | "settings";
+type DrawerPanel = "main" | "houses";
 
 export function MobileNavDrawer({ isActive }: { isActive: (href: string) => boolean }) {
   const { me, activeGroup, switchGroup } = useSession();
   const router = useRouter();
-  const locale = useLocale();
   const t = useTranslations("Nav");
   const tc = useTranslations("Common");
-  const tt = useTranslations("Theme");
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<DrawerPanel>("main");
-  const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
   const [switchingGroupId, setSwitchingGroupId] = useState<number | null>(null);
-
-  useEffect(() => {
-    const current = document.documentElement.dataset.theme;
-    if (isTheme(current)) setTheme(current);
-  }, []);
 
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 768px)");
@@ -60,17 +50,7 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
     }
   }
 
-  function pickTheme(next: Theme) {
-    applyThemePreference(next);
-    setTheme(next);
-  }
-
-  function pickLocale(code: string) {
-    applyLocalePreference(code);
-    router.refresh();
-  }
-
-  const title = panel === "houses" ? t("yourHouses") : panel === "settings" ? t("settings") : t("menu");
+  const title = panel === "houses" ? t("yourHouses") : t("menu");
 
   return (
     <Dialog.Root open={open} onOpenChange={changeOpen}>
@@ -164,20 +144,21 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
 
               <div className="mt-auto border-t border-dashed border-rule px-4 py-3">
                 <Link
-                  href="/account"
+                  href="/settings/account"
                   onClick={() => setOpen(false)}
                   className="flex min-h-12 items-center rounded-md px-3 text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink"
                 >
                   {t("myAccount")}
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => setPanel("settings")}
+                {/* Spec 011: theme and language moved to the Settings page (category list on mobile). */}
+                <Link
+                  href="/settings"
+                  onClick={() => setOpen(false)}
                   className="flex min-h-12 w-full items-center justify-between rounded-md px-3 text-left text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink"
                 >
                   <span>{t("settings")}</span>
                   <span className="text-faint" aria-hidden>›</span>
-                </button>
+                </Link>
                 <button
                   type="button"
                   onClick={() => void logout()}
@@ -221,48 +202,6 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
               >
                 + {t("manageHouse")}
               </button>
-            </div>
-          )}
-
-          {panel === "settings" && (
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
-              <fieldset>
-                <legend className="label-mono px-3 py-2">{tt("label")}</legend>
-                <div className="flex flex-col gap-1">
-                  {THEMES.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      aria-pressed={theme === option}
-                      onClick={() => pickTheme(option)}
-                      className="flex min-h-12 items-center justify-between rounded-md px-3 text-left text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink"
-                    >
-                      <span>{tt(option)}</span>
-                      {theme === option && <span className="text-stamp-text" aria-hidden>✓</span>}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-
-              <div className="my-3 border-t border-dashed border-rule" />
-
-              <fieldset>
-                <legend className="label-mono px-3 py-2">{tc("language")}</legend>
-                <div className="flex flex-col gap-1">
-                  {LANGUAGES.map((language) => (
-                    <button
-                      key={language.code}
-                      type="button"
-                      aria-pressed={locale === language.code}
-                      onClick={() => pickLocale(language.code)}
-                      className="flex min-h-12 items-center justify-between rounded-md px-3 text-left text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink"
-                    >
-                      <span>{language.label}</span>
-                      {locale === language.code && <span className="text-stamp-text" aria-hidden>✓</span>}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
             </div>
           )}
         </Dialog.Content>

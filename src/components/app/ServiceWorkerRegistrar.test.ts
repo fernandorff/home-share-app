@@ -92,7 +92,7 @@ describe("ServiceWorkerRegistrar — PushSync + PushMessageListener (spec 010 �
 // a sync here, push stayed silently off on the very device that changed the password until the next load.
 describe("password change re-registers this device (spec 010 — criterion 9; cycle G review M3)", () => {
   // The page is stored with CRLF line endings: normalized, so the section ends at its own closing brace.
-  const account = read("src/app/(app)/account/page.tsx").replace(/\r\n/g, "\n");
+  const account = read("src/app/(app)/settings/account/page.tsx").replace(/\r\n/g, "\n");
   const section = account.slice(account.indexOf("function PasswordSection"), account.indexOf("\n}\n", account.indexOf("function PasswordSection")));
   const onSave = section.slice(section.indexOf("async function onSave"), section.indexOf("} catch (err) {", section.indexOf("async function onSave")));
 
