@@ -1,8 +1,9 @@
 import { getRequestConfig } from "next-intl/server";
 import { cookies } from "next/headers";
+import { LOCALES, type Locale } from "./locales";
 
-export const LOCALES = ["en", "pt", "es", "fr"] as const;
-export type Locale = (typeof LOCALES)[number];
+// Defined in the framework-free ./locales (shared with browser code); re-exported for existing importers.
+export { LOCALES, type Locale };
 export const DEFAULT_LOCALE: Locale = "en";
 export const LOCALE_COOKIE = "locale";
 

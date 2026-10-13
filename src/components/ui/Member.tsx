@@ -1,24 +1,30 @@
 import { cn } from "./cn";
-import { memberStyle, initials } from "@/lib/members";
+import { memberStyle, avatarLabel } from "@/lib/members";
 
 export function MemberDot({
   colorIndex,
   name,
   size = 24,
   className,
+  glyph,
 }: {
   colorIndex: number;
   name: string;
   size?: number;
   className?: string;
+  /** Drawn instead of the initials (e.g. "↻" for the Automatic actor); `name` stays the accessible name. */
+  glyph?: string;
 }) {
   const s = memberStyle(colorIndex);
+  const label = avatarLabel(name, size);
   return (
     <span
       title={name}
       aria-label={name}
       className={cn(
-        "inline-flex items-center justify-center rounded-full font-display font-bold leading-none border border-ink/10",
+        // shrink-0 (U5): a fixed-size avatar inside a tight flex row (e.g. balances on a 360px
+        // phone) was being squeezed into an oval "pill" instead of keeping its circle.
+        "inline-flex shrink-0 items-center justify-center rounded-full font-display font-bold leading-none border border-ink/10",
         className
       )}
       style={{
@@ -26,10 +32,10 @@ export function MemberDot({
         height: size,
         background: s.bg,
         color: s.fg,
-        fontSize: Math.round(size * 0.4),
+        fontSize: label.fontSize,
       }}
     >
-      {initials(name)}
+      {glyph ? <span aria-hidden>{glyph}</span> : label.text}
     </span>
   );
 }

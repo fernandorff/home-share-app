@@ -16,7 +16,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid item ID' }, { status: 400 })
     }
 
-    const item = await shoppingItemService.togglePurchased(check.groupId, itemId)
+    const item = await shoppingItemService.togglePurchased(check.groupId, itemId, check.session.userId)
 
     await recordActivity({
       groupId: check.groupId,

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { authService } from '@/services/auth.service'
+import { groupService } from '@/services/group.service'
 import { handleApiError, requireSession } from '@/lib/api-helpers'
 import { GROUP_COOKIE, SESSION_COOKIE } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
@@ -15,12 +16,17 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    // spec 006: flag the houses this user can't leave yet (only admin with other members), so the
+    // leave-house and delete-account dialogs can warn before the server refuses with LAST_ADMIN.
+    const lastAdminIds = new Set(await groupService.lastAdminGroupIds(user.id))
+    const groups = user.groups.map(g => ({ ...g, lastAdmin: lastAdminIds.has(g.id) }))
+
     const cookieStore = await cookies()
     const preferredGroupId = Number(cookieStore.get(GROUP_COOKIE)?.value) || null
     const activeGroup =
-      user.groups.find(g => g.id === preferredGroupId) ?? user.groups[0] ?? null
+      groups.find(g => g.id === preferredGroupId) ?? groups[0] ?? null
 
-    return NextResponse.json({ user, activeGroupId: activeGroup?.id ?? null })
+    return NextResponse.json({ user: { ...user, groups }, activeGroupId: activeGroup?.id ?? null })
   } catch (error) {
     return handleApiError(error, 'Failed to load session')
   }

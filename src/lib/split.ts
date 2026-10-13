@@ -35,6 +35,20 @@ export function detectSplitEqually(expense: Expense, members: Member[]): boolean
   return expected.every((c, i) => c === actual[i]);
 }
 
+/**
+ * True if the expense's own participants split the amount equally (largest-remainder),
+ * independent of the group's current member list. Unlike `detectSplitEqually`, this never
+ * compares against `members.length` — a member joining the house later must not turn an
+ * already-equal split among the original participants into an apparent "custom" one.
+ */
+export function isEqualAmongParticipants(expense: Pick<Expense, "amount" | "participants">): boolean {
+  const n = expense.participants.length;
+  if (n === 0) return false;
+  const expected = splitCents(toCents(expense.amount), n).sort((a, b) => b - a);
+  const actual = expense.participants.map((p) => toCents(p.amount)).sort((a, b) => b - a);
+  return expected.every((c, i) => c === actual[i]);
+}
+
 /** Equal integer percentages summing to exactly 100. */
 export function equalPercents(n: number): number[] {
   if (n <= 0) return [];
@@ -43,6 +57,36 @@ export function equalPercents(n: number): number[] {
   const rem = 100 - base * n;
   for (let i = 0; i < rem; i++) arr[i] += 1;
   return arr;
+}
+
+/**
+ * Seeds a percent-mode split from an expense's REAL custom amounts (largest-remainder), so
+ * switching to "by percent" without editing anything doesn't silently rewrite e.g. 70/30 as
+ * 50/50. A member with no participant row on the expense (joined after it was created) seeds at 0%.
+ */
+export function seedPercentFromExpense(
+  expense: Pick<Expense, "amount" | "participants">,
+  members: Pick<Member, "id">[]
+): Record<number, number> {
+  const totalCents = toCents(expense.amount);
+  const raw = members.map((m) => {
+    const participant = expense.participants.find((p) => p.userId === m.id);
+    return participant && totalCents > 0 ? (toCents(participant.amount) / totalCents) * 100 : 0;
+  });
+  const floors = raw.map((r) => Math.floor(r));
+  let remainder = 100 - floors.reduce((a, b) => a + b, 0);
+  raw
+    .map((r, i) => ({ frac: r - Math.floor(r), i }))
+    .sort((a, b) => b.frac - a.frac)
+    .forEach((o) => {
+      if (remainder > 0) {
+        floors[o.i]++;
+        remainder--;
+      }
+    });
+  const result: Record<number, number> = {};
+  members.forEach((m, i) => (result[m.id] = floors[i]));
+  return result;
 }
 
 /** Distribute totalCents by percentages with largest-remainder so it sums EXACTLY. */
@@ -62,4 +106,10 @@ export function distributeByPercent(totalCents: number, percents: number[]): num
   const out = [...floors];
   for (let k = 0; k < remainder && k < order.length; k++) out[order[k].i] += 1;
   return out;
+}
+
+/** A typed percentage (U21) as an integer 0–100 — the same domain as the slider next to it. */
+export function clampPercentInput(raw: string): number {
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0;
 }

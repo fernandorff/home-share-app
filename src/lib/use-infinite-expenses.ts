@@ -6,11 +6,16 @@ import { useSession } from "@/lib/session";
 import { money } from "@/lib/format";
 import type { Expense, ExpenseListResponse } from "@/lib/types";
 
+type MonthTotals = NonNullable<ExpenseListResponse["pagination"]["monthTotals"]>;
+type PayerMonthTotals = NonNullable<ExpenseListResponse["pagination"]["payerMonthTotals"]>;
+
 export interface UseInfiniteExpensesResult {
   items: Expense[];
   total: number;
   totalAmount: number;
   payerTotals: NonNullable<ExpenseListResponse["pagination"]["payerTotals"]>;
+  monthTotals: MonthTotals;
+  payerMonthTotals: PayerMonthTotals;
   initialLoading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
@@ -36,6 +41,8 @@ export function useInfiniteExpenses(
   const [total, setTotal] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
   const [payerTotals, setPayerTotals] = useState<NonNullable<ExpenseListResponse["pagination"]["payerTotals"]>>([]);
+  const [monthTotals, setMonthTotals] = useState<MonthTotals>([]);
+  const [payerMonthTotals, setPayerMonthTotals] = useState<PayerMonthTotals>([]);
   const [page, setPage] = useState(1);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -59,6 +66,8 @@ export function useInfiniteExpenses(
       setTotal(res.pagination.total);
       setTotalAmount(money(res.pagination.totalAmount));
       setPayerTotals(res.pagination.payerTotals ?? []);
+      setMonthTotals(res.pagination.monthTotals ?? []);
+      setPayerMonthTotals(res.pagination.payerMonthTotals ?? []);
       setPage(targetPage);
       setError(null);
     } catch (e) {
@@ -81,6 +90,8 @@ export function useInfiniteExpenses(
     setTotal(0);
     setTotalAmount(0);
     setPayerTotals([]);
+    setMonthTotals([]);
+    setPayerMonthTotals([]);
     setPage(1);
     fetchPage(1, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchPage is stable (empty deps); buildUrl's identity is the caller's signal to refetch
@@ -108,5 +119,5 @@ export function useInfiniteExpenses(
     fetchPage(1, true);
   }, [fetchPage]);
 
-  return { items, total, totalAmount, payerTotals, initialLoading, loadingMore, hasMore, error, loadMore, reload };
+  return { items, total, totalAmount, payerTotals, monthTotals, payerMonthTotals, initialLoading, loadingMore, hasMore, error, loadMore, reload };
 }

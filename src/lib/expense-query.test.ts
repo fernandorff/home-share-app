@@ -60,4 +60,11 @@ describe("buildExpenseQuery", () => {
     expect(params.get("fromDate")).toBe("2026-01-01");
     expect(params.get("toDate")).toBe("2026-01-31");
   });
+
+  it("opts into exact month totals only when asked (B5)", () => {
+    const withTotals = buildExpenseQuery({ page: 1, pageSize: 50, sortField: "amount", sortDirection: "asc", filters: EMPTY_FILTERS, includeMonthTotals: true });
+    expect(paramsOf(withTotals).get("includeMonthTotals")).toBe("true");
+    const without = buildExpenseQuery({ page: 1, pageSize: 50, sortField: "date", sortDirection: "desc", filters: EMPTY_FILTERS });
+    expect(paramsOf(without).has("includeMonthTotals")).toBe(false);
+  });
 });

@@ -32,12 +32,23 @@ animations d'entrée décalées et des squelettes de chargement (respectant `pre
 ## Exécuter en local
 
 ```bash
-cp .env.example .env      # fill in DATABASE_URL and JWT_SECRET
+docker compose up -d          # local Postgres 16 (container homeshare-dev-pg, localhost:5433)
+cp .env.example .env.local    # DATABASE_URL already points at it; set JWT_SECRET
 npm install
-npx prisma db push        # create the schema in the database
-npm run dev               # http://localhost:3000
-npm run test              # vitest (currency, balance, csv-parser, auth)
+npm run db:migrate            # apply prisma/migrations (prisma migrate deploy)
+npm run dev                   # http://localhost:3000
+npm run test                  # vitest (self-contained: in-process Postgres, no Docker needed)
 ```
+
+`.env.local` ne pointe que vers la base de données locale. Les URL des bases de production
+et de staging ne vivent que dans Vercel, jamais dans un fichier local — supprimez (ou videz)
+tout ancien `.env` : Next.js et la CLI Prisma le lisent tous deux pour tout ce que
+`.env.local` ne définit pas.
+
+Changements de schéma : modifiez `prisma/schema.prisma`, lancez `npx prisma migrate dev --name <change>`
+sur la base locale et commitez le nouveau dossier dans `prisma/migrations` — la CI échoue lorsque
+le schéma change sans migration. `npm run db:reset` recrée la base locale et réapplique
+toutes les migrations.
 
 ### Variables d'environnement
 
@@ -73,10 +84,27 @@ prisma/              # schema + config
 
 ## Déploiement
 
-Hébergé sur **Vercel** avec une base de données **Neon** (intégration). Le build exécute
-`prisma generate && next build` — le schéma est appliqué délibérément avec
-`prisma db push` (pas dans la CI). Deux environnements : **Production** (branche `main`) et
-**Preview** (branches/PRs).
+Hébergé sur **Vercel** avec une base de données **Neon**. Deux environnements, un seul projet Vercel :
+
+- **Production** — branche `main`, branche principale de Neon.
+- **Staging** — branche `dev`, sur https://dev.homeshare.fernandorffdev.com (variables
+  d'environnement Preview de Vercel limitées à `dev`), avec sa propre branche Neon `dev`
+  (une copie de la production, réinitialisée à la demande).
+
+Seules `main` et `dev` sont déployées (`scripts/vercel-ignore-build.mjs`, l'`ignoreCommand` de
+`vercel.json`) ; toute autre branche n'exécute que la CI GitHub. Flux : branche de fonctionnalité →
+PR vers `dev` (le merge met à jour le staging) → test sur le staging → PR `dev` → `main`.
+
+- **Build** — `prisma generate && next build` ; il ne touche jamais à une base de données.
+- **Schéma** — SQL versionné dans `prisma/migrations`, appliqué à la main avec
+  `prisma migrate deploy`, **d'abord le staging, puis la production**. Passez l'URL de la cible
+  (la chaîne directe de Neon, sans `-pooler`) dans le shell pour cette seule commande, jamais
+  dans un fichier : `DATABASE_URL="<url>" npm run db:migrate` (`npm run db:migrate:status` pour vérifier).
+- **Crons** (`vercel.json`) ne s'exécutent qu'en Production. Sur le staging, appelez-les à la main
+  avec le `CRON_SECRET` du staging :
+  `curl -H "Authorization: Bearer $CRON_SECRET" https://dev.homeshare.fernandorffdev.com/api/cron/recurring-expenses`
+  (idem pour `/api/cron/notifications`).
+- Tout environnement hors production répond `X-Robots-Tag: noindex, nofollow`.
 
 ## Explorations de design
 

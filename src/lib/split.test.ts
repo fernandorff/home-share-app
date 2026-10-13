@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { equalPercents, distributeByPercent, detectSplitEqually } from "@/lib/split";
+import {
+  equalPercents,
+  distributeByPercent,
+  detectSplitEqually,
+  isEqualAmongParticipants,
+  seedPercentFromExpense,
+  clampPercentInput,
+} from "@/lib/split";
 import type { Expense, Member } from "@/lib/types";
 
 const members = [
@@ -64,5 +71,49 @@ describe("detectSplitEqually", () => {
       { userId: 2, amount: 0.02 },
     ]);
     expect(detectSplitEqually(exp, members)).toBe(false);
+  });
+});
+
+describe("isEqualAmongParticipants", () => {
+  const e = (amount: string, shares: string[]) =>
+    ({ amount, participants: shares.map((a, i) => ({ userId: i + 1, amount: a })) } as unknown as Expense);
+
+  it("is true for one participant", () => expect(isEqualAmongParticipants(e("159.90", ["159.90"]))).toBe(true));
+  it("is true for an equal split with the odd cent", () =>
+    expect(isEqualAmongParticipants(e("0.01", ["0.01", "0"]))).toBe(true));
+  it("is true for 100.00 over 3", () =>
+    expect(isEqualAmongParticipants(e("100", ["33.34", "33.33", "33.33"]))).toBe(true));
+  it("is false for 70/30", () => expect(isEqualAmongParticipants(e("100", ["70", "30"]))).toBe(false));
+});
+
+describe("seedPercentFromExpense", () => {
+  it("seeds each participant's real percentage, largest-remainder for the leftover point", () => {
+    const exp = expenseWith(3, [
+      { userId: 1, amount: 2 },
+      { userId: 2, amount: 1 },
+    ]);
+    // 2/3 = 66.67%, 1/3 = 33.33% -> floors [66, 33] leave 1 point, given to the biggest fraction.
+    expect(seedPercentFromExpense(exp, members)).toEqual({ 1: 67, 2: 33, 3: 0 });
+  });
+
+  it("seeds 0% for a member with no participant row on the expense", () => {
+    const exp = expenseWith(100, [{ userId: 1, amount: 100 }]);
+    expect(seedPercentFromExpense(exp, members)).toEqual({ 1: 100, 2: 0, 3: 0 });
+  });
+});
+
+describe("clampPercentInput (U21)", () => {
+  it("parses typed integers", () => {
+    expect(clampPercentInput("42")).toBe(42);
+    expect(clampPercentInput("07")).toBe(7);
+    expect(clampPercentInput("3.5")).toBe(3);
+  });
+  it("clamps to 0–100", () => {
+    expect(clampPercentInput("150")).toBe(100);
+    expect(clampPercentInput("-5")).toBe(0);
+  });
+  it("treats empty or non-numeric input as 0", () => {
+    expect(clampPercentInput("")).toBe(0);
+    expect(clampPercentInput("abc")).toBe(0);
   });
 });

@@ -24,16 +24,19 @@ export async function POST(request: Request) {
       );
     }
 
-    await groupService.updateCurrency(check.groupId, body.currency);
+    const { previousCurrency, changed } = await groupService.updateCurrency(check.groupId, body.currency);
 
-    await recordActivity({
-      groupId: check.groupId,
-      actorId: check.session.userId,
-      entityType: 'GROUP',
-      action: 'UPDATE',
-      summary: body.currency,
-      changes: { currency: { to: body.currency } },
-    });
+    // Re-picking the active currency changes nothing, so it leaves no activity entry (R2-08).
+    if (changed) {
+      await recordActivity({
+        groupId: check.groupId,
+        actorId: check.session.userId,
+        entityType: 'GROUP',
+        action: 'UPDATE',
+        summary: body.currency,
+        changes: { currency: { from: previousCurrency, to: body.currency } },
+      });
+    }
 
     return NextResponse.json({ currency: body.currency });
   } catch (error) {

@@ -33,12 +33,23 @@ animaciones de entrada escalonadas y esqueletos de carga (respetando `prefers-re
 ## Ejecutar en local
 
 ```bash
-cp .env.example .env      # fill in DATABASE_URL and JWT_SECRET
+docker compose up -d          # local Postgres 16 (container homeshare-dev-pg, localhost:5433)
+cp .env.example .env.local    # DATABASE_URL already points at it; set JWT_SECRET
 npm install
-npx prisma db push        # create the schema in the database
-npm run dev               # http://localhost:3000
-npm run test              # vitest (currency, balance, csv-parser, auth)
+npm run db:migrate            # apply prisma/migrations (prisma migrate deploy)
+npm run dev                   # http://localhost:3000
+npm run test                  # vitest (self-contained: in-process Postgres, no Docker needed)
 ```
+
+`.env.local` apunta solo a la base de datos local. Las URL de la base de datos de producción
+y de staging viven únicamente en Vercel, nunca en un archivo local: elimina (o vacía)
+cualquier `.env` antiguo, porque Next.js y la CLI de Prisma lo leen para todo lo que
+`.env.local` no define.
+
+Cambios de esquema: edita `prisma/schema.prisma`, ejecuta `npx prisma migrate dev --name <change>`
+contra la base de datos local y haz commit de la nueva carpeta en `prisma/migrations` — el CI
+falla cuando el esquema cambia sin una migración. `npm run db:reset` recrea la base de datos
+local y vuelve a aplicar todas las migraciones.
 
 ### Variables de entorno
 
@@ -74,10 +85,27 @@ prisma/              # schema + config
 
 ## Despliegue
 
-Alojado en **Vercel** con una base de datos **Neon** (integración). El build ejecuta
-`prisma generate && next build` — el esquema se aplica de forma deliberada con
-`prisma db push` (no en CI). Dos entornos: **Production** (rama `main`) y
-**Preview** (ramas/PRs).
+Alojado en **Vercel** con una base de datos **Neon**. Dos entornos, un proyecto de Vercel:
+
+- **Production** — rama `main`, la rama principal de Neon.
+- **Staging** — rama `dev`, en https://dev.homeshare.fernandorffdev.com (variables de entorno
+  de Preview de Vercel limitadas a `dev`), con su propia rama `dev` en Neon (una copia de
+  producción, que se restablece cuando hace falta).
+
+Solo `main` y `dev` se despliegan (`scripts/vercel-ignore-build.mjs`, el `ignoreCommand` de
+`vercel.json`); el resto de ramas ejecuta únicamente el CI de GitHub. Flujo: rama de feature →
+PR a `dev` (al hacer merge se actualiza staging) → probar en staging → PR `dev` → `main`.
+
+- **Build** — `prisma generate && next build`; nunca toca una base de datos.
+- **Esquema** — SQL versionado en `prisma/migrations`, aplicado a mano con
+  `prisma migrate deploy`, **primero staging y después producción**. Pasa la URL del destino
+  (la cadena directa de Neon, sin `-pooler`) en la shell solo para ese comando, nunca en un
+  archivo: `DATABASE_URL="<url>" npm run db:migrate` (`npm run db:migrate:status` para comprobarlo).
+- **Crons** (`vercel.json`) se ejecutan solo en Production. En staging, llámalos a mano con
+  el `CRON_SECRET` de staging:
+  `curl -H "Authorization: Bearer $CRON_SECRET" https://dev.homeshare.fernandorffdev.com/api/cron/recurring-expenses`
+  (igual para `/api/cron/notifications`).
+- Todo entorno que no sea de producción responde `X-Robots-Tag: noindex, nofollow`.
 
 ## Exploraciones de diseño
 

@@ -23,6 +23,20 @@ describe("groupExpensesByMonth", () => {
   });
 
   it("creates localized month and year labels", () => {
-    expect(groupExpensesByMonth(expenses, "pt", "desc")[0]?.label).toBe("Junho / 2026");
+    expect(groupExpensesByMonth(expenses, "pt", "desc")[0]?.label).toBe("Junho\u00A0/\u00A02026");
+  });
+
+  it("glues month, slash and year with no-break spaces so the year never wraps alone (I8)", () => {
+    for (const locale of ["en", "pt", "es", "fr"]) {
+      const label = groupExpensesByMonth(expenses, locale, "desc")[0]?.label ?? "";
+      expect(label).toMatch(/^\S+\u00A0\/\u00A02026$/);
+      expect(label).not.toContain(" ");
+    }
+  });
+
+  it("uses the server's full-month total when one is given, else the loaded sum (B5)", () => {
+    const groups = groupExpensesByMonth(expenses, "en", "desc", new Map([["2026-06", 999.99]]));
+    expect(groups[0]?.subtotal).toBe(999.99);
+    expect(groups[1]?.subtotal).toBe(0.1);
   });
 });

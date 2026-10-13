@@ -2,35 +2,25 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { APP_NAVIGATION } from "@/components/app/navigation";
 import { MemberDot } from "@/components/ui/Member";
 import { cn } from "@/components/ui/cn";
-import { api } from "@/lib/api";
-import { LANGUAGES, applyLocalePreference, applyThemePreference } from "@/lib/client-preferences";
 import { useSession } from "@/lib/session";
-import { DEFAULT_THEME, THEMES, isTheme, type Theme } from "@/lib/theme";
+import { logout } from "@/lib/logout";
 
-type DrawerPanel = "main" | "houses" | "settings";
+type DrawerPanel = "main" | "houses";
 
 export function MobileNavDrawer({ isActive }: { isActive: (href: string) => boolean }) {
   const { me, activeGroup, switchGroup } = useSession();
   const router = useRouter();
-  const locale = useLocale();
   const t = useTranslations("Nav");
   const tc = useTranslations("Common");
-  const tt = useTranslations("Theme");
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<DrawerPanel>("main");
-  const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
   const [switchingGroupId, setSwitchingGroupId] = useState<number | null>(null);
-
-  useEffect(() => {
-    const current = document.documentElement.dataset.theme;
-    if (isTheme(current)) setTheme(current);
-  }, []);
 
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 768px)");
@@ -60,25 +50,7 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
     }
   }
 
-  function pickTheme(next: Theme) {
-    applyThemePreference(next);
-    setTheme(next);
-  }
-
-  function pickLocale(code: string) {
-    applyLocalePreference(code);
-    router.refresh();
-  }
-
-  async function logout() {
-    try {
-      await api.post("/api/auth/logout");
-    } finally {
-      window.location.href = "/auth/login";
-    }
-  }
-
-  const title = panel === "houses" ? t("yourHouses") : panel === "settings" ? t("settings") : t("menu");
+  const title = panel === "houses" ? t("yourHouses") : t("menu");
 
   return (
     <Dialog.Root open={open} onOpenChange={changeOpen}>
@@ -101,7 +73,7 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
           aria-describedby={undefined}
           className="anim-drawer fixed inset-y-0 right-0 z-50 flex h-dvh w-[88vw] max-w-sm flex-col border-l border-ink bg-card shadow-[-4px_0_0_rgba(22,20,15,0.16)] focus:outline-none md:hidden"
         >
-          <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-dashed border-rule px-3">
+          <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-dashed border-rule px-4">
             {panel !== "main" && (
               <button
                 type="button"
@@ -133,20 +105,20 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
                 </span>
               </div>
 
-              <div className="border-b border-dashed border-rule p-3">
-                <p className="label-mono px-2 pb-1.5">{t("activeHouse")}</p>
+              <div className="border-b border-dashed border-rule px-4 py-3">
+                <p className="label-mono pb-1.5">{t("activeHouse")}</p>
                 <button
                   type="button"
                   onClick={() => setPanel("houses")}
                   className="flex min-h-12 w-full min-w-0 items-center gap-2.5 rounded-md border border-rule bg-panel px-3 text-left text-ink transition-colors hover:border-ink hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink"
                 >
-                  <MemberDot colorIndex={activeGroup.colorIndex} name={activeGroup.name} size={22} />
+                  <MemberDot colorIndex={activeGroup.colorIndex} name={activeGroup.name} size={30} />
                   <span className="min-w-0 flex-1 truncate font-medium">{activeGroup.name}</span>
                   <span className="text-faint" aria-hidden>›</span>
                 </button>
               </div>
 
-              <nav aria-label={t("menu")} className="flex flex-col gap-1 p-3">
+              <nav aria-label={t("menu")} className="flex flex-col gap-1 px-4 py-3">
                 {APP_NAVIGATION.map(({ href, key, Icon }) => {
                   const active = isActive(href);
                   return (
@@ -164,28 +136,29 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
                       )}
                     >
                       <Icon />
-                      <span className="font-display font-bold uppercase tracking-wide text-[0.74rem]">{t(key)}</span>
+                      <span className="font-display font-bold uppercase tracking-wide text-xs">{t(key)}</span>
                     </Link>
                   );
                 })}
               </nav>
 
-              <div className="mt-auto border-t border-dashed border-rule p-3">
+              <div className="mt-auto border-t border-dashed border-rule px-4 py-3">
                 <Link
-                  href="/account"
+                  href="/settings/account"
                   onClick={() => setOpen(false)}
                   className="flex min-h-12 items-center rounded-md px-3 text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink"
                 >
                   {t("myAccount")}
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => setPanel("settings")}
+                {/* Spec 011: theme and language moved to the Settings page (category list on mobile). */}
+                <Link
+                  href="/settings"
+                  onClick={() => setOpen(false)}
                   className="flex min-h-12 w-full items-center justify-between rounded-md px-3 text-left text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink"
                 >
                   <span>{t("settings")}</span>
                   <span className="text-faint" aria-hidden>›</span>
-                </button>
+                </Link>
                 <button
                   type="button"
                   onClick={() => void logout()}
@@ -211,7 +184,8 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
                       onClick={() => void pickGroup(group.id)}
                       className="flex min-h-12 min-w-0 items-center gap-3 rounded-md px-3 text-left text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink disabled:opacity-50"
                     >
-                      <MemberDot colorIndex={group.colorIndex} name={group.name} size={22} />
+                      {/* R3-29: 30px = two initials at the 12px floor (avatarLabel), as on the House page — at 22px every "Casa …" read "C". */}
+                      <MemberDot colorIndex={group.colorIndex} name={group.name} size={30} />
                       <span className="min-w-0 flex-1 truncate">{group.name}</span>
                       {active && <span className="text-stamp-text" aria-hidden>✓</span>}
                     </button>
@@ -228,48 +202,6 @@ export function MobileNavDrawer({ isActive }: { isActive: (href: string) => bool
               >
                 + {t("manageHouse")}
               </button>
-            </div>
-          )}
-
-          {panel === "settings" && (
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">
-              <fieldset>
-                <legend className="label-mono px-3 py-2">{tt("label")}</legend>
-                <div className="flex flex-col gap-1">
-                  {THEMES.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      aria-pressed={theme === option}
-                      onClick={() => pickTheme(option)}
-                      className="flex min-h-12 items-center justify-between rounded-md px-3 text-left text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink"
-                    >
-                      <span>{tt(option)}</span>
-                      {theme === option && <span className="text-stamp-text" aria-hidden>✓</span>}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-
-              <div className="my-3 border-t border-dashed border-rule" />
-
-              <fieldset>
-                <legend className="label-mono px-3 py-2">{tc("language")}</legend>
-                <div className="flex flex-col gap-1">
-                  {LANGUAGES.map((language) => (
-                    <button
-                      key={language.code}
-                      type="button"
-                      aria-pressed={locale === language.code}
-                      onClick={() => pickLocale(language.code)}
-                      className="flex min-h-12 items-center justify-between rounded-md px-3 text-left text-sm text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink"
-                    >
-                      <span>{language.label}</span>
-                      {locale === language.code && <span className="text-stamp-text" aria-hidden>✓</span>}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
             </div>
           )}
         </Dialog.Content>

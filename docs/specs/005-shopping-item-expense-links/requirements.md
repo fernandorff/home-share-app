@@ -14,10 +14,15 @@ shopping list and financial history remain connected.
 
 1. WHEN an unpurchased item is marked as purchased, THE SYSTEM SHALL offer an optional expense-linking dialog without reverting the completed state when the dialog is skipped.
 2. WHEN a member saves one or more selected expenses, THE SYSTEM SHALL replace that item's links atomically and return the linked expense summaries.
-3. WHEN a purchased item already has links, THE SYSTEM SHALL display their count and allow the member to edit or remove those links.
+3. WHEN an item already has links — purchased, or unchecked again after being linked — THE SYSTEM
+   SHALL display their count and allow the member to edit or remove those links.
 4. WHEN a request references an item or expense outside the active house, THE SYSTEM SHALL reject the request without creating or removing any link.
 5. WHEN a shopping item or expense is deleted, THE SYSTEM SHALL remove its link rows without deleting the related entity.
 6. WHILE the picker is open, THE SYSTEM SHALL support searching expenses by description and selecting multiple results with 44 px mobile touch targets.
+7. WHEN an item's expense links are replaced, THE SYSTEM SHALL show it in Activity › Summary as
+   "linked N expenses to an item" (N = 0: "removed the expense links of an item") and in
+   Activity › Detailed as an update of that shopping item with the linked-expense count
+   before → after.
 
 ## Out of scope
 

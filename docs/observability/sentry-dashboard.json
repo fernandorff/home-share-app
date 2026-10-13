@@ -1,0 +1,184 @@
+{
+  "title": "Home Share — System health",
+  "period": "7d",
+  "environment": ["production"],
+  "filters": {},
+  "widgets": [
+    {
+      "title": "Transactions per minute",
+      "description": "Root spans per minute by kind: http.server = API/page requests; pageload/navigation = browser.",
+      "displayType": "line",
+      "widgetType": "spans",
+      "interval": "1h",
+      "limit": 5,
+      "queries": [
+        {
+          "name": "",
+          "fields": ["span.op", "epm()"],
+          "aggregates": ["epm()"],
+          "columns": ["span.op"],
+          "fieldAliases": [],
+          "conditions": "is_transaction:true",
+          "orderby": "-epm()"
+        }
+      ],
+      "layout": { "x": 0, "y": 0, "w": 4, "h": 2, "minH": 2 }
+    },
+    {
+      "title": "Crash-free sessions and users",
+      "description": "Release health. SDK v11 records browser sessions hit by an uncaught error as 'unhandled', not 'crashed' — read together with the error widgets.",
+      "displayType": "line",
+      "widgetType": "metrics",
+      "interval": "1h",
+      "queries": [
+        {
+          "name": "",
+          "fields": ["crash_free_rate(session)", "crash_free_rate(user)"],
+          "aggregates": ["crash_free_rate(session)", "crash_free_rate(user)"],
+          "columns": [],
+          "fieldAliases": [],
+          "conditions": "",
+          "orderby": ""
+        }
+      ],
+      "layout": { "x": 4, "y": 0, "w": 2, "h": 2, "minH": 2 }
+    },
+    {
+      "title": "Errors by route",
+      "description": "route = server tag from handleApiError (normalized path); transaction = SDK route name (client and uncaught errors).",
+      "displayType": "table",
+      "widgetType": "error-events",
+      "interval": "1h",
+      "limit": 10,
+      "queries": [
+        {
+          "name": "",
+          "fields": ["route", "transaction", "count()", "count_unique(user)"],
+          "aggregates": ["count()", "count_unique(user)"],
+          "columns": ["route", "transaction"],
+          "fieldAliases": [],
+          "conditions": "event.type:error",
+          "orderby": "-count()"
+        }
+      ],
+      "layout": { "x": 0, "y": 2, "w": 3, "h": 3, "minH": 2 }
+    },
+    {
+      "title": "Top error codes on 5xx",
+      "description": "ApiError code when the failure carried one, otherwise the exception type.",
+      "displayType": "table",
+      "widgetType": "error-events",
+      "interval": "1h",
+      "limit": 10,
+      "queries": [
+        {
+          "name": "",
+          "fields": ["api_error_code", "error.type", "count()"],
+          "aggregates": ["count()"],
+          "columns": ["api_error_code", "error.type"],
+          "fieldAliases": [],
+          "conditions": "http_status:5*",
+          "orderby": "-count()"
+        }
+      ],
+      "layout": { "x": 3, "y": 2, "w": 3, "h": 3, "minH": 2 }
+    },
+    {
+      "title": "p95 latency by route",
+      "description": "Server root spans (API routes and server-rendered pages).",
+      "displayType": "table",
+      "widgetType": "spans",
+      "interval": "1h",
+      "limit": 10,
+      "queries": [
+        {
+          "name": "",
+          "fields": ["transaction", "p95(span.duration)", "count()"],
+          "aggregates": ["p95(span.duration)", "count()"],
+          "columns": ["transaction"],
+          "fieldAliases": [],
+          "conditions": "is_transaction:true span.op:http.server",
+          "orderby": "-p95(span.duration)"
+        }
+      ],
+      "layout": { "x": 0, "y": 5, "w": 3, "h": 3, "minH": 2 }
+    },
+    {
+      "title": "DB query p95",
+      "description": "Prisma/pg spans by statement summary (parameter values are never collected).",
+      "displayType": "table",
+      "widgetType": "spans",
+      "interval": "1h",
+      "limit": 10,
+      "queries": [
+        {
+          "name": "",
+          "fields": ["span.description", "p95(span.duration)", "count()"],
+          "aggregates": ["p95(span.duration)", "count()"],
+          "columns": ["span.description"],
+          "fieldAliases": [],
+          "conditions": "span.category:db",
+          "orderby": "-p95(span.duration)"
+        }
+      ],
+      "layout": { "x": 3, "y": 5, "w": 3, "h": 3, "minH": 2 }
+    },
+    {
+      "title": "LCP p75",
+      "description": "Largest Contentful Paint (good ≤ 2.5 s).",
+      "displayType": "big_number",
+      "widgetType": "spans",
+      "interval": "1h",
+      "queries": [
+        {
+          "name": "",
+          "fields": ["p75(measurements.lcp)"],
+          "aggregates": ["p75(measurements.lcp)"],
+          "columns": [],
+          "fieldAliases": [],
+          "conditions": "",
+          "orderby": ""
+        }
+      ],
+      "layout": { "x": 0, "y": 8, "w": 2, "h": 2, "minH": 2 }
+    },
+    {
+      "title": "INP p75",
+      "description": "Interaction to Next Paint (good ≤ 200 ms).",
+      "displayType": "big_number",
+      "widgetType": "spans",
+      "interval": "1h",
+      "queries": [
+        {
+          "name": "",
+          "fields": ["p75(measurements.inp)"],
+          "aggregates": ["p75(measurements.inp)"],
+          "columns": [],
+          "fieldAliases": [],
+          "conditions": "",
+          "orderby": ""
+        }
+      ],
+      "layout": { "x": 2, "y": 8, "w": 2, "h": 2, "minH": 2 }
+    },
+    {
+      "title": "CLS p75",
+      "description": "Cumulative Layout Shift (good ≤ 0.1).",
+      "displayType": "big_number",
+      "widgetType": "spans",
+      "interval": "1h",
+      "queries": [
+        {
+          "name": "",
+          "fields": ["p75(measurements.cls)"],
+          "aggregates": ["p75(measurements.cls)"],
+          "columns": [],
+          "fieldAliases": [],
+          "conditions": "",
+          "orderby": ""
+        }
+      ],
+      "layout": { "x": 4, "y": 8, "w": 2, "h": 2, "minH": 2 }
+    }
+  ]
+}

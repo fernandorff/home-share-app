@@ -1,6 +1,6 @@
 # Session auth via httpOnly cookie, not Bearer tokens
 
-- Status: accepted
+- Status: accepted — refined by [0013](0013-sliding-session-per-device-logout.md) (sliding 30-day expiry; logout is per device)
 - Date: 2026-07-11 (backfilled — decision predates this record)
 
 **Decision:** the session is a JWT (HS256, `jose`) in the httpOnly cookie `homeshare_session`;

@@ -12,6 +12,20 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Expired/missing session on a protected route → bounce to login. The login endpoint's own
+ * "wrong credentials" 401 carries a different code and must surface to the form instead of redirecting.
+ */
+export function redirectOnSessionLoss(code: string | undefined): void {
+  if (
+    typeof window !== "undefined" &&
+    !window.location.pathname.startsWith("/auth") &&
+    (!code || code === "NOT_AUTHENTICATED" || code === "SESSION_REVOKED")
+  ) {
+    window.location.href = "/auth/login";
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isForm = init?.body instanceof FormData;
   const res = await fetch(path, {
@@ -26,16 +40,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const data = ct.includes("application/json") ? await res.json().catch(() => null) : null;
 
   if (res.status === 401) {
-    // Expired/missing session on a protected route → bounce to login.
-    // The login endpoint's own "wrong credentials" 401 carries a different code
-    // and must surface to the form instead of redirecting.
-    if (
-      typeof window !== "undefined" &&
-      !window.location.pathname.startsWith("/auth") &&
-      (!data?.code || data.code === "NOT_AUTHENTICATED" || data.code === "SESSION_REVOKED")
-    ) {
-      window.location.href = "/auth/login";
-    }
+    redirectOnSessionLoss(data?.code);
     throw new ApiError(
       data && typeof data.error === "string" ? data.error : "Not authenticated",
       401,

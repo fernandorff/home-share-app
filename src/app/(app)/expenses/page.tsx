@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, memo, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useFetch } from "@/lib/use-fetch";
 import { useInfiniteExpenses } from "@/lib/use-infinite-expenses";
 import { buildExpenseQuery } from "@/lib/expense-query";
 import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Money } from "@/components/ui/Money";
 import { MemberDot } from "@/components/ui/Member";
 import { Tag } from "@/components/ui/Stamp";
@@ -18,13 +19,14 @@ import { revealDelay } from "@/components/ui/motion";
 import { cn } from "@/components/ui/cn";
 import { useToast } from "@/components/ui/Toast";
 import { useSession } from "@/lib/session";
-import { api } from "@/lib/api";
+import { api, ApiError, redirectOnSessionLoss } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
+import { fileNameFromContentDisposition } from "@/lib/download";
 import { formatDateLocale } from "@/lib/money";
-import { money } from "@/lib/format";
+import { money, todayInputValue } from "@/lib/format";
 import { memberStyle } from "@/lib/members";
 import { toCents } from "@/lib/currency";
-import { detectSplitEqually } from "@/lib/split";
+import { isEqualAmongParticipants } from "@/lib/split";
 import { groupExpensesByMonth, type ExpenseMonthGroup } from "@/lib/expense-month-groups";
 import type { Expense, ExpenseListResponse, ExpenseSortField, Platform, Category, PaymentMethod, Member } from "@/lib/types";
 import { ExpenseFormModal } from "@/components/expenses/ExpenseFormModal";
@@ -83,6 +85,7 @@ export default function ExpensesPage() {
   const toast = useToast();
   const t = useTranslations("Expenses");
   const tc = useTranslations("Common");
+  const tApiErrors = useTranslations("ApiErrors");
   const apiErr = useApiError();
   const locale = useLocale();
 
@@ -193,12 +196,23 @@ export default function ExpensesPage() {
 
   // ===== List view: true infinite scroll, server-sorted/filtered (BL-20/P3). =====
   const buildListUrl = useCallback(
-    (page: number) => buildExpenseQuery({ page, pageSize: LIST_PAGE_SIZE, sortField, sortDirection, filters: appliedFilters }),
+    (page: number) => buildExpenseQuery({ page, pageSize: LIST_PAGE_SIZE, sortField, sortDirection, filters: appliedFilters, includeMonthTotals: true }),
     [sortField, sortDirection, appliedFilters]
   );
   const listState = useInfiniteExpenses(buildListUrl, {
     onError: (err) => toast(apiErr(err, t("loadError")), "error"),
   });
+
+  // A selection belongs to the list it was made on: a new filter or sort restarts the list from its first
+  // page, and the bulk-delete dialog can only name what is in view — so ids hidden by the change must not
+  // stay selected (they would be deleted unseen). Adjusted during render, not in an effect, so no frame
+  // ever shows (or deletes) the old selection against the new list.
+  const listKey = buildListUrl(1);
+  const [selectionListKey, setSelectionListKey] = useState(listKey);
+  if (selectionListKey !== listKey) {
+    setSelectionListKey(listKey);
+    setSelected(new Set());
+  }
 
   // ===== By-person view: its own lazy infinite feed, always chronological so pages can merge
   // into stable payer/month groups. PostgreSQL returns complete filtered totals per payer. =====
@@ -207,7 +221,7 @@ export default function ExpensesPage() {
     if (view === "byPayer") setByPersonRequested(true);
   }, [view]);
   const buildByPersonUrl = useCallback(
-    (page: number) => buildExpenseQuery({ page, pageSize: BY_PERSON_PAGE_SIZE, sortField: "date", sortDirection: "desc", filters: appliedFilters, includePayerTotals: true }),
+    (page: number) => buildExpenseQuery({ page, pageSize: BY_PERSON_PAGE_SIZE, sortField: "date", sortDirection: "desc", filters: appliedFilters, includePayerTotals: true, includeMonthTotals: true }),
     [appliedFilters]
   );
   const byPersonState = useInfiniteExpenses(buildByPersonUrl, {
@@ -232,6 +246,8 @@ export default function ExpensesPage() {
   const unfilteredTotal = filtersActive ? (houseTotalData?.pagination.total ?? null) : listState.total;
 
   function reloadAll() {
+    // The list restarts at its first page, so rows selected further down are no longer in view.
+    setSelected(new Set());
     listState.reload();
     if (byPersonRequested) byPersonState.reload();
     if (filtersActive) reloadHouseTotal();
@@ -282,13 +298,13 @@ export default function ExpensesPage() {
     filterChips.push({ key: `payer-${id}`, label: t("colPayer"), value: members.find((m) => m.id === id)?.name ?? String(id), remove: () => setPayerFilters((prev) => prev.filter((x) => x !== id)) })
   );
   platformFilters.forEach((p) =>
-    filterChips.push({ key: `plat-${p}`, label: t("platformLabel"), value: tagLabel("platform", p), remove: () => setPlatformFilters((prev) => prev.filter((x) => x !== p)) })
+    filterChips.push({ key: `plat-${p}`, label: t("platformLabelOne"), value: tagLabel("platform", p), remove: () => setPlatformFilters((prev) => prev.filter((x) => x !== p)) })
   );
   categoryFilters.forEach((c) =>
-    filterChips.push({ key: `cat-${c}`, label: t("categoryLabel"), value: tagLabel("category", c), remove: () => setCategoryFilters((prev) => prev.filter((x) => x !== c)) })
+    filterChips.push({ key: `cat-${c}`, label: t("categoryLabelOne"), value: tagLabel("category", c), remove: () => setCategoryFilters((prev) => prev.filter((x) => x !== c)) })
   );
   paymentFilters.forEach((p) =>
-    filterChips.push({ key: `pay-${p}`, label: t("paymentLabel"), value: tagLabel("payment", p), remove: () => setPaymentFilters((prev) => prev.filter((x) => x !== p)) })
+    filterChips.push({ key: `pay-${p}`, label: t("paymentLabelOne"), value: tagLabel("payment", p), remove: () => setPaymentFilters((prev) => prev.filter((x) => x !== p)) })
   );
   if (fromDate) filterChips.push({ key: "from", label: t("filterFrom"), value: brDate(fromDate), remove: () => setFromDate("") });
   if (toDate) filterChips.push({ key: "to", label: t("filterTo"), value: brDate(toDate), remove: () => setToDate("") });
@@ -298,17 +314,33 @@ export default function ExpensesPage() {
     () => new Map((byPersonState.payerTotals ?? []).map((row) => [row.payerId, money(row.totalAmount)])),
     [byPersonState.payerTotals]
   );
+  // B5: month headers show the server's full-month totals (all pages), keyed "YYYY-MM".
+  const listMonthTotals = useMemo(
+    () => new Map(listState.monthTotals.map((row) => [row.month, money(row.totalAmount)])),
+    [listState.monthTotals]
+  );
+  const payerMonthTotals = useMemo(() => {
+    const byPayer = new Map<number, Map<string, number>>();
+    for (const row of byPersonState.payerMonthTotals) {
+      const months = byPayer.get(row.payerId) ?? new Map<string, number>();
+      months.set(row.month, money(row.totalAmount));
+      byPayer.set(row.payerId, months);
+    }
+    return byPayer;
+  }, [byPersonState.payerMonthTotals]);
 
   // By person → grouped by month (newest first).
   const byPerson = useMemo<PersonGroup[]>(() => {
     return members.map((m) => {
       const monthsArr = groupExpensesByMonth(
         byPersonExpenses.filter((expense) => expense.payerId === m.id),
-        locale
+        locale,
+        "desc",
+        payerMonthTotals.get(m.id)
       );
       return { payerId: m.id, name: m.name, colorIndex: m.colorIndex, total: payerTotalById.get(m.id) ?? 0, months: monthsArr };
     });
-  }, [byPersonExpenses, members, locale, payerTotalById]);
+  }, [byPersonExpenses, members, locale, payerTotalById, payerMonthTotals]);
 
   // List uses the same month sections as By person. The API's current ordering is retained inside
   // each month; only the month buckets themselves are ordered here.
@@ -316,9 +348,10 @@ export default function ExpensesPage() {
     () => groupExpensesByMonth(
       listState.items,
       locale,
-      sortField === "date" ? sortDirection : "desc"
+      sortField === "date" ? sortDirection : "desc",
+      listMonthTotals
     ),
-    [listState.items, locale, sortField, sortDirection]
+    [listState.items, locale, sortField, sortDirection, listMonthTotals]
   );
 
   const byPersonEmpty = byPerson.every((p) => p.months.length === 0);
@@ -328,6 +361,11 @@ export default function ExpensesPage() {
   const selectedPersonId =
     personTab ?? (members.some((m) => m.id === meId) ? meId : members[0]?.id) ?? null;
   const selectedCount = selected.size;
+  // R3-01: the bulk-delete dialog names what it is about to delete (first 3 + "and N more").
+  // "and N more" counts against selectedCount (what the prompt says). The selection resets whenever the
+  // filters, the sort or the list itself (reloadAll) restart the list, so a selected id is in view.
+  const selectedExpenses = listState.items.filter((e) => selected.has(e.publicId));
+  const shown = selectedExpenses.slice(0, 3);
   const allSelected = listState.items.length > 0 && listState.items.every((e) => selected.has(e.publicId));
 
   function toggleSort(field: ExpenseSortField) {
@@ -376,12 +414,22 @@ export default function ExpensesPage() {
   // Render the row elements once and reuse them — note: NOT keyed on `selected`. So toggling
   // selection doesn't even re-create/diff 300 elements; React bails out of the row subtree and
   // only the context-subscribed checkboxes update.
+  // U12: number rows by their position in the rendered (month-grouped) order, not the raw
+  // server-sorted index — otherwise sorting by a non-date field shows jumps like 1, 5, 8, 14
+  // within a month (the item's global rank, not its position among the rows actually shown).
+  const rowNumberByPublicId = useMemo(() => {
+    const m = new Map<string, number>();
+    let n = 0;
+    listMonths.forEach((month) => month.items.forEach((e) => m.set(e.publicId, ++n)));
+    return m;
+  }, [listMonths]);
+
   const desktopRowsById = useMemo(
-    () => new Map(listState.items.map((e, i) => [e.publicId, (
-      <ExpenseRow key={e.publicId} expense={e} rowNumber={i + 1} colorIndex={colorByPayer.get(e.payerId) ?? 0}
+    () => new Map(listState.items.map((e) => [e.publicId, (
+      <ExpenseRow key={e.publicId} expense={e} rowNumber={rowNumberByPublicId.get(e.publicId)} colorIndex={colorByPayer.get(e.payerId) ?? 0}
         members={members} selectionMode={selectionMode} onView={openView} onEdit={openEdit} onDelete={setDeleteTarget} />
     )])),
-    [listState.items, colorByPayer, members, selectionMode, openView, openEdit]
+    [listState.items, rowNumberByPublicId, colorByPayer, members, selectionMode, openView, openEdit]
   );
   const mobileCardsById = useMemo(
     () => new Map(listState.items.map((e) => [e.publicId, (
@@ -432,22 +480,54 @@ export default function ExpensesPage() {
     }
   }
 
+  // R2-07 / R3-02: downloads the CSV through fetch so a failure (500, session lost, network) shows a
+  // translated toast instead of the browser navigating to a JSON error body. The browser's local day
+  // names the file; the server's Content-Disposition name wins when present.
+  const exportingRef = useRef(false);
+  async function exportCsv() {
+    if (exportingRef.current) return;
+    exportingRef.current = true;
+    const day = todayInputValue();
+    try {
+      const res = await fetch(`/api/expenses/export?date=${day}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        if (res.status === 401) redirectOnSessionLoss(data?.code);
+        throw new ApiError(typeof data?.error === "string" ? data.error : `Error ${res.status}`, res.status, data?.code);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileNameFromContentDisposition(res.headers.get("Content-Disposition"), `home-share-expenses-${day}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      toast(apiErr(err, tApiErrors("EXPORT_FAILED")), "error");
+    } finally {
+      exportingRef.current = false;
+    }
+  }
+
   const total = listState.total;
 
   return (
     <div className="flex flex-col gap-5">
       {/* Keep one clear primary action and one compact overflow control at every viewport size. */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <div className="flex min-w-0 items-center gap-3 md:flex-1">
-          <h1 className="whitespace-nowrap font-display text-sm font-bold uppercase tracking-wider text-ink">
-            {t("title")}{" "}
+      <PageHeader
+        title={
+          <>
+            {t("title")}
             {!listState.initialLoading && (
-              <span className="font-normal text-faint">({total})</span>
+              <span className="font-normal text-faint"> ({total})</span>
             )}
-          </h1>
-          <span className="flex-1 border-t border-dashed border-rule" aria-hidden />
-        </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] items-stretch gap-2 md:flex md:items-center">
+          </>
+        }
+        subtitle={t("subtitle")}
+        actions={
+        <div className="grid w-full grid-cols-[minmax(0,1fr)_2.75rem] items-stretch gap-2 md:flex md:w-auto md:items-center">
           <Button size="sm" onClick={openCreate} className="w-full md:w-auto">
             {t("newExpense")}
           </Button>
@@ -458,18 +538,21 @@ export default function ExpensesPage() {
                 <button
                   type="button"
                   aria-label={t("moreActions")}
-                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-ink bg-card px-2 font-display text-lg font-bold leading-none text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper md:min-h-9 md:min-w-9"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-ink bg-card px-2 font-display text-lg font-bold leading-none text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper md:min-h-8 md:min-w-9"
                 >
                   <span aria-hidden>⋮</span>
                 </button>
               }
             >
-              {!listState.initialLoading && total > 0 && (
+              {/* B4: Filter stays reachable whenever a filter is active, even with 0 results —
+                  otherwise the "no matching expenses" state hides the only way to see/clear it.
+                  Select stays gated on total > 0 (nothing to select otherwise). */}
+              {!listState.initialLoading && (total > 0 || filtersActive) && (
                 <>
                   <MenuItem onSelect={() => setFilterModalOpen(true)}>
                     {t("filter")}{filtersActive ? ` · ${activeFilterCount}` : ""}
                   </MenuItem>
-                  {view === "list" && (
+                  {view === "list" && total > 0 && (
                     <MenuItem onSelect={toggleSelectionMode}>
                       {selectionMode ? tc("cancel") : t("select")}
                     </MenuItem>
@@ -479,16 +562,15 @@ export default function ExpensesPage() {
               )}
               <MenuItem onSelect={() => setImportOpen(true)}>{t("importCsv")}</MenuItem>
               <MenuSeparator />
-              <MenuItem>
-                {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API download endpoint, not a page route */}
-                <a href="/api/expenses/export" className="flex w-full items-center">
-                  {t("exportCsv")}
-                </a>
+              {/* R2-07: the whole 44px row downloads (was a 20px link inside the row). */}
+              <MenuItem onSelect={exportCsv}>
+                {t("exportCsv")}
               </MenuItem>
             </Menu>
           </div>
         </div>
-      </div>
+        }
+      />
 
       {/* View toggle */}
       <div className="flex items-center gap-2">
@@ -509,10 +591,11 @@ export default function ExpensesPage() {
                   setSelected(new Set());
                 }
               }}
+              aria-pressed={view === v.id}
               className={cn(
                 // ring-inset (not offset): the offset ring was clipped by the rounded group so the
                 // toggle showed no keyboard focus at all (a11y WCAG 2.4.7).
-                "min-h-11 w-full rounded-md border px-3 py-1.5 text-[0.7rem] font-display font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stamp md:min-h-0 md:w-auto",
+                "min-h-11 w-full rounded-md border px-3 py-1.5 text-xs font-display font-bold uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stamp md:min-h-0 md:w-auto",
                 view === v.id
                   ? "border-ink bg-ink text-paper"
                   : "border-rule bg-card text-ink-soft hover:bg-panel"
@@ -524,18 +607,23 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      {/* Applied filters stay visible and removable after the filter modal closes. */}
-      {!listState.initialLoading && total > 0 && (
+      {/* Applied filters stay visible and removable after the filter modal closes.
+          B4: also shown with total === 0 as long as a filter is active. */}
+      {!listState.initialLoading && (total > 0 || filtersActive) && (
         <div className="flex flex-col gap-2">
           {filtersActive && (
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="label-mono inline-flex min-h-8 shrink-0 items-center rounded-md px-2 py-1.5 text-stamp-text transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
-              >
-                {t("clearFilters")}
-              </button>
+              {/* R2-25: with 0 results the empty state below carries the only "Clear filters". */}
+              {/* R3-16: -ml-2 cancels px-2, so the text starts on the edge of the chips' second row and the summary bar. */}
+              {total > 0 && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="label-mono -ml-2 inline-flex min-h-11 shrink-0 items-center rounded-md px-2 py-1.5 text-stamp-text transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink md:min-h-8"
+                >
+                  {t("clearFilters")}
+                </button>
+              )}
               {filterChips.map((c) => (
                 <button
                   key={c.key}
@@ -565,8 +653,8 @@ export default function ExpensesPage() {
 
       {/* Bulk action bar — visible whenever selection mode is on (list only). */}
       {view === "list" && selectionMode && (
-        <div className="sticky top-20 z-10 flex items-center justify-between gap-3 rounded-md border border-ink bg-panel px-4 py-2.5">
-          <span className="label-mono">{t("selectedCount", { count: selectedCount })}</span>
+        <div className="sticky top-14 md:top-[3.7rem] z-10 flex items-center justify-between gap-3 rounded-md border border-ink bg-panel px-4 py-2.5">
+          <span className="label-mono whitespace-nowrap">{t("selectedCount", { count: selectedCount })}</span>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -579,10 +667,13 @@ export default function ExpensesPage() {
             <Button
               variant="danger"
               size="sm"
+              className="whitespace-nowrap"
               disabled={selectedCount === 0}
               onClick={() => setBulkConfirm(true)}
             >
-              {t("deleteSelected")}
+              {/* R2-21: "Delete 2" (existing deleteCount) instead of "Delete selected", which wrapped
+                  to 2 lines at 390px; the confirm dialog keeps the deleteSelected title. */}
+              {t("deleteCount", { count: selectedCount })}
             </Button>
           </div>
         </div>
@@ -679,37 +770,47 @@ export default function ExpensesPage() {
                     {person.months.length === 0 ? (
                       <p className="px-4 py-8 text-center text-sm text-faint">{t("emptyTitle")}</p>
                     ) : (
-                      person.months.map((mg) => (
-                        <div key={mg.key}>
-                          <div className="flex items-center justify-between gap-3 border-t border-dashed border-rule bg-panel/40 px-4 py-2">
-                            <span className="label-mono">▦ {mg.label}</span>
-                            <Money value={mg.subtotal} className="text-ink-soft" />
-                          </div>
-                          <table className="hidden w-full table-fixed md:table">
-                            <thead>
-                              <tr className="border-t border-dotted border-rule">
-                                <th className="w-6 px-2 py-1.5" aria-hidden />
-                                <th className="label-mono px-4 py-1.5 text-left">{t("colDescription")}</th>
-                                <th className="label-mono w-[86px] px-2 py-1.5 text-left">{t("colDate")}</th>
-                                <th className="label-mono w-[116px] px-2 py-1.5 text-right max-md:w-36">{t("colAmount")}</th>
+                      <>
+                        {/* R2-14: ONE table per person with a <tbody> per month (the list view's
+                            model), so Date and Amount share their columns across months. U20 still
+                            holds: no table-fixed, Amount sizes to the widest amount of the card and
+                            Description absorbs the rest. */}
+                        <table className="hidden w-full md:table">
+                          <thead>
+                            <tr>
+                              <th className="w-6 px-2 py-1.5" aria-hidden />
+                              <th className="label-mono px-4 py-1.5 text-left">{t("colDescription")}</th>
+                              <th className="label-mono w-[86px] px-2 py-1.5 text-left">{t("colDate")}</th>
+                              <th className="label-mono w-auto whitespace-nowrap px-2 py-1.5 text-right">{t("colAmount")}</th>
+                            </tr>
+                          </thead>
+                          {person.months.map((mg) => (
+                            <tbody key={mg.key}>
+                              <tr className="border-t border-dashed border-rule bg-panel/40">
+                                {/* pr-2 = the Amount cell's px-2, so the subtotal lines up with the amounts. */}
+                                <th colSpan={4} className="py-2 pl-4 pr-2 text-left font-normal">
+                                  <span className="flex items-center justify-between gap-3">
+                                    <span className="label-mono min-w-0 truncate">▦&nbsp;{mg.label}</span>
+                                    <Money value={mg.subtotal} className="text-ink-soft" />
+                                  </span>
+                                </th>
                               </tr>
-                            </thead>
-                            <tbody>
                               {mg.items.map((e, i) => {
-                                const ratio = splitRatio(e, members);
+                                const ratio = splitRatio(e);
                                 return (
                                 <tr key={e.publicId} onClick={() => openView(e)} className="group cursor-pointer border-t border-dotted border-rule align-middle transition-colors hover:bg-panel/30">
                                   <td className="px-2 py-2 text-xs leading-5 text-faint tnum" aria-hidden>{i + 1}</td>
                                   <td className="px-4 py-2 text-sm text-ink">
                                     <span className="break-words">{e.description}</span>
+                                    <RecurringMark expense={e} className="ml-1.5" />
                                     <ExpenseTags expense={e} className="mt-1" />
                                   </td>
                                   <td className="whitespace-nowrap px-2 py-2 text-xs text-ink-soft">
                                     {formatDateLocale(e.date)}
                                   </td>
-                                  <td className="relative whitespace-nowrap px-2 py-2 text-right max-md:pr-12 pointer-coarse:pr-12">
+                                  <td className="relative w-auto whitespace-nowrap px-2 py-2 text-right max-md:pr-12 pointer-coarse:pr-12">
                                     <Money value={e.amount} />
-                                    {ratio && <span className="block text-[0.7rem] text-faint tnum" title={t("customSplit")}>⊟ {ratio}</span>}
+                                    {ratio && <span className="block text-xs text-faint tnum" title={t("customSplit")}>⊟ {ratio}</span>}
                                     {/* Desktop: ⋯ floats in on hover; touch/narrow: stays in the reserved right padding. */}
                                     <span onClick={(ev) => ev.stopPropagation()} className="absolute inset-y-0 right-0.5 flex items-center bg-gradient-to-l from-card via-card to-transparent pl-6 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">
                                       <RowMenu onEdit={() => openEdit(e)} onDelete={() => setDeleteTarget(e)} />
@@ -719,25 +820,35 @@ export default function ExpensesPage() {
                                 );
                               })}
                             </tbody>
-                          </table>
-                          {/* Mobile: same card model as the list view (no cramped columns). */}
-                          <ul className="md:hidden">
-                            {mg.items.map((e) => (
-                              <ExpenseCard
-                                key={e.publicId}
-                                expense={e}
-                                colorIndex={person.colorIndex}
-                                members={members}
-                                selectionMode={false}
-                                onView={openView}
-                                onEdit={openEdit}
-                                onDelete={setDeleteTarget}
-                                hidePayer
-                              />
-                            ))}
-                          </ul>
+                          ))}
+                        </table>
+                        {/* Mobile: same card model as the list view (no cramped columns). */}
+                        <div className="md:hidden">
+                          {person.months.map((mg) => (
+                            <div key={mg.key}>
+                              <div className="flex items-center justify-between gap-3 border-t border-dashed border-rule bg-panel/40 px-4 py-2">
+                                <span className="label-mono min-w-0 truncate max-sm:tracking-[0.03em]">▦&nbsp;{mg.label}</span>
+                                <Money value={mg.subtotal} className="text-ink-soft" />
+                              </div>
+                              <ul>
+                                {mg.items.map((e) => (
+                                  <ExpenseCard
+                                    key={e.publicId}
+                                    expense={e}
+                                    colorIndex={person.colorIndex}
+                                    members={members}
+                                    selectionMode={false}
+                                    onView={openView}
+                                    onEdit={openEdit}
+                                    onDelete={setDeleteTarget}
+                                    hidePayer
+                                  />
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
                         </div>
-                      ))
+                      </>
                     )}
                   </Card>
                 </div>
@@ -802,12 +913,16 @@ export default function ExpensesPage() {
             {listMonths.map((month) => (
               <tbody key={month.key}>
                 <tr className="border-b border-dashed border-rule bg-panel/40">
-                  <th colSpan={COLUMNS.length + 3 + Number(selectionMode)} className="px-4 py-2">
+                  {/* D2: span only through Amount so the subtotal lines up with the amounts below,
+                      not the table's outer edge; a second (empty) cell fills Date + the menu
+                      column so the bar still spans the full row width. */}
+                  <th colSpan={COLUMNS.length + 1 + Number(selectionMode)} className="px-4 py-2">
                     <span className="flex items-center justify-between gap-3">
-                      <span className="label-mono">▦ {month.label}</span>
+                      <span className="label-mono">▦&nbsp;{month.label}</span>
                       <Money value={month.subtotal} className="font-normal text-ink-soft" />
                     </span>
                   </th>
+                  <th colSpan={2} className="px-4 py-2" aria-hidden />
                 </tr>
                 {month.items.map((expense) => desktopRowsById.get(expense.publicId))}
               </tbody>
@@ -830,8 +945,13 @@ export default function ExpensesPage() {
             )}
             {listMonths.map((month) => (
               <div key={month.key}>
+                {/* D2 aligns the subtotal with the Amount column on desktop only: on phones the month label
+                    plus a 5-digit subtotal doesn't fit with the 44px ⋯ inset, so it stays at the card edge.
+                    I8: the label is glued with no-break spaces (never wraps alone) and tracks tighter below sm
+                    so "▦ Septiembre / 2026" + "16.457,45 R$" fit in the 280px of a 360px phone; `truncate`
+                    (with min-w-0) only kicks in for huge totals, so the amount is never the thing that's clipped. */}
                 <div className="flex items-center justify-between gap-3 border-b border-dashed border-rule bg-panel/40 px-4 py-2">
-                  <span className="label-mono">▦ {month.label}</span>
+                  <span className="label-mono min-w-0 truncate max-sm:tracking-[0.03em]">▦&nbsp;{month.label}</span>
                   <Money value={month.subtotal} className="text-ink-soft" />
                 </div>
                 <ul>
@@ -896,7 +1016,6 @@ export default function ExpensesPage() {
         open={deleteTarget !== null}
         onOpenChange={(o) => !o && setDeleteTarget(null)}
         title={t("deleteTitle")}
-        description={t("deleteUndoNote")}
         footer={
           <>
             <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
@@ -909,8 +1028,12 @@ export default function ExpensesPage() {
         }
       >
         <p className="text-sm text-ink">
-          {t("deletePrompt")}{" "}
-          <span className="font-display font-bold">{deleteTarget?.description}</span>?
+          {t.rich("deletePrompt", {
+            name: deleteTarget?.description ?? "",
+            strong: (chunks) => <span className="font-display font-bold">{chunks}</span>,
+          })}{" "}
+          {/* R3-33: the irreversibility sentence closes the body, as in every other confirmation (was the subtitle). */}
+          {t("deleteUndoNote")}
         </p>
       </Modal>
 
@@ -919,7 +1042,6 @@ export default function ExpensesPage() {
         open={bulkConfirm}
         onOpenChange={setBulkConfirm}
         title={t("deleteSelected")}
-        description={t("deleteUndoNote")}
         footer={
           <>
             <Button variant="ghost" onClick={() => setBulkConfirm(false)}>
@@ -931,7 +1053,25 @@ export default function ExpensesPage() {
           </>
         }
       >
-        <p className="text-sm text-ink">{t("bulkDeletePrompt", { count: selectedCount })}</p>
+        <p className="text-sm text-ink">
+          {t("bulkDeletePrompt", { count: selectedCount })} {t("deleteUndoNote")}
+        </p>
+        {/* R3-01: two cards cut to the same lines are told apart here — description, amount, date. */}
+        {shown.length > 0 && (
+          <ul className="mt-3 flex flex-col gap-1.5 rounded-md border border-dashed border-rule bg-panel/40 p-3">
+            {shown.map((e) => (
+              <li key={e.publicId} className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="line-clamp-2 min-w-0 break-words text-ink">{e.description}</span>
+                <span className="shrink-0 whitespace-nowrap text-xs text-faint tnum">
+                  <Money value={e.amount} className="text-ink-soft" /> · {formatDateLocale(e.date)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {selectedCount > shown.length && (
+          <p className="mt-1.5 text-xs text-faint">{t("bulkDeleteMore", { count: selectedCount - shown.length })}</p>
+        )}
       </Modal>
     </div>
   );
@@ -974,9 +1114,20 @@ function ExpenseTags({ expense: e, className }: { expense: Expense; className?: 
   );
 }
 
+/** "↻" on an expense a recurring rule posted (spec 008, criterion 23); the name is read out and shown on hover.
+ *  Inside a role="button" row/card its children are presentational, so the row points `aria-describedby` at `id`. */
+function RecurringMark({ expense: e, id, className }: { expense: Expense; id?: string; className?: string }) {
+  const t = useTranslations("Expenses");
+  return e.recurringExpenseId != null ? (
+    <span id={id} role="img" title={t("recurringBadge")} aria-label={t("recurringBadge")} className={cn("text-faint", className)}>
+      ↻
+    </span>
+  ) : null;
+}
+
 /** "60/40"-style ratio when the split isn't equal; null when it is (or no amount). */
-function splitRatio(e: Expense, members: Member[]): string | null {
-  if (detectSplitEqually(e, members)) return null;
+function splitRatio(e: Expense): string | null {
+  if (isEqualAmongParticipants(e)) return null;
   const total = toCents(e.amount);
   if (total <= 0 || e.participants.length === 0) return null;
   // Largest-remainder rounding so the displayed parts always sum to exactly 100
@@ -1016,12 +1167,13 @@ const ExpenseRow = memo(function ExpenseRow({
   const handleView = useCallback(() => onView(e), [onView, e]);
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
+  const recurringId = useId();
   const onRowKey = (ev: React.KeyboardEvent) => {
     if (selectionMode) return;
     if (ev.target !== ev.currentTarget) return; // ignore keys bubbling from the ⋯ menu / checkbox
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); handleView(); }
   };
-  const ratio = splitRatio(e, members);
+  const ratio = splitRatio(e);
   // Same ex-member/deleted-account treatment as balances/activity/ExpenseDetailModal (BL-16/BL-23).
   const payer = members.find((m) => m.id === e.payerId);
   const payerName = payer?.deleted
@@ -1036,6 +1188,7 @@ const ExpenseRow = memo(function ExpenseRow({
       tabIndex={selectionMode ? undefined : 0}
       role={selectionMode ? undefined : "button"}
       aria-label={selectionMode ? undefined : e.description}
+      aria-describedby={selectionMode || e.recurringExpenseId == null ? undefined : recurringId}
       className={cn(
         "border-b border-dotted border-rule align-middle transition-colors last:border-b-0 hover:bg-panel/30 has-[:checked]:bg-panel/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink",
         !selectionMode && "cursor-pointer"
@@ -1053,6 +1206,7 @@ const ExpenseRow = memo(function ExpenseRow({
       )}
       <td className="px-4 py-3 text-sm text-ink">
         {e.description}
+        <RecurringMark expense={e} id={recurringId} className="ml-1.5" />
         <ExpenseTags expense={e} className="mt-1" />
       </td>
       <td className="px-4 py-3">
@@ -1086,11 +1240,12 @@ const ExpenseCard = memo(function ExpenseCard({
   const handleEdit = useCallback(() => onEdit(e), [onEdit, e]);
   const handleDelete = useCallback(() => onDelete(e), [onDelete, e]);
   const handleBody = () => (selectionMode ? onToggle?.(e.publicId) : handleView());
+  const recurringId = useId();
   const onCardKey = (ev: React.KeyboardEvent) => {
     if (ev.target !== ev.currentTarget) return; // ignore keys bubbling from the ⋯ menu / checkbox
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); handleBody(); }
   };
-  const ratio = splitRatio(e, members);
+  const ratio = splitRatio(e);
   // Same ex-member/deleted-account treatment as balances/activity/ExpenseDetailModal (BL-16/BL-23).
   const payer = members.find((m) => m.id === e.payerId);
   const payerName = payer?.deleted
@@ -1113,32 +1268,57 @@ const ExpenseCard = memo(function ExpenseCard({
         role="button"
         tabIndex={0}
         aria-label={e.description}
+        aria-describedby={e.recurringExpenseId == null ? undefined : recurringId}
         className="min-w-0 flex-1 cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
       >
         <div className="flex items-start justify-between gap-2">
-          <span className="truncate text-sm font-medium text-ink">{e.description}</span>
-          <div className="shrink-0 text-right">
-            <Money value={e.amount} />
-            {ratio && <span className="block text-[0.7rem] text-faint tnum" title={t("customSplit")}>⊟ {ratio}</span>}
-          </div>
+          {/* U4 → R3-01: up to 3 lines before the ellipsis (was 2). At 360-390px the title column is
+              ~130-200px wide and 2 lines made different expenses look identical, right when choosing
+              what to delete. The full text is in the detail view and in the card's aria-label.
+              text-pretty: no single word alone on the last line. */}
+          {/* The ↻ sits outside the clamp, so a 3-line title never hides it. */}
+          <span className="flex min-w-0 items-start gap-1">
+            <span className="line-clamp-3 min-w-0 break-words text-pretty text-sm font-medium text-ink">
+              {e.description}
+            </span>
+            <RecurringMark expense={e} id={recurringId} className="shrink-0 text-sm" />
+          </span>
+          <Money value={e.amount} className="shrink-0" />
         </div>
-        <div className="mt-1.5 flex items-center gap-2 text-xs text-faint">
-          {!hidePayer && (
-            <>
-              <span className="flex min-w-0 items-center gap-1.5">
+        {/* R2-01: the payer is never squeezed — when "date · ⊟ ratio" doesn't fit beside the name it
+            wraps to a second line (the D13 badge stays here, off the amount column). Each item draws
+            its own "·" in its 12px left padding; the row is pulled 12px left inside an
+            overflow-hidden wrapper, so whichever item starts a line has its dot clipped and no line
+            ever begins with "·". */}
+        <div className="mt-1.5 overflow-hidden text-xs text-faint">
+          <div className="-ml-3 flex flex-wrap items-center gap-y-0.5">
+            {!hidePayer && (
+              <span className="relative flex min-w-0 max-w-full items-center gap-1.5 pl-3">
+                <span aria-hidden className="absolute left-0.5">·</span>
                 <MemberDot colorIndex={colorIndex} name={payerName} size={18} />
                 <span className="truncate">{payerName}</span>
               </span>
-              <span aria-hidden>·</span>
-            </>
-          )}
-          <span className="shrink-0 tnum">{formatDateLocale(e.date)}</span>
+            )}
+            <span className="relative shrink-0 pl-3 tnum">
+              <span aria-hidden className="absolute left-0.5">·</span>
+              {formatDateLocale(e.date)}
+            </span>
+            {ratio && (
+              <span className="relative shrink-0 pl-3 tnum" title={t("customSplit")}>
+                <span aria-hidden className="absolute left-0.5">·</span>⊟ {ratio}
+              </span>
+            )}
+          </div>
         </div>
         <ExpenseTags expense={e} className="mt-1.5" />
       </div>
-      <div className="shrink-0">
-        <RowMenu onEdit={handleEdit} onDelete={handleDelete} />
-      </div>
+      {/* R3-01: no per-row menu while selecting — the tap toggles the checkbox, and the 56px the ⋯
+          took go to the title. */}
+      {!selectionMode && (
+        <div className="shrink-0">
+          <RowMenu onEdit={handleEdit} onDelete={handleDelete} />
+        </div>
+      )}
     </li>
   );
 });

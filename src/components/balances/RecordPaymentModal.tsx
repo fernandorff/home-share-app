@@ -36,6 +36,7 @@ export function RecordPaymentModal({ open, onOpenChange, prefill, settlements, o
   const tc = useTranslations("Common");
   const thh = useTranslations("Household");
   const tacc = useTranslations("Account");
+  const tcat = useTranslations("Expenses");
   // Ex-members stay selectable here on purpose (BL-16) — resolving their locked balance is
   // exactly what this modal is for — just tagged so it's clear who's no longer active.
   const optionLabel = (m: (typeof members)[number]) =>
@@ -110,7 +111,9 @@ export function RecordPaymentModal({ open, onOpenChange, prefill, settlements, o
       }
     >
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3">
+        {/* U6: always stacked — side by side, the ~200px columns of the 448px dialog still cut a
+            long name ("Júlia Caminho Feli") on desktop and notebook, not only on phones. */}
+        <div className="grid grid-cols-1 gap-3">
           <Field label={t("from")} htmlFor="pay-from">
             <Select id="pay-from" value={fromId} onChange={(e) => setFromId(e.target.value ? Number(e.target.value) : "")}>
               <option value="">{t("selectMember")}</option>
@@ -119,7 +122,12 @@ export function RecordPaymentModal({ open, onOpenChange, prefill, settlements, o
               ))}
             </Select>
           </Field>
-          <Field label={t("to")} htmlFor="pay-to">
+          {/* U11: the same-person error belongs to "To" — Field marks its select aria-invalid. */}
+          <Field
+            label={t("to")}
+            htmlFor="pay-to"
+            error={fromId !== "" && fromId === toId ? t("sameError") : undefined}
+          >
             <Select id="pay-to" value={toId} onChange={(e) => setToId(e.target.value ? Number(e.target.value) : "")}>
               <option value="">{t("selectMember")}</option>
               {members.map((m) => (
@@ -129,22 +137,22 @@ export function RecordPaymentModal({ open, onOpenChange, prefill, settlements, o
           </Field>
         </div>
 
-        {fromId !== "" && fromId === toId && (
-          <p role="alert" className="text-xs text-debt">{t("sameError")}</p>
-        )}
-
-        <Field label={t("amountLabel", { symbol: currencySymbol })} htmlFor="pay-amount">
+        {/* D12: right-aligned tabular numbers + hint, matching the expense form's amount field. */}
+        <Field label={t("amountLabel", { symbol: currencySymbol })} htmlFor="pay-amount" hint={tcat("amountHint")}>
           <Input
             id="pay-amount"
             inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(maskAmountInput(e.target.value, locale))}
             placeholder={maskAmountInput("0", locale)}
+            className="text-right tnum tabular-nums"
           />
         </Field>
 
+        {/* U18: non-blocking warning (ink on a soft accent background) — distinct from the
+            blocking `sameError` above, which keeps its plain red text and role="alert". */}
         {isOverpaying && (
-          <p className="text-xs text-debt">
+          <p className="rounded-md bg-stamp-soft px-3 py-2 text-xs text-ink">
             {t("overpayWarning")} <Money value={owed} className="font-semibold" />
           </p>
         )}

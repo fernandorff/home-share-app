@@ -35,16 +35,19 @@ export async function PUT(
       return NextResponse.json({ error: `At most ${MAX_LINKS} expenses can be linked`, code: 'INVALID_EXPENSE_LINKS' }, { status: 400 })
     }
 
-    const item = await shoppingItemService.replaceExpenseLinks(check.groupId, itemId, expenseIds)
-    await recordActivity({
-      groupId: check.groupId,
-      actorId: check.session.userId,
-      entityType: 'SHOPPING_ITEM',
-      entityId: item.publicId,
-      action: 'UPDATE',
-      summary: item.name,
-      changes: { linkedExpenseIds: expenseIds },
-    })
+    const { item, changed } = await shoppingItemService.replaceExpenseLinks(check.groupId, itemId, expenseIds, check.session.userId)
+    // Saving the set the item already has changes nothing, so it leaves no activity entry (I2).
+    if (changed) {
+      await recordActivity({
+        groupId: check.groupId,
+        actorId: check.session.userId,
+        entityType: 'SHOPPING_ITEM',
+        entityId: item.publicId,
+        action: 'UPDATE',
+        summary: item.name,
+        changes: { linkedExpenseIds: expenseIds },
+      })
+    }
     return NextResponse.json({ item })
   } catch (error) {
     return handleApiError(error, 'Failed to link expenses')

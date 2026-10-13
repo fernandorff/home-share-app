@@ -33,3 +33,12 @@ export function initials(name: string): string {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
+
+/** Avatar text (R2-11): two initials are only legible at the 12px floor (A7) from a 30px avatar
+ *  up; smaller avatars show the first initial alone, at 12px or more. The full name stays in the
+ *  avatar's title/aria-label. */
+export function avatarLabel(name: string, size: number): { text: string; fontSize: number } {
+  const full = initials(name);
+  if (size >= 30) return { text: full, fontSize: Math.round(size * 0.4) };
+  return { text: full.charAt(0), fontSize: Math.max(12, Math.round(size * 0.55)) };
+}

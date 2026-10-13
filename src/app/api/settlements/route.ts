@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
 import { settlementService } from '@/services/settlement.service'
+import { notificationService } from '@/services/notification.service'
 import {
   validateSettlementInput,
   handleApiError,
   requireActiveGroup,
   allGroupMembers,
   recordActivity,
+  afterResponse,
+  notifySafely,
 } from '@/lib/api-helpers'
 
 export async function GET() {
@@ -52,6 +55,9 @@ export async function POST(request: Request) {
       summary: `${settlement.fromUser.name} → ${settlement.toUser.name}`,
       changes: { amount: String(settlement.amount), fromUserId: settlement.fromUserId, toUserId: settlement.toUserId },
     })
+    // The recorder is the actor (a recipient who recorded it gets no notice); the payer travels in the params.
+    // After the response (criterion 10), like the expense route.
+    afterResponse(() => notifySafely('PAYMENT_RECEIVED', () => notificationService.settlementCreated(settlement, check.session.userId)))
 
     return NextResponse.json({ settlement }, { status: 201 })
   } catch (error) {

@@ -11,6 +11,7 @@ import {
 } from "react";
 import { api } from "@/lib/api";
 import type { Me, MeGroup, Member } from "@/lib/types";
+import { setObservedHouse, setObservedUser } from "@/lib/observability/context";
 
 interface SessionValue {
   me: Me | null;
@@ -69,6 +70,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         : null,
     [me]
   );
+
+  // Observability (spec 007): the browser SDK gets the same opaque ids as the server — never names.
+  const userPublicId = me?.user.publicId ?? null;
+  const housePublicId = activeGroup?.publicId ?? null;
+  useEffect(() => {
+    setObservedUser(userPublicId);
+  }, [userPublicId]);
+  useEffect(() => {
+    setObservedHouse(housePublicId);
+  }, [housePublicId]);
 
   const activeGroupId = activeGroup?.id ?? null;
   useEffect(() => {

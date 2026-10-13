@@ -4,13 +4,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useSession } from "@/lib/session";
-import { api } from "@/lib/api";
 import { cn } from "@/components/ui/cn";
 import { MemberDot } from "@/components/ui/Member";
 import { Menu, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/Menu";
 import { MobileNavDrawer } from "@/components/app/MobileNavDrawer";
+import { NotificationBell } from "@/components/app/NotificationBell";
 import { APP_NAVIGATION } from "@/components/app/navigation";
-import { SettingsMenu } from "@/components/app/SettingsMenu";
+import { Spinner } from "@/components/ui/Feedback";
+import { useHouseParam } from "@/lib/use-house-param";
+import { logout } from "@/lib/logout";
 
 function useIsActive() {
   const pathname = usePathname();
@@ -58,14 +60,6 @@ function UserMenu() {
   const t = useTranslations("Nav");
   if (!me) return null;
 
-  const logout = async () => {
-    try {
-      await api.post("/api/auth/logout");
-    } finally {
-      window.location.href = "/auth/login";
-    }
-  };
-
   return (
     <Menu
       align="end"
@@ -76,15 +70,19 @@ function UserMenu() {
           className="inline-flex min-h-11 min-w-11 items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-panel md:min-h-0 md:min-w-0"
         >
           <MemberDot colorIndex={activeGroup?.colorIndex ?? 0} name={me.user.name} size={26} />
-          <span className="hidden max-w-28 truncate text-sm text-ink sm:inline">{me.user.name}</span>
+          <span className="hidden max-w-48 truncate text-sm text-ink sm:inline" title={me.user.name}>
+            {me.user.name}
+          </span>
         </button>
       }
     >
-      <MenuLabel>@{me.user.username}</MenuLabel>
-      <MenuItem onSelect={() => router.push("/account")}>{t("myAccount")}</MenuItem>
+      <MenuLabel>
+        <span className="normal-case">@{me.user.username}</span>
+      </MenuLabel>
+      <MenuItem onSelect={() => router.push("/settings/account")}>{t("myAccount")}</MenuItem>
       <MenuItem onSelect={() => router.push("/house")}>{t("houseAndMembers")}</MenuItem>
-      <MenuSeparator />
-      <SettingsMenu />
+      {/* Spec 011: theme and language live on the Settings page (with live previews), no longer in this menu. */}
+      <MenuItem onSelect={() => router.push("/settings/appearance")}>{t("settings")}</MenuItem>
       <MenuSeparator />
       <MenuItem danger onSelect={logout}>
         {t("logout")}
@@ -96,17 +94,22 @@ function UserMenu() {
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const isActive = useIsActive();
   const t = useTranslations("Nav");
+  const tc = useTranslations("Common");
+  // Spec 010 (criterion 12): a push opened for another house switches to it before its screen shows.
+  const switchingHouse = useHouseParam();
 
   return (
     <div className="paper-grain min-h-dvh">
       <header className="sticky top-0 z-30 border-b border-rule bg-paper/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-1.5 md:py-3">
-          <Link href="/expenses" className="shrink-0 font-display text-base font-bold tracking-tight text-ink">
+          <Link href="/expenses" className="inline-flex min-h-11 shrink-0 items-center font-display text-base font-bold tracking-tight text-ink md:min-h-0">
             HOME<span className="text-stamp">SHARE</span>
           </Link>
           <span className="hidden text-faint md:inline" aria-hidden>·</span>
           <div className="hidden md:block"><HouseSelector /></div>
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            {/* Spec 009: one bell for both layouts — before the drawer button (mobile) and the user menu (desktop). */}
+            <NotificationBell />
             <div className="hidden md:block"><UserMenu /></div>
             <MobileNavDrawer isActive={isActive} />
           </div>
@@ -116,11 +119,13 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
         {/* Desktop sidebar */}
         <aside className="hidden w-44 shrink-0 md:block">
-          <nav className="sticky top-20 flex flex-col gap-1">
+          {/* R3-08: top = where the nav already rests (59px header + the wrapper's 24px py-6), so it no longer jumps 3px when the page starts scrolling (was top-20 = 80px). */}
+          <nav className="sticky top-[5.1875rem] flex flex-col gap-1">
             {APP_NAVIGATION.map(({ href, key, Icon }) => (
               <Link
                 key={href}
                 href={href}
+                aria-current={isActive(href) ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-2.5 rounded-md border px-3 py-2 text-sm transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper",
@@ -130,7 +135,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <Icon />
-                <span className="font-display font-bold uppercase tracking-wide text-[0.74rem]">
+                <span className="font-display font-bold uppercase tracking-wide text-xs">
                   {t(key)}
                 </span>
               </Link>
@@ -138,7 +143,16 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           </nav>
         </aside>
 
-        <main className="min-w-0 flex-1 pb-6">{children}</main>
+        <main className="min-w-0 flex-1 pb-6">
+          {switchingHouse ? (
+            <p role="status" className="flex items-center gap-2 text-faint">
+              <Spinner />
+              <span className="label-mono">{tc("loading")}</span>
+            </p>
+          ) : (
+            children
+          )}
+        </main>
       </div>
     </div>
   );

@@ -27,7 +27,7 @@ export function EmptyState({
         {icon}
       </div>
       <p className="font-display text-base text-ink">{title}</p>
-      {hint && <p className="max-w-xs text-sm text-faint">{hint}</p>}
+      {hint && <p className="max-w-xs text-pretty text-sm text-faint">{hint}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>
   );

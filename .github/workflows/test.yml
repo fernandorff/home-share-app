@@ -1,18 +1,34 @@
-# CI gate: typecheck + full vitest suite on every push/PR to main.
-# Tests are fully self-contained — vitest's globalSetup boots an in-process Postgres
-# (pglite over a TCP socket) and applies the schema via `prisma migrate diff`, so no
-# database service, no Docker, and no secrets are needed here.
+# CI gate: typecheck + migrations-match-schema check + full vitest suite on every push/PR to main and dev.
+# Tests are fully self-contained — vitest's globalSetup boots an in-process Postgres (pglite over a TCP
+# socket) and applies the schema via `prisma migrate diff`, so they need no database service and no secrets.
+# The only service is an empty, throwaway Postgres used as Prisma's shadow database by the migrations check.
 name: test
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      # Shadow database for `prisma migrate diff --from-migrations` (it replays prisma/migrations here, then
+      # wipes it). Empty and disposable — never a real database.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shadow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d shadow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -31,13 +47,22 @@ jobs:
         env:
           DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
 
+      # The migrations folder must still reproduce schema.prisma: replays prisma/migrations on the shadow
+      # database and diffs it against the schema. Exit 2 = schema.prisma changed without a migration → run
+      # `npx prisma migrate dev --name <change>` locally (against the local Docker database) and commit it.
+      # DATABASE_URL stays the placeholder; only the shadow database is touched.
+      - run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
+          SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shadow
+
       - run: npx tsc --noEmit
 
       - run: npm run test
 
-      # `npx next build` directly — NOT `npm run build`, which would run `prisma db push`
-      # against a real database. The build needs no DB (all pages are dynamic); verified
-      # locally with this same placeholder URL.
+      # `npx next build` directly — `prisma generate` already ran above (`npm run build` is just the
+      # two together and never touches a database). The build needs no DB (all pages are dynamic);
+      # verified locally with this same placeholder URL.
       - run: npx next build
         env:
           DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder

@@ -32,12 +32,22 @@ entrance animations and loading skeletons (respecting `prefers-reduced-motion`).
 ## Run locally
 
 ```bash
-cp .env.example .env      # fill in DATABASE_URL and JWT_SECRET
+docker compose up -d          # local Postgres 16 (container homeshare-dev-pg, localhost:5433)
+cp .env.example .env.local    # DATABASE_URL already points at it; set JWT_SECRET
 npm install
-npx prisma db push        # create the schema in the database
-npm run dev               # http://localhost:3000
-npm run test              # vitest (currency, balance, csv-parser, auth)
+npm run db:migrate            # apply prisma/migrations (prisma migrate deploy)
+npm run dev                   # http://localhost:3000
+npm run test                  # vitest (self-contained: in-process Postgres, no Docker needed)
 ```
+
+`.env.local` points only at the local database. Production and staging database URLs live
+only in Vercel, never in a local file — delete (or empty) any old `.env`: Next.js and the
+Prisma CLI both read it for anything `.env.local` doesn't set.
+
+Schema changes: edit `prisma/schema.prisma`, run `npx prisma migrate dev --name <change>`
+against the local database and commit the new folder in `prisma/migrations` — CI fails when
+the schema changes without a migration. `npm run db:reset` recreates the local database and
+re-applies every migration.
 
 ### Environment variables
 
@@ -73,10 +83,27 @@ prisma/              # schema + config
 
 ## Deploy
 
-Hosted on **Vercel** with a **Neon** database (integration). The build runs
-`prisma generate && next build` — the schema is applied deliberately with
-`prisma db push` (not in CI). Two environments: **Production** (`main` branch) and
-**Preview** (branches/PRs).
+Hosted on **Vercel** with a **Neon** database. Two environments, one Vercel project:
+
+- **Production** — branch `main`, Neon's main branch.
+- **Staging** — branch `dev`, at https://dev.homeshare.fernandorffdev.com (Vercel Preview
+  env vars scoped to `dev`), with its own Neon branch `dev` (a copy of production, reset on
+  demand).
+
+Only `main` and `dev` deploy (`scripts/vercel-ignore-build.mjs`, the `ignoreCommand` in
+`vercel.json`); every other branch runs only the GitHub CI. Flow: feature branch → PR into
+`dev` (merging updates staging) → test on staging → PR `dev` → `main`.
+
+- **Build** — `prisma generate && next build`; it never touches a database.
+- **Schema** — versioned SQL in `prisma/migrations`, applied by hand with
+  `prisma migrate deploy`, **staging first, then production**. Pass the target's URL (Neon's
+  direct, non-`-pooler` string) in the shell for that one command, never in a file:
+  `DATABASE_URL="<url>" npm run db:migrate` (`npm run db:migrate:status` to check).
+- **Crons** (`vercel.json`) run only in Production. On staging, call them by hand with
+  staging's `CRON_SECRET`:
+  `curl -H "Authorization: Bearer $CRON_SECRET" https://dev.homeshare.fernandorffdev.com/api/cron/recurring-expenses`
+  (same for `/api/cron/notifications`).
+- Every non-production environment answers `X-Robots-Tag: noindex, nofollow`.
 
 ## Design explorations
 

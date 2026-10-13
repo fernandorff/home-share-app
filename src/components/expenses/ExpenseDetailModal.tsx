@@ -1,19 +1,21 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { useTranslations, useLocale } from "next-intl";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";
 import { MemberDot } from "@/components/ui/Member";
 import { Tag, type TagTone } from "@/components/ui/Stamp";
 import { SkeletonRows } from "@/components/ui/Skeleton";
+import { cn } from "@/components/ui/cn";
 import { useSession } from "@/lib/session";
 import { useToast } from "@/components/ui/Toast";
 import { api } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
-import { formatDateLocale } from "@/lib/money";
-import { buildExpenseHistory, type RawRevision } from "@/lib/audit-diff";
+import { formatDateLocale, formatDateTimeLocale } from "@/lib/money";
+import { keepLastWordTogether } from "@/lib/activity-format";
+import { buildExpenseHistory, type RawRevision, type SplitShare } from "@/lib/audit-diff";
 import type { Expense, ExpenseHistoryResponse, Money as MoneyValue } from "@/lib/types";
 
 /** Read-only detail view of an expense, with Edit / Delete actions. */
@@ -70,6 +72,12 @@ export function ExpenseDetailModal({
           <div>
             <Money value={expense.amount} className="font-display text-2xl font-bold" />
             <p className="mt-1 break-words text-sm text-ink">{expense.description}</p>
+            {expense.recurringExpenseId != null && (
+              <p className="mt-1 text-xs text-faint">
+                <span aria-hidden>↻ </span>
+                {t("recurringDetail")}
+              </p>
+            )}
           </div>
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -125,9 +133,10 @@ export function ExpenseDetailModal({
 /** Change history for one expense (from the EntityRevision trail). Fetched lazily on expand. */
 function ExpenseHistory({ expense }: { expense: Expense }) {
   const t = useTranslations("Expenses");
+  const tc = useTranslations("Common");
   const thh = useTranslations("Household");
   const tacc = useTranslations("Account");
-  const locale = useLocale();
+  const tact = useTranslations("Activity");
   const apiErr = useApiError();
   const toast = useToast();
   const { members } = useSession();
@@ -186,10 +195,14 @@ function ExpenseHistory({ expense }: { expense: Expense }) {
     date: "date",
     notes: "notes",
     payerId: "payer",
+    // Reuses the same "Split" label as the section above (BL-B1) — already translated in all locales.
+    participants: "split",
   };
   const fieldLabel = (f: string) => (fieldLabelKey[f] ? t(fieldLabelKey[f]) : f);
 
-  const renderValue = (field: string, value: unknown): ReactNode => {
+  // `struck` marks the old side of a change: a share is an atomic inline-block, so the wrapper's
+  // line-through does not reach it and each share carries its own (the wrapper keeps the opacity).
+  const renderValue = (field: string, value: unknown, struck = false): ReactNode => {
     if (value === null || value === undefined || (Array.isArray(value) && value.length === 0)) {
       return <span className="text-faint">—</span>;
     }
@@ -206,20 +219,25 @@ function ExpenseHistory({ expense }: { expense: Expense }) {
         return <span>{(value as string[]).map((v) => lbl("platform", v)).join(", ")}</span>;
       case "paymentMethods":
         return <span>{(value as string[]).map((v) => lbl("payment", v)).join(", ")}</span>;
+      case "participants":
+        return (
+          <span>
+            {(value as SplitShare[]).map((s, i) => (
+              <Fragment key={s.userId}>
+                {i > 0 && "\u00a0· "}
+                {/* R3-07: "Ana QA R$60.00" never breaks between the name and its amount (U+00A0) and moves to the
+                    next line whole when it fits; one longer than the line wraps inside its own box instead of overflowing.
+                    The U+00A0 before "·" keeps a line from opening with the separator. */}
+                <span className={cn("inline-block max-w-full break-words align-top", struck && "line-through")}>
+                  {memberDisplayName(s.userId)}{"\u00a0"}<Money value={s.amount} />
+                </span>
+              </Fragment>
+            ))}
+          </span>
+        );
       default:
         return <span className="break-words">{String(value)}</span>;
     }
-  };
-
-  const when = (iso: string) => {
-    const d = new Date(iso);
-    // Date part fixed DD/MM regardless of UI language (same reasoning as lib/money's
-    // formatDateLocale, BL-18/B3) — only the time part follows the viewer's locale.
-    return (
-      d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" }) +
-      " " +
-      d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
-    );
   };
 
   return (
@@ -228,7 +246,7 @@ function ExpenseHistory({ expense }: { expense: Expense }) {
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        className="flex items-center gap-1.5 self-start label-mono text-ink-soft hover:text-ink"
+        className="flex min-h-11 items-center gap-1.5 self-start label-mono text-ink-soft hover:text-ink md:min-h-0"
       >
         <span aria-hidden className="text-faint">{expanded ? "–" : "+"}</span>
         {t("history.title")}
@@ -244,19 +262,31 @@ function ExpenseHistory({ expense }: { expense: Expense }) {
             {entries.map((e) => (
               <li key={e.id} className="text-sm">
                 <p className="text-ink">
-                  <span className="font-medium">{e.actorName ?? t("history.someone")}</span>{" "}
+                  <span className="font-medium">{keepLastWordTogether(e.actorName ?? (e.actorLabel === "automatic" ? tact("automatic") : t("history.someone")))}</span>{" "}
                   <span className="text-ink-soft">{t(`history.${e.action}`)}</span>
-                  <span className="ml-1.5 text-xs text-faint tnum">{when(e.createdAt)}</span>
+                  {/* R2-23: a real space (screen readers and copy-paste read "edited 03/10/2026 18:54")
+                      and nowrap, so the time never drops alone to the next line. */}
+                  {" "}
+                  <span className="whitespace-nowrap text-xs text-faint tnum">{formatDateTimeLocale(e.createdAt)}</span>
                 </p>
                 {e.action === "UPDATE" &&
                   (e.changes.length > 0 ? (
                     <ul className="mt-1 flex flex-col gap-0.5">
                       {e.changes.map((c) => (
-                        <li key={c.field} className="flex flex-wrap items-center gap-1 text-xs text-faint">
-                          <span>{fieldLabel(c.field)}:</span>
-                          <span className="line-through opacity-70">{renderValue(c.field, c.from)}</span>
-                          <span aria-hidden>→</span>
-                          <span className="text-ink-soft">{renderValue(c.field, c.to)}</span>
+                        <li key={c.field} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-1 text-xs text-faint">
+                          {/* R2-15: label column + value column — a long "old → new" (the Split row)
+                              wraps under the old value (hanging indent), not under the label.
+                              R3-07: the arrow and the new value are one box, so the arrow never ends a line while its value
+                              starts the next (U+00A0 alone does not hold next to an inline-block share).
+                              R3-27: the label's colon comes from the locale (fr "Répartition :"). */}
+                          <span>{tc("labelColon", { label: fieldLabel(c.field) })}</span>
+                          <span className="min-w-0">
+                            <span className="line-through opacity-70">{renderValue(c.field, c.from, true)}</span>{" "}
+                            <span className="inline-block max-w-full break-words align-top">
+                              <span aria-hidden>→</span>{"\u00a0"}
+                              <span className="text-ink-soft">{renderValue(c.field, c.to)}</span>
+                            </span>
+                          </span>
                         </li>
                       ))}
                     </ul>

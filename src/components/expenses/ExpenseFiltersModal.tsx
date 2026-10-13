@@ -56,7 +56,7 @@ function MultiChips({
             onClick={() => onToggle(o.value)}
             aria-pressed={on}
             className={cn(
-              "rounded-md border px-2.5 py-1 text-[0.72rem] font-medium transition-colors",
+              "flex min-h-8 items-center justify-center rounded-md border px-2.5 py-1 text-xs font-medium transition-colors md:min-h-0",
               on ? "border-ink bg-ink text-paper" : "border-rule bg-card text-ink-soft hover:bg-panel"
             )}
           >
@@ -156,7 +156,8 @@ export function ExpenseFiltersModal({
           />
         </Field>
 
-        <Field label={t("colPayer")}>
+        {/* R3-04: plural like Platforms/Categories/Payment methods below — several payers can be picked. */}
+        <Field label={t("payersLabel")}>
           <MultiChips
             options={members.map((m) => ({ value: String(m.id), label: m.name }))}
             selected={draft.payers.map(String)}

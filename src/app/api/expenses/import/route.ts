@@ -4,12 +4,15 @@ import { groupService } from '@/services/group.service'
 import { platformService } from '@/services/platform.service'
 import { isDefaultPlatform } from '@/lib/platforms'
 import { handleApiError, requireActiveGroup } from '@/lib/api-helpers'
+import { sanitizeDefaultDate } from '@/lib/csv-parser'
 
 interface ParsedImportBody {
   csvText: string
   splitEqually: boolean
   payerId: number | null
   platform: string | null
+  /** The importer's local "today" (YYYY-MM-DD) for rows without a date, if the client sent a usable one. */
+  defaultDate: string | undefined
 }
 
 async function parseRequestBody(request: Request): Promise<ParsedImportBody> {
@@ -19,6 +22,11 @@ async function parseRequestBody(request: Request): Promise<ParsedImportBody> {
   let splitEqually = true
   let payerId: number | null = null
   let platform: string | null = null
+  // The CSV is parsed here, on the server (UTC on Vercel), which cannot know the importer's local
+  // day: a row without a date would land on tomorrow in the evening for anyone west of UTC. So the
+  // browser sends its own local "today"; it is untrusted, so a missing/garbage/implausible value
+  // is dropped silently and the parser keeps its UTC default — the import never fails over it.
+  let rawDefaultDate: unknown
 
   if (contentType.includes('multipart/form-data')) {
     const formData = await request.formData()
@@ -34,17 +42,20 @@ async function parseRequestBody(request: Request): Promise<ParsedImportBody> {
 
     const platformParam = formData.get('platform')
     if (platformParam) platform = platformParam.toString().trim() || null
+
+    rawDefaultDate = formData.get('defaultDate')
   } else if (contentType.includes('application/json')) {
     const body = await request.json()
     csvText = body.csv
     if (body.splitEqually !== undefined) splitEqually = body.splitEqually
     if (body.payerId) payerId = parseInt(body.payerId) || null
     if (typeof body.platform === 'string') platform = body.platform.trim() || null
+    rawDefaultDate = body.defaultDate
   } else {
     csvText = await request.text()
   }
 
-  return { csvText, splitEqually, payerId, platform }
+  return { csvText, splitEqually, payerId, platform, defaultDate: sanitizeDefaultDate(rawDefaultDate) }
 }
 
 export async function POST(request: Request) {
@@ -52,10 +63,10 @@ export async function POST(request: Request) {
     const check = await requireActiveGroup()
     if (!check.ok) return check.response
 
-    const { csvText, splitEqually, payerId, platform } = await parseRequestBody(request)
+    const { csvText, splitEqually, payerId, platform, defaultDate } = await parseRequestBody(request)
 
     if (!csvText || csvText.trim().length === 0) {
-      return NextResponse.json({ error: 'Empty CSV' }, { status: 400 })
+      return NextResponse.json({ error: 'Empty CSV', code: 'CSV_EMPTY' }, { status: 400 })
     }
 
     // Platform is optional now; if set it must be a system default or a custom platform of the house.
@@ -79,7 +90,8 @@ export async function POST(request: Request) {
       csvText,
       effectivePayerId,
       platform,
-      splitEqually
+      splitEqually,
+      defaultDate
     )
 
     return NextResponse.json({

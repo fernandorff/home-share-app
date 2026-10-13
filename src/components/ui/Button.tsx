@@ -6,7 +6,7 @@ type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-ink text-paper border-ink hover:bg-stamp hover:border-stamp",
+  primary: "bg-ink text-paper border-ink hover:bg-stamp-text hover:border-stamp-text",
   secondary: "bg-card text-ink border-ink hover:bg-panel",
   ghost: "bg-transparent text-ink-soft border-transparent hover:bg-panel hover:text-ink",
   danger: "bg-stamp-text text-paper border-stamp-text hover:brightness-110",
@@ -15,7 +15,7 @@ const VARIANTS: Record<Variant, string> = {
 const SIZES: Record<Size, string> = {
   // The app shell stays in touch/mobile mode through 767px, so density switches at the same `md`
   // breakpoint instead of mixing compact desktop buttons into the small-tablet layout.
-  sm: "text-[0.7rem] px-3 py-1.5 gap-1.5 min-h-11 md:min-h-0",
+  sm: "text-[0.75rem] px-3 py-1.5 gap-1.5 min-h-11 md:min-h-0",
   md: "text-[0.8rem] px-4 py-2.5 gap-2 min-h-11 md:min-h-0",
 };
 

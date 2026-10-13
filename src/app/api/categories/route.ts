@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { categoryService } from '@/services/category.service'
-import { handleApiError, requireActiveGroup } from '@/lib/api-helpers'
+import { handleApiError, requireActiveGroup, recordActivity } from '@/lib/api-helpers'
 import { LIMITS } from '@/lib/constants'
 
 export async function GET(request: Request) {
@@ -40,6 +40,16 @@ export async function POST(request: Request) {
     }
 
     const category = await categoryService.create(check.groupId, name)
+
+    await recordActivity({
+      groupId: check.groupId,
+      actorId: check.session.userId,
+      entityType: 'CATEGORY',
+      entityId: category.publicId,
+      action: 'CREATE',
+      summary: category.name,
+    })
+
     return NextResponse.json({ category }, { status: 201 })
   } catch (error) {
     return handleApiError(error, 'Failed to create category')

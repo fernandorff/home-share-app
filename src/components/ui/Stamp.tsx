@@ -22,7 +22,7 @@ export function Stamp({
   return (
     <span
       className={cn(
-        "inline-block -rotate-6 select-none rounded-sm border-2 px-2 py-0.5 font-display text-[0.7rem] font-bold uppercase tracking-widest",
+        "inline-block -rotate-6 select-none rounded-sm border-2 px-2 py-0.5 font-display text-xs font-bold uppercase tracking-widest",
         TONES[tone],
         className
       )}
@@ -55,7 +55,7 @@ export function Tag({
   return (
     <span
       className={cn(
-        "inline-flex items-center whitespace-nowrap rounded-sm border px-2 py-0.5 text-[0.7rem] uppercase tracking-wide",
+        "inline-flex items-center whitespace-nowrap rounded-sm border px-2 py-0.5 text-[0.75rem] uppercase tracking-wide",
         TAG_TONES[tone],
         className
       )}

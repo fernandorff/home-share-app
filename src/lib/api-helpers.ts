@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { NextResponse, after } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import { flush } from '@sentry/nextjs'
 import { toCents, fromCents } from '@/lib/currency'
 import { verifySession, VerifiedSession, SESSION_COOKIE, GROUP_COOKIE } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -13,13 +14,30 @@ import { isDefaultPaymentMethod } from '@/lib/payment-methods'
 import { categoryService } from '@/services/category.service'
 import { platformService } from '@/services/platform.service'
 import { paymentMethodService } from '@/services/payment-method.service'
+import { logger } from '@/lib/logger'
+import { captureServerError, setObservedHouse, setObservedUser } from '@/lib/observability/context'
+import { readRequestContext, type RequestContext } from '@/lib/observability/request-context'
+import type { NotificationType } from '@/lib/notifications'
 
 /** Append an activity-log entry. A logging failure NEVER breaks the user's mutation. */
 export async function recordActivity(entry: AuditEntry): Promise<void> {
   try {
     await auditService.log(entry)
   } catch (e) {
-    console.error('audit log failed', e)
+    logger.error('audit log failed', { entityType: entry.entityType }, e)
+  }
+}
+
+/**
+ * Run a notice producer once the action committed (spec 009). Same contract as recordActivity: a notice
+ * failure is logged (type only, never the params) and NEVER fails or rolls back the action (criterion 10).
+ * A thunk, so a producer that throws before returning its promise is caught too.
+ */
+export async function notifySafely(type: NotificationType, produce: () => Promise<unknown>): Promise<void> {
+  try {
+    await produce()
+  } catch (e) {
+    logger.error('notification failed', { type }, e)
   }
 }
 
@@ -40,17 +58,85 @@ export function assertExpectedGroup(activeGroupId: number, expectedGroupId: unkn
   return null
 }
 
-export function handleApiError(error: unknown, defaultMsg: string): NextResponse {
-  // Expected, typed failures (not-found, invalid input) carry their own status/code.
-  if (error instanceof ApiError) {
-    return NextResponse.json(
-      error.code ? { error: error.message, code: error.code } : { error: error.message },
-      { status: error.status }
-    )
+/**
+ * CSRF guard for cookie-authenticated writes that take no other proof (spec 010: the push routes). The session cookie
+ * is SameSite=Lax, so a sibling subdomain still sends it. A form (text/plain, urlencoded, multipart) or a no-cors fetch
+ * cannot send application/json; a cross-origin fetch that does gets a CORS preflight this app never answers.
+ */
+export function isJsonRequest(request: Request): boolean {
+  return (request.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json')
+}
+
+/** The answer to a write that is not JSON (isJsonRequest): 415, translated client-side from ApiErrors. */
+export function notJson(): NextResponse {
+  return NextResponse.json({ error: 'Send application/json', code: 'UNSUPPORTED_MEDIA_TYPE' }, { status: 415 })
+}
+
+/** Request-scoped context stamped by the middleware (spec 007); empty outside a request (tests, scripts). */
+async function currentRequestContext(): Promise<RequestContext> {
+  try {
+    return readRequestContext(await headers())
+  } catch {
+    return {}
   }
-  // Anything else is unexpected: log the full detail server-side, but return a
-  // generic message so we never leak stack traces, file paths, or DB internals.
-  console.error(defaultMsg, error)
+}
+
+/**
+ * Serverless (Vercel): the function can be frozen right after the response, and the SDK only sends its
+ * queue on a timer — so a captured 5xx would sit unsent. after() runs once the response is out and keeps
+ * the function alive until the flush ends. Best effort: it never throws into the response, and outside a
+ * request scope (tests, scripts) after() throws and there is nothing to keep alive. Kept here, not in
+ * observability/context.ts: the browser imports that file and `next/server` must stay out of its bundle.
+ */
+function flushSentryAfterResponse(): void {
+  try {
+    after(async () => {
+      try {
+        await flush(2000)
+      } catch {
+        // delivery is best effort
+      }
+    })
+  } catch {
+    // outside a request scope
+  }
+}
+
+/**
+ * Runs `task` once the response is out (after()). Outside a request scope after() throws, so the task runs
+ * right away instead. Never throws into the caller: a write that already committed must not turn into a 500
+ * (a client retry would duplicate it).
+ */
+export function afterResponse(task: () => Promise<unknown>): void {
+  try {
+    after(task)
+  } catch {
+    void task()
+  }
+}
+
+function apiErrorResponse(error: ApiError): NextResponse {
+  return NextResponse.json(
+    error.code ? { error: error.message, code: error.code } : { error: error.message },
+    { status: error.status }
+  )
+}
+
+export async function handleApiError(error: unknown, defaultMsg: string): Promise<NextResponse> {
+  // Expected, typed 4xx failures (not-found, invalid input) are normal operation: answered with their
+  // own status/code and never reported (spec 007 — they are not defects).
+  if (error instanceof ApiError && error.status < 500) {
+    return apiErrorResponse(error)
+  }
+  // Server failures: one Sentry event (no-op without a DSN) + one JSON log line, correlated by requestId.
+  const status = error instanceof ApiError ? error.status : 500
+  const code = error instanceof ApiError ? error.code : undefined
+  const context = await currentRequestContext()
+  const sentryEventId = captureServerError(error, { route: context.route, requestId: context.requestId, status, code })
+  if (sentryEventId) flushSentryAfterResponse()
+  logger.error(defaultMsg, { ...context, status, code, sentryEventId }, error)
+  if (error instanceof ApiError) return apiErrorResponse(error)
+  // Unexpected: generic message so we never leak stack traces, file paths, or DB internals.
   return NextResponse.json({ error: defaultMsg }, { status: 500 })
 }
 
@@ -84,6 +170,8 @@ export async function requireSession(): Promise<SessionCheck> {
 
   // Best-effort: stamp the audit actor for writes in this request.
   setAuditContext({ actorId: session.userId })
+  // Observability (spec 007): the opaque publicId is the only user data Sentry ever gets.
+  setObservedUser(session.publicId)
   return { ok: true, session }
 }
 
@@ -107,7 +195,7 @@ export async function requireActiveGroup(): Promise<GroupCheck> {
   const memberships = await prisma.groupMember.findMany({
     where: { userId: check.session.userId, leftAt: null },
     orderBy: { createdAt: 'asc' },
-    select: { groupId: true, role: true },
+    select: { groupId: true, role: true, group: { select: { publicId: true } } },
   })
 
   if (memberships.length === 0) {
@@ -124,6 +212,7 @@ export async function requireActiveGroup(): Promise<GroupCheck> {
     memberships.find(m => m.groupId === preferredGroupId) ?? memberships[0]
 
   setAuditContext({ groupId: active.groupId })
+  setObservedHouse(active.group.publicId)
   return { ok: true, session: check.session, groupId: active.groupId, role: active.role }
 }
 

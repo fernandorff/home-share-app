@@ -20,6 +20,7 @@ export function MultiSelect({
   onToggle,
   placeholder,
   searchPlaceholder,
+  searchLabel,
   createLabel,
   onCreate,
   tone = "default",
@@ -29,6 +30,8 @@ export function MultiSelect({
   onToggle: (value: string) => void;
   placeholder: string;
   searchPlaceholder: string;
+  /** Accessible name for the search input (A8). Falls back to `searchPlaceholder` when omitted. */
+  searchLabel?: string;
   createLabel: (name: string) => string;
   onCreate: (name: string) => Promise<void>;
   tone?: TagTone;
@@ -75,7 +78,6 @@ export function MultiSelect({
         >
           <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", TONE_DOT[tone])} aria-hidden />
           <span className={cn("min-w-0 flex-1 truncate", labels.length === 0 && "text-faint")}>{summary}</span>
-          {labels.length > 0 && <span className="label-mono shrink-0">{labels.length}</span>}
           <span className="shrink-0 text-faint" aria-hidden>▾</span>
         </button>
       </DropdownMenu.Trigger>
@@ -92,6 +94,7 @@ export function MultiSelect({
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => event.stopPropagation()}
               placeholder={searchPlaceholder}
+              aria-label={searchLabel ?? searchPlaceholder}
               className="min-h-11 w-full rounded-sm border border-rule bg-paper px-3 text-sm text-ink outline-none placeholder:text-faint focus:border-ink"
               autoComplete="off"
             />

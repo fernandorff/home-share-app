@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/components/ui/cn";
@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { MemberDot } from "@/components/ui/Member";
-import { Menu, MenuItem } from "@/components/ui/Menu";
+import { Menu, MenuItem, MenuSeparator } from "@/components/ui/Menu";
 import { Tag } from "@/components/ui/Stamp";
 import { Spinner } from "@/components/ui/Feedback";
 import { SkeletonRows } from "@/components/ui/Skeleton";
@@ -48,6 +49,7 @@ export default function HousePage() {
   // Join with code
   const [joinCode, setJoinCode] = useState("");
   const [joining, setJoining] = useState(false);
+  const [joinCodeError, setJoinCodeError] = useState<string | null>(null);
 
   // Currency (ADMIN)
   const [savingCurrency, setSavingCurrency] = useState(false);
@@ -57,6 +59,9 @@ export default function HousePage() {
   const [leaving, setLeaving] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
   const [removing, setRemoving] = useState(false);
+  // Make admin (spec 006) — confirmation first: the app has no way to undo a promotion.
+  const [promoteTarget, setPromoteTarget] = useState<Member | null>(null);
+  const [promoting, setPromoting] = useState(false);
 
   if (!me || !activeGroup) return null;
 
@@ -125,13 +130,20 @@ export default function HousePage() {
     const c = joinCode.trim().toUpperCase();
     if (c.length !== 6) return;
     setJoining(true);
+    setJoinCodeError(null);
     try {
       await api.post("/api/groups/join", { code: c });
       await refresh();
       setJoinCode("");
       toast(t("youJoined"), "success");
     } catch (err) {
-      toast(apiErr(err, t("joinError")), "error");
+      // U11: a bad format or an unknown code is a problem with what's in the field, not a
+      // surprise event — show it under the input instead of a toast that disappears.
+      if (err instanceof ApiError && (err.code === "INVALID_CODE_FORMAT" || err.code === "INVALID_CODE")) {
+        setJoinCodeError(apiErr(err, t("joinError")));
+      } else {
+        toast(apiErr(err, t("joinError")), "error");
+      }
     } finally {
       setJoining(false);
     }
@@ -179,12 +191,26 @@ export default function HousePage() {
     }
   }
 
+  async function onPromote() {
+    if (!promoteTarget) return;
+    setPromoting(true);
+    try {
+      await api.patch(`/api/groups/active/members/${promoteTarget.publicId}`, { role: "ADMIN" });
+      toast(t("makeAdminSuccess", { name: promoteTarget.name }), "success");
+      setPromoteTarget(null);
+      await Promise.all([refresh(), refreshMembers()]);
+    } catch (err) {
+      toast(apiErr(err, t("makeAdminError")), "error");
+    } finally {
+      setPromoting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       {/* 1 — Header: active house + role */}
       <section className="flex flex-col gap-4">
-        {/* h1 (was a SectionTitle/h2) so every page has the same title tag + hierarchy (U7/BL-33). */}
-        <h1 className="font-display text-2xl font-bold tracking-tight text-ink">{t("title")}</h1>
+        <PageHeader title={t("title")} subtitle={t("subtitle")} />
         <Card className="reveal flex items-center gap-3 p-4">
           <MemberDot
             colorIndex={activeGroup.colorIndex}
@@ -195,7 +221,7 @@ export default function HousePage() {
             <div className="flex items-center gap-2">
               {/* h2, not h1 — the page's h1 is the "House" title above; this is the active
                   house's own name, one level below it (U7/BL-33: exactly one h1 per page). */}
-              <h2 className="truncate font-display text-lg font-bold text-ink">
+              <h2 className="break-words font-display text-lg font-bold text-ink">
                 {activeGroup.name}
               </h2>
               <Tag>{roleLabel(activeGroup.role)}</Tag>
@@ -248,8 +274,10 @@ export default function HousePage() {
       <section className="flex flex-col gap-4">
         <SectionTitle>{tcur("title")}</SectionTitle>
         <Card className="reveal p-4">
+          {/* T5: the section title above already reads "Currency" — a visible field label would
+              just repeat it. Kept for screen readers via sr-only. */}
           {isAdmin ? (
-            <Field label={tcur("title")} htmlFor="currency" hint={tcur("hint")}>
+            <Field label={<span className="sr-only">{tcur("title")}</span>} htmlFor="currency" hint={tcur("hint")}>
               <Select
                 id="currency"
                 value={activeGroup.currency}
@@ -289,40 +317,75 @@ export default function HousePage() {
                 return (
                   <li key={m.id} className="reveal" style={revealDelay(i)}>
                     {i > 0 && <ReceiptDivider />}
+                    {/* U7 → R3-28: below sm the role tag sits under the username (like "Your houses"), so
+                        the trailing action (⋯ / "Leave house") stays on the first line — it used to drop
+                        to a line of its own, leaving the ⋯ alone in an empty strip. From sm up the tag
+                        keeps its fixed-width column and the action its sm:w-44 slot (a no-action row
+                        reserves the same slot), so both columns line up between rows. */}
                     <div className="flex items-center gap-3 px-2 py-3">
                       <MemberDot colorIndex={m.colorIndex} name={m.name} size={32} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-ink">{m.name}</p>
+                        {/* Round 2 (U7 residual): below sm the name wraps to up to 2 lines instead
+                            of being cut with an ellipsis ("Júlia Caminho Feliz" at 360px). max-sm:
+                            and sm: are exact complements, so line-clamp-2 (below sm) and truncate
+                            (sm up, unchanged) never apply to the same viewport — no conflicting
+                            utilities, no reliance on source order. */}
+                        <p className="text-sm font-medium text-ink max-sm:line-clamp-2 max-sm:break-words sm:truncate">
+                          {m.name}
+                        </p>
                         <p className="truncate text-xs text-faint">@{m.username}</p>
+                        <span className="mt-1 inline-block sm:hidden"><Tag>{roleLabel(m.role)}</Tag></span>
                       </div>
-                      <Tag>{roleLabel(m.role)}</Tag>
+                      {/* R2-13: right-aligned, so tag, "Leave house" and ⋯ end on the same edge. */}
+                      <div className="hidden w-20 shrink-0 text-right sm:block">
+                        <Tag>{roleLabel(m.role)}</Tag>
+                      </div>
                       {isSelf ? (
                         <button
                           type="button"
                           onClick={() => setLeaveConfirmOpen(true)}
                           // min-h-11: 44px touch floor on mobile (D3 — destructive action was 18px
-                          // tall); md:min-h-0 restores the compact desktop size.
-                          className="label-mono inline-flex min-h-11 shrink-0 items-center text-debt hover:underline md:min-h-0"
+                          // tall); md:min-h-0 restores the compact desktop size. R3-28: no w-full
+                          // below sm — it stays on the first line.
+                          // sm:w-44 (controller, round 1): fixed width fitting the longest of the 4
+                          // locales' label ("Quitter la maison") so the role-tag column before it
+                          // lands at the same x on every row instead of shifting with this label's
+                          // own natural width (which differs a lot from the ⋯ menu button below).
+                          className="label-mono inline-flex min-h-11 shrink-0 items-center justify-end whitespace-nowrap text-debt hover:underline sm:w-44 md:min-h-0"
                         >
                           {t("leave")}
                         </button>
                       ) : isAdmin ? (
-                        <Menu
-                          trigger={
-                            <button
-                              type="button"
-                              aria-label={t("removeConfirmTitle", { name: m.name })}
-                              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink md:min-h-0 md:min-w-0"
-                            >
-                              ⋯
-                            </button>
-                          }
-                        >
-                          <MenuItem danger onSelect={() => setRemoveTarget(m)}>
-                            {t("remove")}
-                          </MenuItem>
-                        </Menu>
-                      ) : null}
+                        <div className="flex shrink-0 justify-end sm:w-44">
+                          <Menu
+                            trigger={
+                              <button
+                                type="button"
+                                aria-label={t("memberActions", { name: m.name })}
+                                className="-mr-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-end rounded-sm px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink md:min-h-0 md:min-w-0"
+                              >
+                                ⋯
+                              </button>
+                            }
+                          >
+                            {m.role !== "ADMIN" && (
+                              <>
+                                <MenuItem onSelect={() => setPromoteTarget(m)}>{t("makeAdmin")}</MenuItem>
+                                <MenuSeparator />
+                              </>
+                            )}
+                            <MenuItem danger onSelect={() => setRemoveTarget(m)}>
+                              {t("remove")}
+                            </MenuItem>
+                          </Menu>
+                        </div>
+                      ) : (
+                        // Controller round 2: a regular member viewing another regular member has
+                        // no trailing action at all. Reserve the same sm:w-44 slot (hidden and
+                        // takes no space below sm, so phones are unaffected) so the role-tag
+                        // column before it still lands at the same x as the two branches above.
+                        <div className="hidden sm:block sm:w-44" aria-hidden />
+                      )}
                     </div>
                   </li>
                 );
@@ -391,7 +454,8 @@ export default function HousePage() {
                   >
                     <MemberDot colorIndex={g.colorIndex} name={g.name} size={32} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-ink">{g.name}</p>
+                      {/* R2-31: same rule as the house card and Members — 2 lines below sm, truncate from sm up. */}
+                      <p className="text-sm font-medium text-ink max-sm:line-clamp-2 max-sm:break-words sm:truncate">{g.name}</p>
                       <span className="mt-1 inline-block">
                         <Tag>{roleLabel(g.role)}</Tag>
                       </span>
@@ -399,7 +463,7 @@ export default function HousePage() {
                     {switchingId === g.id ? (
                       <Spinner />
                     ) : active ? (
-                      <span className="text-sm text-stamp-text">{t("activeMark")}</span>
+                      <span className="label-mono text-stamp-text">{t("activeMark")}</span>
                     ) : (
                       <span className="label-mono">{t("switch")}</span>
                     )}
@@ -420,18 +484,21 @@ export default function HousePage() {
               label={t("codeFieldLabel")}
               htmlFor="join-code"
               hint={t("codeFieldHint")}
+              error={joinCodeError}
             >
               <Input
                 id="join-code"
                 value={joinCode}
-                onChange={(e) =>
-                  setJoinCode(e.target.value.toUpperCase().slice(0, 6))
-                }
+                onChange={(e) => {
+                  setJoinCode(e.target.value.toUpperCase().slice(0, 6));
+                  if (joinCodeError) setJoinCodeError(null);
+                }}
                 maxLength={6}
                 autoCapitalize="characters"
                 autoComplete="off"
                 placeholder="ABC123"
                 className="font-mono uppercase tracking-[0.35em]"
+                aria-invalid={!!joinCodeError}
               />
             </Field>
             <Button
@@ -442,6 +509,7 @@ export default function HousePage() {
             >
               {t("joinButton")}
             </Button>
+            <p className="text-pretty text-xs text-faint">{t("joinHint")}</p>
           </form>
         </Card>
       </section>
@@ -455,13 +523,11 @@ export default function HousePage() {
           <>
             <Button
               variant="ghost"
-              size="sm"
               onClick={() => setCreateOpen(false)}
             >
               {tc("cancel")}
             </Button>
             <Button
-              size="sm"
               form="create-house-form"
               type="submit"
               loading={creating}
@@ -491,7 +557,7 @@ export default function HousePage() {
       <Modal
         open={regenerateConfirmOpen}
         onOpenChange={setRegenerateConfirmOpen}
-        title={t("regenerateCode")}
+        title={t("regenerateCodeConfirmTitle")}
         footer={
           <>
             <Button variant="ghost" onClick={() => setRegenerateConfirmOpen(false)}>
@@ -516,13 +582,24 @@ export default function HousePage() {
             <Button variant="ghost" onClick={() => setLeaveConfirmOpen(false)} disabled={leaving}>
               {tc("cancel")}
             </Button>
-            <Button variant="danger" loading={leaving} onClick={onLeave}>
+            <Button
+              variant="danger"
+              loading={leaving}
+              disabled={activeGroup.lastAdmin}
+              onClick={onLeave}
+            >
               {t("leave")}
             </Button>
           </>
         }
       >
-        <p className="text-sm text-ink">{t("leaveConfirmPrompt")}</p>
+        <div className="flex flex-col gap-3">
+          {/* spec 006: the server would refuse with LAST_ADMIN — say why up front (U18 warning style). */}
+          {activeGroup.lastAdmin && (
+            <p className="rounded-md bg-stamp-soft px-3 py-2 text-pretty text-sm text-ink">{t("lastAdminWarning")}</p>
+          )}
+          <p className="text-sm text-ink">{t("leaveConfirmPrompt")}</p>
+        </div>
       </Modal>
 
       {/* Remove member confirm (admin, BL-16) */}
@@ -542,6 +619,25 @@ export default function HousePage() {
         }
       >
         <p className="text-sm text-ink">{t("removeConfirmPrompt")}</p>
+      </Modal>
+
+      {/* Make admin confirm (spec 006) */}
+      <Modal
+        open={promoteTarget !== null}
+        onOpenChange={(o) => !o && !promoting && setPromoteTarget(null)}
+        title={promoteTarget ? t("makeAdminConfirmTitle", { name: promoteTarget.name }) : ""}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setPromoteTarget(null)} disabled={promoting}>
+              {tc("cancel")}
+            </Button>
+            <Button loading={promoting} onClick={onPromote}>
+              {t("makeAdmin")}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink">{t("makeAdminConfirmPrompt")}</p>
       </Modal>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { useFetch } from "@/lib/use-fetch";
 import { useToast } from "@/components/ui/Toast";
@@ -28,6 +28,12 @@ const ROW_ACCENT: Record<TagTone, string> = {
   platform: "border-l-plat",
   payment: "border-l-pay",
 };
+
+/** Error codes from POST create that belong under the name field, not in a toast (U11):
+ *  duplicate/system-default collisions and any name-validation code from the route. */
+function isNameFieldError(code: string): boolean {
+  return code === "DUPLICATE_NAME" || code === "SYSTEM_DEFAULT_COLLISION" || code.startsWith("NAME_");
+}
 
 /** Manages one tag dimension (category / platform / payment method): system defaults (read-only)
  *  + the house's custom entries (create / delete). Used three times on the Catalogs page. */
@@ -64,6 +70,7 @@ export function TagManager({
 
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<NamedTag | null>(null);
   const [removing, setRemoving] = useState(false);
@@ -73,13 +80,19 @@ export function TagManager({
     const n = name.trim();
     if (!n) return;
     setSaving(true);
+    setNameError(null);
     try {
       await api.post(apiBase, { name: n });
-      toast(t("createdToast"), "success");
+      // R3-18: the toast names what was added/deleted ("Category added") — three sections share this component.
+      toast(t("createdToast", { kind: responseKey }), "success");
       setCreating(false);
       await reload();
     } catch (err) {
-      toast(apiErr(err, t("saveError")), "error");
+      if (err instanceof ApiError && err.code && isNameFieldError(err.code)) {
+        setNameError(apiErr(err, t("saveError")));
+      } else {
+        toast(apiErr(err, t("saveError")), "error");
+      }
     } finally {
       setSaving(false);
     }
@@ -90,7 +103,7 @@ export function TagManager({
     setRemoving(true);
     try {
       await api.del(`${apiBase}/${deleting.publicId}`);
-      toast(t("deletedToast"), "success");
+      toast(t("deletedToast", { kind: responseKey }), "success");
       setDeleting(null);
       await reload();
     } catch (err) {
@@ -106,7 +119,7 @@ export function TagManager({
         {/* Real <h2> per section (was a <span>) + a section-scoped accessible name on the add
             button, so a screen reader doesn't read three identical "Add" buttons (a11y). */}
         <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink">{label}</h2>
-        <Button size="sm" onClick={() => { setName(""); setCreating(true); }} aria-label={`${t("new")} — ${label}`}>
+        <Button size="sm" onClick={() => { setName(""); setNameError(null); setCreating(true); }} aria-label={`${t("new")} — ${label}`}>
           {t("new")}
         </Button>
       </div>
@@ -145,7 +158,8 @@ export function TagManager({
                   trigger={
                     <button
                       aria-label={t("actionsFor", { name: c.name })}
-                      className="shrink-0 rounded-md px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink"
+                      // min-h-11 min-w-11: 44px touch floor on mobile (A3 — was 31x26); md:* restores compact desktop.
+                      className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md px-2 py-1 text-lg leading-none text-faint transition-colors hover:bg-panel hover:text-ink md:min-h-0 md:min-w-0"
                     >
                       ⋯
                     </button>
@@ -177,15 +191,19 @@ export function TagManager({
         }
       >
         <form id="tag-form" onSubmit={submitCreate}>
-          <Field label={t("nameLabel")} htmlFor="tag-name">
+          <Field label={t("nameLabel")} htmlFor="tag-name" error={nameError}>
             <Input
               id="tag-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (nameError) setNameError(null);
+              }}
               maxLength={nameMax}
               required
               autoFocus
               placeholder={t("namePlaceholder")}
+              aria-invalid={!!nameError}
             />
           </Field>
         </form>
