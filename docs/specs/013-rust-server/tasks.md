@@ -43,9 +43,10 @@ One commit per task (Fernando, 2026-11-09: "cada ponto em commits separados").
 
 ## 4. Web app from the same process
 
-- [ ] 4.1 Static export build (`STATIC_EXPORT=1`) next to the normal Next build; theme/locale applied in
-      the browser — `next.config.ts`, `src/app/layout.tsx`, `package.json` _Requirements: 20, 23_
-- [ ] 4.2 Axum serves the export with CSP, headers, old-path and `/` redirects, the `/monitoring`
+- [ ] 4.1 Vite web build (Rolldown, one bundle) next to the normal Next build; shims for `next/link`,
+      `next/navigation`, `next-intl`; theme/locale applied in the browser — `vite.config.ts`,
+      `index.html`, `src/vite/**`, `package.json` _Requirements: 20, 23_
+- [ ] 4.2 Axum serves the Vite build (files + `index.html` fallback) with CSP, headers, old-path and `/` redirects, the `/monitoring`
       Sentry tunnel; remove `src/middleware.ts` —
       `server/src/static_files.rs` _Requirements: 18, 19_
 - [ ] 4.3 Screenshot comparison of every page before/after — `server/gate/screens.mjs` _Requirements: 19, 20_

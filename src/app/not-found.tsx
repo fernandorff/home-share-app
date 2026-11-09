@@ -1,8 +1,10 @@
-import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+"use client";
 
-export default async function NotFound() {
-  const t = await getTranslations("NotFound");
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+
+export default function NotFound() {
+  const t = useTranslations("NotFound");
 
   return (
     <main className="paper-grain flex min-h-dvh flex-col items-center justify-center px-4 py-10 text-center">

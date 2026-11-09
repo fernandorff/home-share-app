@@ -10,6 +10,8 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
+    // Vite web build output (spec 013, 4.1).
+    "dist/**",
     "build/**",
     "next-env.d.ts",
   ]),

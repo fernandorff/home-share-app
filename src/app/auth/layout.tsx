@@ -1,9 +1,11 @@
+"use client";
+
 import type { ReactNode } from "react";
-import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import { LanguageSelector } from "@/components/app/LanguageSelector";
 
-export default async function AuthLayout({ children }: { children: ReactNode }) {
-  const t = await getTranslations("Auth");
+export default function AuthLayout({ children }: { children: ReactNode }) {
+  const t = useTranslations("Auth");
   return (
     <main className="paper-grain flex min-h-dvh flex-col items-center px-4 py-10">
       <div className="w-full max-w-sm">
