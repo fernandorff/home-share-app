@@ -26,7 +26,9 @@ Order inside the spec (dependency order, also the commit order):
    catalogs (categories, platforms, payment methods) → shopping → groups/house → notifications/push →
    recurring → activity/revisions → auth (incl. Google) → cron.
 4. Static export of the web app served by Axum; theme/locale moved to the browser.
-5. Deploy on the chosen host; staging (`dev`) first, then production.
+5. Deploy on the chosen host; staging (`dev`) first, then production. The Next app stays deployed on
+   Vercel at the `-next` host name, same database, with its crons removed (Fernando, 2026-11-09: both
+   side by side for the portfolio, Rust latency first).
 
 ## Data model
 
@@ -71,6 +73,11 @@ with the same secret and claims as `lib/auth` (jose).
 - Recurring posting and cron run in-process with `tokio` timers; the database unique-key claim keeps a
   double run harmless (ADR 0010 unchanged in substance). A restart during a run is the same as a
   missed delivery today: the next run reconciles.
+- Two writers on one database: totals and version stay right because triggers do the work; the
+  Rust body cache revalidates by version on every read, so a Next write is seen at once. Rate limits
+  are per server (a client could get twice the limit by using both URLs; accepted).
+- The static export for Rust is a separate build (`STATIC_EXPORT=1`, route handlers left out); the
+  Vercel build stays a normal Next build, so the `-next` app keeps its server.
 - In-memory rate limit and body cache are per process; with one instance this matches today's limits.
   `ponytail:` one instance only; a shared store when a second instance is needed.
 
@@ -81,5 +88,7 @@ with the same secret and claims as `lib/auth` (jose).
 - Rust as Vercel functions — rejected: never measured, beta, the in-memory cache dies with the function.
 - Go — rejected on numbers: 4,162 vs 6,914 ok/s and 10 vs 4.7 MiB in the pilot.
 - Keep Next and only add precomputation + cache — rejected on numbers: 379 ok/s ceiling, 310 MiB.
+- Delete the Next server after the switch — rejected by Fernando on 2026-11-09: both stay up side by
+  side on the same database, Next at the `-next` URL.
 - Two specs (precomputation first, server later) — Fernando chose one spec; the precomputation is
   step 1 inside it instead.

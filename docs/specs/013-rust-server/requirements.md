@@ -96,6 +96,17 @@ did, so that the app stays quick with years of expenses and many people at once.
     (database URL, session secret; VAPID all-or-none), naming the variable, never its value.
 22. WHEN `GET /api/health` is called, THE SYSTEM SHALL answer 200 with the same body as today.
 
+### Side by side, for good (Fernando, 2026-11-09)
+
+23. WHILE the Rust server serves the main URL, THE SYSTEM SHALL keep the Next app deployed and working
+    on the same host name with `-next` appended to its first label (e.g. `homeshare-next.…`), against the
+    **same database**, so both can be compared in the portfolio.
+24. WHEN either server writes, THE SYSTEM SHALL keep the precomputed totals and the version cache correct
+    for both (they live in the database triggers, not in either server).
+25. WHILE both run, THE SYSTEM SHALL run the scheduled jobs only on the Rust server (Vercel crons removed),
+    and SHALL place the Rust server for the lowest latency to the database; the Next deploy takes no
+    setting that slows the Rust one.
+
 ## Out of scope
 
 - Changing any screen, copy or behavior visible to the user.
