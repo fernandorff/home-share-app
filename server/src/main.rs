@@ -21,6 +21,7 @@ mod routes {
     pub mod groups;
     pub mod health;
     pub mod notifications;
+    pub mod push;
     pub mod settlements;
     pub mod shopping;
     pub mod tags;
@@ -42,6 +43,7 @@ use std::{str::FromStr, sync::Arc};
 pub struct AppState {
     pub pool: Pool,
     pub keys: Arc<auth::Keys>,
+    pub vapid: Option<Arc<config::Vapid>>,
 }
 
 // Routes that authenticate themselves (src/middleware.ts): login/register, health, and the cron jobs (bearer).
@@ -110,6 +112,7 @@ pub fn app(state: AppState) -> Router {
         .route("/api/notifications/read-all", axum::routing::post(routes::notifications::read_all))
         .route("/api/notifications/{notification_id}", axum::routing::patch(routes::notifications::mark_read).delete(routes::notifications::delete))
         .route("/api/notification-preferences", get(routes::notifications::get_preferences).put(routes::notifications::put_preference))
+        .route("/api/push-subscriptions", axum::routing::post(routes::push::register).delete(routes::push::unregister))
         .route("/api/shopping-items", get(routes::shopping::list).post(routes::shopping::create))
         .route("/api/shopping-items/clear-purchased", axum::routing::delete(routes::shopping::clear_purchased))
         .route("/api/shopping-items/{item_id}", axum::routing::put(routes::shopping::update).delete(routes::shopping::delete))
@@ -122,7 +125,7 @@ pub fn app(state: AppState) -> Router {
 #[tokio::main]
 async fn main() {
     let cfg = Config::from_env(|k| std::env::var(k).ok()).unwrap_or_else(|e| fail(&e));
-    let state = AppState { pool: pool(&cfg), keys: Arc::new(auth::Keys::new(&cfg.jwt_secret)) };
+    let state = AppState { pool: pool(&cfg), keys: Arc::new(auth::Keys::new(&cfg.jwt_secret)), vapid: cfg.vapid.map(Arc::new) };
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", cfg.port)).await.unwrap_or_else(|e| fail(&e.to_string()));
     axum::serve(listener, app(state)).await.unwrap_or_else(|e| fail(&e.to_string()));
 }

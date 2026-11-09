@@ -6,6 +6,14 @@ pub struct Config {
     pub jwt_secret: String,
     pub pool_max: usize,
     pub port: u16,
+    /// Web Push keys (ADR 0011); None while push is not configured.
+    pub vapid: Option<Vapid>,
+}
+
+pub struct Vapid {
+    pub public_key: String,
+    pub private_key: String,
+    pub subject: String,
 }
 
 const VAPID: [&str; 3] = ["NEXT_PUBLIC_VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"];
@@ -23,6 +31,11 @@ impl Config {
             jwt_secret: required("JWT_SECRET")?,
             pool_max: get("DATABASE_POOL_MAX").and_then(|v| v.parse().ok()).unwrap_or(10),
             port: get("PORT").and_then(|v| v.parse().ok()).unwrap_or(8080),
+            // pushConfig: trimmed, and all three present.
+            vapid: match VAPID.map(|n| get(n).map(|v| v.trim().to_string()).filter(|v| !v.is_empty())) {
+                [Some(public_key), Some(private_key), Some(subject)] => Some(Vapid { public_key, private_key, subject }),
+                _ => None,
+            },
         })
     }
 }
