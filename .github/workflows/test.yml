@@ -73,7 +73,8 @@ jobs:
   # Smoke E2E: seeds one house through the real API, then drives login, expenses (incl. creating one),
   # balances and shopping in Chromium. Same test will later run against the Rust server (spec 013).
   e2e:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, where Playwright 1.58 has no Chromium build yet.
+    runs-on: ubuntu-24.04
     services:
       # Throwaway app database, migrated from scratch on every run. Never a real database.
       postgres:
