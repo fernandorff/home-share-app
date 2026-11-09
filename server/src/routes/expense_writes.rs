@@ -97,7 +97,7 @@ fn shares(v: &ExpenseInput, member_ids: &[i32], fail: Fail) -> Result<Vec<(i32, 
     v.participants.iter().map(|(id, cents)| Ok((user_id(id, fail)?, *cents))).collect()
 }
 
-async fn insert_participants(db: &impl GenericClient, expense_id: i32, shares: &[(i32, i64)]) -> Result<(), tokio_postgres::Error> {
+pub(crate) async fn insert_participants(db: &impl GenericClient, expense_id: i32, shares: &[(i32, i64)]) -> Result<(), tokio_postgres::Error> {
     for (user, cents) in shares {
         db.execute(
             r#"INSERT INTO "ExpenseParticipant" ("expenseId", "userId", "amount") VALUES ($1, $2, $3::text::numeric)"#,
@@ -166,7 +166,7 @@ pub async fn create(State(state): State<AppState>, house: ActiveHouse, body: Byt
 }
 
 /// The expense in the detail shape, read inside the write's transaction.
-async fn find_in(db: &impl GenericClient, group_id: i32, id: i32) -> Result<Value, tokio_postgres::Error> {
+pub(crate) async fn find_in(db: &impl GenericClient, group_id: i32, id: i32) -> Result<Value, tokio_postgres::Error> {
     let public_id: String = db.query_one(r#"SELECT "publicId"::text FROM "Expense" WHERE "id" = $1"#, &[&id]).await?.get(0);
     super::expenses::find_with(db, group_id, &public_id).await.map(|e| e.expect("just written"))
 }

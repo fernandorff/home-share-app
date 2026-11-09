@@ -1,5 +1,8 @@
 // Parity gate cases (spec 013). Run in order: writes change both databases the same way, so later cases see
 // the effects of earlier ones. `as` = fixture user (ana, bruno, carla, davi); `house` = homeshare_group cookie.
+// Recurring cases use the real calendar (UTC): the day of month that is due today, and months from now.
+const TODAY_DAY = new Date().getUTCDate()
+const period = (n) => { const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1)).toISOString().slice(0, 7) }
 export const cases = [
   // health
   { name: 'health', path: '/api/health' },
@@ -279,6 +282,58 @@ export const cases = [
   {"name": "notices payment to bruno (notice)", "path": "/api/settlements", "as": "ana", "method": "POST", "body": {"fromUserId": 1, "toUserId": 2, "amount": 4}},
   {"name": "notices bruno list", "path": "/api/notifications", "as": "bruno"},
   {"name": "notices ana list after", "path": "/api/notifications", "as": "ana"},
+
+  // recurring expenses (task 3.8)
+  {"name": "recurring list empty", "path": "/api/recurring-expenses", "as": "ana"},
+  {"name": "recurring create not json", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "text": "x"},
+  {"name": "recurring create stale house", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 1500, "payerId": 1, "dayOfMonth": 28, "splitMode": "ALL", "timezone": "UTC", "expectedGroupId": 2}},
+  {"name": "recurring create no description", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"amount": 1500, "payerId": 1, "dayOfMonth": 28, "splitMode": "ALL", "timezone": "UTC"}},
+  {"name": "recurring create control char", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "a\u0001b", "amount": 1500, "payerId": 1, "dayOfMonth": 28, "splitMode": "ALL", "timezone": "UTC"}},
+  {"name": "recurring create description too long", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "amount": 1500, "payerId": 1, "dayOfMonth": 28, "splitMode": "ALL", "timezone": "UTC"}},
+  {"name": "recurring create amount zero", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 0, "payerId": 1, "dayOfMonth": 28, "splitMode": "ALL", "timezone": "UTC"}},
+  {"name": "recurring create amount precision", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 1.005, "payerId": 1, "dayOfMonth": 28, "splitMode": "ALL", "timezone": "UTC"}},
+  {"name": "recurring create amount too high", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 100000000, "payerId": 1, "dayOfMonth": 28, "splitMode": "ALL", "timezone": "UTC"}},
+  {"name": "recurring create no payer", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 1500, "dayOfMonth": 28, "splitMode": "ALL", "timezone": "UTC"}},
+  {"name": "recurring create day zero", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 1500, "payerId": 1, "dayOfMonth": 0, "splitMode": "ALL", "timezone": "UTC"}},
+  {"name": "recurring create day fraction", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 1500, "payerId": 1, "dayOfMonth": 1.5, "splitMode": "ALL", "timezone": "UTC"}},
+  {"name": "recurring create bad split", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 1500, "payerId": 1, "dayOfMonth": 28, "splitMode": "HALF", "timezone": "UTC"}},
+  {"name": "recurring create selected nobody", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 1500, "payerId": 1, "dayOfMonth": 28, "splitMode": "SELECTED", "timezone": "UTC", "participantIds": []}},
+  {"name": "recurring create selected twice", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 1500, "payerId": 1, "dayOfMonth": 28, "splitMode": "SELECTED", "timezone": "UTC", "participantIds": [1, 1]}},
+  {"name": "recurring create unknown zone", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 1500, "payerId": 1, "dayOfMonth": 28, "splitMode": "ALL", "timezone": "Mars/Olympus"}},
+  {"name": "recurring create no zone", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 1500, "payerId": 1, "dayOfMonth": 28, "splitMode": "ALL"}},
+  {"name": "recurring create ex-member payer", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "body": {"description": "Aluguel", "amount": 1500, "payerId": 3, "dayOfMonth": 28, "splitMode": "ALL", "timezone": "UTC"}},
+  {"name": "recurring create rent (zone in lower case)", "path": "/api/recurring-expenses", "as": "ana", "method": "POST", "save": "r1", "body": {"description": "Aluguel", "amount": 1500, "payerId": 1, "dayOfMonth": 31, "splitMode": "ALL", "timezone": "america/sao_paulo"}},
+  {"name": "recurring create internet due today (posts now)", "path": "/api/recurring-expenses", "as": "bruno", "method": "POST", "save": "r2", "body": {"description": "Internet", "amount": 99.9, "payerId": 2, "dayOfMonth": TODAY_DAY, "splitMode": "SELECTED", "timezone": "Etc/UTC", "participantIds": [1, 2]}},
+  {"name": "recurring list ana", "path": "/api/recurring-expenses", "as": "ana"},
+  {"name": "recurring list bruno", "path": "/api/recurring-expenses", "as": "bruno"},
+  {"name": "recurring patch bad id", "path": "/api/recurring-expenses/nope", "as": "ana", "method": "PATCH", "body": {"description": "x"}},
+  {"name": "recurring patch not owner", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "bruno", "method": "PATCH", "body": {"description": "x", "expectedUpdatedAt": "{r1.rule.updatedAt}"}},
+  {"name": "recurring patch nothing", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "body": {"expectedUpdatedAt": "{r1.rule.updatedAt}"}},
+  {"name": "recurring patch no expected", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "body": {"description": "x"}},
+  {"name": "recurring patch stale", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "body": {"description": "x", "expectedUpdatedAt": "2020-01-01T00:00:00.000Z"}},
+  {"name": "recurring patch bad amount", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "body": {"amount": -1, "expectedUpdatedAt": "{r1.rule.updatedAt}"}},
+  {"name": "recurring patch amount and name", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "save": "r1b", "body": {"description": " Aluguel novo ", "amount": 1600, "expectedUpdatedAt": "{r1.rule.updatedAt}"}},
+  {"name": "recurring patch same values", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "body": {"description": "Aluguel novo", "amount": 1600, "expectedUpdatedAt": "{r1b.rule.updatedAt}"}},
+  {"name": "recurring patch split selected", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "save": "r1c", "body": {"splitMode": "SELECTED", "participantIds": [2], "expectedUpdatedAt": "{r1b.rule.updatedAt}"}},
+  {"name": "recurring pause not boolean", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "body": {"paused": "yes"}},
+  {"name": "recurring pause with fields", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "body": {"paused": true, "description": "x"}},
+  {"name": "recurring pause", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "body": {"paused": true, "expectedGroupId": 1}},
+  {"name": "recurring pause again", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "body": {"paused": true}},
+  {"name": "recurring resume", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "PATCH", "body": {"paused": false}},
+  {"name": "recurring skip bad month", "path": "/api/recurring-expenses/{r1.rule.publicId}/skips/2026-13", "as": "ana", "method": "PUT"},
+  {"name": "recurring skip too far", "path": `/api/recurring-expenses/{r1.rule.publicId}/skips/${period(5)}`, "as": "ana", "method": "PUT"},
+  {"name": "recurring skip next month", "path": `/api/recurring-expenses/{r1.rule.publicId}/skips/${period(1)}`, "as": "ana", "method": "PUT"},
+  {"name": "recurring skip again", "path": `/api/recurring-expenses/{r1.rule.publicId}/skips/${period(1)}`, "as": "ana", "method": "PUT"},
+  {"name": "recurring skip by non-owner", "path": `/api/recurring-expenses/{r1.rule.publicId}/skips/${period(2)}`, "as": "bruno", "method": "PUT"},
+  {"name": "recurring unskip", "path": `/api/recurring-expenses/{r1.rule.publicId}/skips/${period(1)}`, "as": "ana", "method": "DELETE"},
+  {"name": "recurring skip a posted month", "path": `/api/recurring-expenses/{r2.rule.publicId}/skips/${period(0)}`, "as": "bruno", "method": "PUT"},
+  {"name": "recurring list after changes", "path": "/api/recurring-expenses", "as": "ana"},
+  {"name": "recurring expenses after posting", "path": "/api/expenses?pageSize=50", "as": "ana"},
+  {"name": "recurring balances after posting", "path": "/api/balances", "as": "ana"},
+  {"name": "recurring delete by non-owner", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "bruno", "method": "DELETE"},
+  {"name": "recurring delete rent", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "DELETE"},
+  {"name": "recurring delete rent again", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "DELETE"},
+  {"name": "recurring list after delete", "path": "/api/recurring-expenses", "as": "bruno"},
 
   // push subscriptions (task 3.7). Keep last: once a member has a subscription, a notice would send a real push.
   {"name": "push register not json", "path": "/api/push-subscriptions", "as": "ana", "method": "POST", "text": "{\"endpoint\": \"https://fcm.googleapis.com/fcm/send/gate-1\", \"keys\": {\"p256dh\": \"BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\", \"auth\": \"AAAAAAAAAAAAAAAAAAAAAQ\"}}"},

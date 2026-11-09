@@ -13,6 +13,7 @@ mod money;
 mod notifications;
 mod push;
 mod push_messages;
+mod recurrence;
 mod system_defaults;
 mod routes {
     pub mod balances;
@@ -24,6 +25,7 @@ mod routes {
     pub mod health;
     pub mod notifications;
     pub mod push;
+    pub mod recurring;
     pub mod settlements;
     pub mod shopping;
     pub mod tags;
@@ -116,6 +118,9 @@ pub fn app(state: AppState) -> Router {
         .route("/api/notifications/{notification_id}", axum::routing::patch(routes::notifications::mark_read).delete(routes::notifications::delete))
         .route("/api/notification-preferences", get(routes::notifications::get_preferences).put(routes::notifications::put_preference))
         .route("/api/push-subscriptions", axum::routing::post(routes::push::register).delete(routes::push::unregister))
+        .route("/api/recurring-expenses", get(routes::recurring::list).post(routes::recurring::create))
+        .route("/api/recurring-expenses/{id}", axum::routing::patch(routes::recurring::patch).delete(routes::recurring::delete))
+        .route("/api/recurring-expenses/{id}/skips/{period}", axum::routing::put(routes::recurring::skip).delete(routes::recurring::unskip))
         .route("/api/shopping-items", get(routes::shopping::list).post(routes::shopping::create))
         .route("/api/shopping-items/clear-purchased", axum::routing::delete(routes::shopping::clear_purchased))
         .route("/api/shopping-items/{item_id}", axum::routing::put(routes::shopping::update).delete(routes::shopping::delete))
