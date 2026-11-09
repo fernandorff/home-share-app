@@ -5,7 +5,7 @@
 //! Also the house activity feed (AuditLog), what `recordActivity` writes.
 
 use serde_json::{Map, Value};
-use tokio_postgres::GenericClient;
+use deadpool_postgres::GenericClient;
 
 /// A join code grants entry to a house; auth/p256dh are push keys; password is a hash. Never in a snapshot.
 const SENSITIVE: [&str; 4] = ["password", "joinCode", "auth", "p256dh"];

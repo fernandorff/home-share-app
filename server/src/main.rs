@@ -6,10 +6,13 @@ mod config;
 mod db;
 mod errors;
 mod house;
+mod input;
 mod money;
+mod notifications;
 mod routes {
     pub mod balances;
     pub mod health;
+    pub mod settlements;
 }
 
 use axum::{
@@ -66,6 +69,8 @@ pub fn app(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(routes::health::get))
         .route("/api/balances", get(routes::balances::get))
+        .route("/api/settlements", get(routes::settlements::get).post(routes::settlements::post))
+        .route("/api/settlements/{settlement_id}", axum::routing::delete(routes::settlements::delete))
         .layer(middleware::from_fn_with_state(state.clone(), api_gate))
         .with_state(state)
 }

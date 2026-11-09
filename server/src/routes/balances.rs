@@ -170,47 +170,13 @@ pub async fn get(State(state): State<AppState>, house: ActiveHouse, headers: Hea
     Ok(ok(body, etag))
 }
 
-/// settlementService.list: newest first, with fromUser/toUser, serialized like Prisma (dates as ISO with ms).
+/// The payments list (JSON) and what the balance math needs from it.
 async fn payments(state: &AppState, group_id: i32) -> Result<(String, Vec<Payment>), ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal(FAILED, e);
     let db = state.pool.get().await.map_err(|e| fail(&e))?;
-    let rows = db
-        .cq(
-            r#"SELECT s."id", s."publicId"::text, s."groupId", s."fromUserId", s."toUserId", s."amount"::text, s."note",
-                      to_char(s."date", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), s."createdById",
-                      to_char(s."createdAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), to_char(s."updatedAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-                      f."name", t."name"
-               FROM "Settlement" s JOIN "User" f ON f."id" = s."fromUserId" JOIN "User" t ON t."id" = s."toUserId"
-               WHERE s."groupId" = $1 ORDER BY s."date" DESC, s."id" DESC"#,
-            &[&group_id],
-        )
-        .await
-        .map_err(|e| fail(&e))?;
-    let mut json = Vec::with_capacity(rows.len());
-    let mut list = Vec::with_capacity(rows.len());
-    for r in &rows {
-        let (from, to): (i32, i32) = (r.get(3), r.get(4));
-        let cents = money::parse_cents(r.get(5));
-        let (from_name, to_name): (String, String) = (r.get(11), r.get(12));
-        let note: Option<String> = r.get(6);
-        let created_by: Option<i32> = r.get(8);
-        json.push(format!(
-            r#"{{"id":{},"publicId":{},"groupId":{},"fromUserId":{from},"toUserId":{to},"amount":{},"note":{},"date":"{}","createdById":{},"createdAt":"{}","updatedAt":"{}","fromUser":{{"id":{from},"name":{}}},"toUser":{{"id":{to},"name":{}}}}}"#,
-            r.get::<_, i32>(0),
-            text(r.get(1)),
-            r.get::<_, i32>(2),
-            money::amount(cents),
-            note.as_deref().map(text).unwrap_or_else(|| "null".into()),
-            r.get::<_, String>(7),
-            created_by.map_or("null".into(), |v| v.to_string()),
-            r.get::<_, String>(9),
-            r.get::<_, String>(10),
-            text(&from_name),
-            text(&to_name),
-        ));
-        list.push(Payment { from: (from, from_name), to: (to, to_name), cents });
-    }
-    Ok((format!("[{}]", json.join(",")), list))
+    let list = super::settlements::list(&db, group_id).await.map_err(|e| fail(&e))?;
+    let json = serde_json::to_string(&list.iter().map(|s| s.json()).collect::<Vec<_>>()).expect("JSON");
+    Ok((json, list.into_iter().map(|s| Payment { from: s.from, to: s.to, cents: s.cents }).collect()))
 }
 
 #[cfg(test)]

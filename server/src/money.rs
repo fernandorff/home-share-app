@@ -31,6 +31,13 @@ pub fn number(cents: i64) -> String {
     }
 }
 
+/// notification.service amountString: two fixed decimals ("12.30").
+pub fn fixed2(cents: i64) -> String {
+    let sign = if cents < 0 { "-" } else { "" };
+    let abs = cents.unsigned_abs();
+    format!("{sign}{}.{:02}", abs / 100, abs % 100)
+}
+
 /// A Decimal column as Prisma serializes it: the same digits as `number`, quoted.
 pub fn amount(cents: i64) -> String {
     format!("\"{}\"", number(cents))

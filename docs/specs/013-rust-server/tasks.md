@@ -21,7 +21,7 @@ One commit per task (Fernando, 2026-11-09: "cada ponto em commits separados").
 - [x] 2.2 Session cookie (verify, sliding renewal, `sessionVersion`), active house, auth layer —
       `server/src/auth.rs`, `server/src/house.rs` _Requirements: 9, 10, 11, 12_
 - [x] 2.3 Error `code` contract and money serialization — `server/src/errors.rs`, `server/src/money.rs` _Requirements: 3, 4_
-- [ ] 2.4 Audit writer, sensitive-field markers, explicit revisions — `server/src/audit.rs` _Requirements: 13_
+- [x] 2.4 Audit writer, sensitive-field markers, explicit revisions — `server/src/audit.rs` _Requirements: 13_
 - [ ] 2.5 Expected-state tokens, rate limit, Sentry — `server/src/concurrency.rs`,
       `server/src/rate_limit.rs`, `server/src/observability.rs` _Requirements: 14, 17, 18_
 - [x] 2.6 Parity gate for every route (status, body, every table after writes) —
@@ -31,7 +31,7 @@ One commit per task (Fernando, 2026-11-09: "cada ponto em commits separados").
 
 - [x] 3.1 Balances — `server/src/routes/balances.rs` _Requirements: 1, 5, 7, 8_
 - [ ] 3.2 Expenses, history, bulk delete, import, export — `server/src/routes/expenses.rs`, `server/src/csv.rs` _Requirements: 1, 2, 3, 5_
-- [ ] 3.3 Settlements — `server/src/routes/settlements.rs` _Requirements: 1, 2_
+- [x] 3.3 Settlements — `server/src/routes/settlements.rs` _Requirements: 1, 2_
 - [ ] 3.4 Categories, platforms, payment methods — `server/src/routes/catalogs.rs` _Requirements: 1, 2_
 - [ ] 3.5 Shopping items and expense links — `server/src/routes/shopping.rs` _Requirements: 1, 2_
 - [ ] 3.6 Groups, join, active house, members, currency, leave, join code — `server/src/routes/groups.rs` _Requirements: 1, 2, 6, 12_
