@@ -34,7 +34,7 @@ One commit per task (Fernando, 2026-11-09: "cada ponto em commits separados").
 - [x] 3.3 Settlements — `server/src/routes/settlements.rs` _Requirements: 1, 2_
 - [x] 3.4 Categories, platforms, payment methods — `server/src/routes/catalogs.rs` _Requirements: 1, 2_
 - [x] 3.5 Shopping items and expense links — `server/src/routes/shopping.rs` _Requirements: 1, 2_
-- [ ] 3.6 Groups, join, active house, members, currency, leave, join code — `server/src/routes/groups.rs` _Requirements: 1, 2, 6, 12_
+- [x] 3.6 Groups, join, active house, members, currency, leave, join code — `server/src/routes/groups.rs` _Requirements: 1, 2, 6, 12_
 - [ ] 3.7 Notifications, preferences, push subscriptions, test push — `server/src/routes/notifications.rs`, `server/src/push.rs` _Requirements: 1, 2, 16_
 - [ ] 3.8 Recurring expenses and skips — `server/src/routes/recurring.rs` _Requirements: 1, 2_
 - [ ] 3.9 Activity and revisions — `server/src/routes/activity.rs` _Requirements: 1, 13_

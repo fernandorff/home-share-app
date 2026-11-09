@@ -60,6 +60,7 @@ const WRITTEN_AFTER_RESPONSE = new Set(['EntityRevision', 'Notification'])
 const UNORDERED = new Set(['payerTotals', 'monthTotals', 'payerMonthTotals'])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const FIXTURE_UUID = /^00000000-0000-7000-8000-/
+const JOIN_CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/
 const ISO = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?Z?$/
 
 /** Fresh UUIDs become #1, #2... in order of appearance; timestamps from the last hour become <now>. */
@@ -76,6 +77,8 @@ function normalize(value, uuids = new Map()) {
   if (Array.isArray(value)) return value.map((v) => normalize(v, uuids))
   if (value && typeof value === 'object') {
     return Object.fromEntries(Object.entries(value).map(([k, v]) => {
+      // A fresh join code is random on each side: only its format must match.
+      if (k === 'joinCode' && typeof v === 'string' && JOIN_CODE.test(v)) return [k, '<joinCode>']
       const n = normalize(v, uuids)
       // Prisma groupBy has no ORDER BY: these lists come in whatever order Postgres groups them.
       return [k, UNORDERED.has(k) && Array.isArray(n) ? [...n].sort((x, y) => JSON.stringify(x).localeCompare(JSON.stringify(y))) : n]

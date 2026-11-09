@@ -18,6 +18,7 @@ mod routes {
     pub mod expense_more;
     pub mod expense_writes;
     pub mod expenses;
+    pub mod groups;
     pub mod health;
     pub mod settlements;
     pub mod shopping;
@@ -95,6 +96,14 @@ pub fn app(state: AppState) -> Router {
         .route("/api/payment-methods/{id}", axum::routing::delete(routes::tags::payment_methods::delete))
         .route("/api/settlements", get(routes::settlements::get).post(routes::settlements::post))
         .route("/api/settlements/{settlement_id}", axum::routing::delete(routes::settlements::delete))
+        .route("/api/groups", get(routes::groups::list).post(routes::groups::create))
+        .route("/api/groups/join", axum::routing::post(routes::groups::join))
+        .route("/api/groups/active", axum::routing::post(routes::groups::switch))
+        .route("/api/groups/active/members", get(routes::groups::members))
+        .route("/api/groups/active/members/{user_id}", axum::routing::delete(routes::groups::kick).patch(routes::groups::promote))
+        .route("/api/groups/active/currency", axum::routing::post(routes::groups::currency))
+        .route("/api/groups/active/regenerate-code", axum::routing::post(routes::groups::regenerate_code))
+        .route("/api/groups/active/leave", axum::routing::post(routes::groups::leave))
         .route("/api/shopping-items", get(routes::shopping::list).post(routes::shopping::create))
         .route("/api/shopping-items/clear-purchased", axum::routing::delete(routes::shopping::clear_purchased))
         .route("/api/shopping-items/{item_id}", axum::routing::put(routes::shopping::update).delete(routes::shopping::delete))
