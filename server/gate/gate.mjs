@@ -14,6 +14,8 @@ import pg from 'pg'
 import { SignJWT } from 'jose'
 import { cases } from './cases.mjs'
 
+// timestamp columns are UTC wall time: read them as text, never in this machine's zone.
+pg.types.setTypeParser(1114, (text) => text)
 const here = dirname(fileURLToPath(import.meta.url))
 const { GATE_PG, NEXT_URL, RUST_URL, JWT_SECRET } = process.env
 const dbUrl = (name) => GATE_PG.replace(/\/[^/?]*(\?|$)/, `/${name}$1`)
@@ -56,7 +58,7 @@ async function cookieFor(c) {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const FIXTURE_UUID = /^00000000-0000-7000-8000-/
-const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?$/
+const ISO = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?Z?$/
 
 /** Fresh UUIDs become #1, #2... in order of appearance; timestamps from the last hour become <now>. */
 function normalize(value, uuids = new Map()) {
@@ -66,7 +68,7 @@ function normalize(value, uuids = new Map()) {
       if (!uuids.has(value)) uuids.set(value, `#uuid${uuids.size + 1}`)
       return uuids.get(value)
     }
-    if (ISO.test(value) && Math.abs(Date.parse(value.endsWith('Z') ? value : value + 'Z') - Date.now()) < 3600_000) return '<now>'
+    if (ISO.test(value) && Math.abs(Date.parse(value.replace(' ', 'T').replace(/Z?$/, 'Z')) - Date.now()) < 3600_000) return '<now>'
     return value
   }
   if (Array.isArray(value)) return value.map((v) => normalize(v, uuids))
@@ -102,6 +104,7 @@ function firstDifference(a, b, path = '') {
       const d = firstDifference(a[k], b[k], `${path}.${k}`)
       if (d) return d
     }
+    return null // same keys and values, only in another order
   }
   return `${path || '(root)'}: next=${JSON.stringify(a)?.slice(0, 200)} rust=${JSON.stringify(b)?.slice(0, 200)}`
 }
