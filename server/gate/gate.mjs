@@ -83,13 +83,21 @@ function normalize(value, uuids = new Map()) {
   return value
 }
 
-async function call(base, c) {
+// `save: 'x'` keeps each side's raw answer; `{x.a.b}` in a later path or body reads it back on the same side
+// (ids and timestamps a server generated differ between the two, so each side uses its own).
+const saved = { next: {}, rust: {} }
+const fill = (text, side) => text.replace(/\{(\w+)\.([\w.]+)\}/g, (_, name, path) => path.split('.').reduce((v, k) => v?.[k], saved[side][name]) ?? '')
+
+async function call(base, c, side) {
+  const path = fill(c.path, side)
+  const payload = c.body === undefined ? undefined : fill(JSON.stringify(c.body), side)
   const headers = { cookie: await cookieFor(c), ...(c.headers ?? {}) }
   if (c.body !== undefined) headers['content-type'] = 'application/json'
-  const res = await fetch(base + c.path, { method: c.method ?? 'GET', headers, body: c.body === undefined ? undefined : JSON.stringify(c.body), redirect: 'manual' })
+  const res = await fetch(base + path, { method: c.method ?? 'GET', headers, body: payload, redirect: 'manual' })
   const text = await res.text()
   let body = text
   try { body = text ? JSON.parse(text) : null } catch {}
+  if (c.save) saved[side][c.save] = body
   return { status: res.status, body: normalize(body), setCookie: res.headers.get('set-cookie') ? 'set' : null }
 }
 
@@ -119,7 +127,7 @@ function firstDifference(a, b, path = '') {
 async function run(filter) {
   let failed = 0
   for (const c of cases.filter((c) => !filter || c.name.includes(filter))) {
-    const [a, b] = [await call(NEXT_URL, c), await call(RUST_URL, c)]
+    const [a, b] = [await call(NEXT_URL, c, 'next'), await call(RUST_URL, c, 'rust')]
     let diff = firstDifference(a, b)
     if (!diff && c.method && c.method !== 'GET') {
       await new Promise((r) => setTimeout(r, 300)) // Next writes the audit revision after the response (after())
