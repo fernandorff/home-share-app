@@ -37,8 +37,13 @@ function parseExpenseFilters(searchParams: URLSearchParams): ExpenseFilterParams
   const toDateRaw = searchParams.get('toDate')
   // Local-day bounds (not noon, unlike the write path) so the range covers the WHOLE calendar
   // day regardless of what time-of-day an individual expense's date carries.
-  const fromDate = fromDateRaw && ISO_DATE.test(fromDateRaw) ? new Date(`${fromDateRaw}T00:00:00`) : undefined
-  const toDate = toDateRaw && ISO_DATE.test(toDateRaw) ? new Date(`${toDateRaw}T23:59:59`) : undefined
+  // A well-shaped but impossible day (2026-13-01) is dropped too: an Invalid Date would reach Prisma and 500.
+  const day = (raw: string | null, time: string) => {
+    const parsed = raw && ISO_DATE.test(raw) ? new Date(`${raw}T${time}`) : undefined
+    return parsed && !Number.isNaN(parsed.getTime()) ? parsed : undefined
+  }
+  const fromDate = day(fromDateRaw, '00:00:00')
+  const toDate = day(toDateRaw, '23:59:59')
 
   if (!query && !payerIds.length && !platforms.length && !categories.length && !paymentMethods.length && !fromDate && !toDate) {
     return undefined
