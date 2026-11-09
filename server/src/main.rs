@@ -20,6 +20,7 @@ mod routes {
     pub mod expenses;
     pub mod groups;
     pub mod health;
+    pub mod notifications;
     pub mod settlements;
     pub mod shopping;
     pub mod tags;
@@ -104,6 +105,11 @@ pub fn app(state: AppState) -> Router {
         .route("/api/groups/active/currency", axum::routing::post(routes::groups::currency))
         .route("/api/groups/active/regenerate-code", axum::routing::post(routes::groups::regenerate_code))
         .route("/api/groups/active/leave", axum::routing::post(routes::groups::leave))
+        .route("/api/notifications", get(routes::notifications::list))
+        .route("/api/notifications/unread-count", get(routes::notifications::unread_count))
+        .route("/api/notifications/read-all", axum::routing::post(routes::notifications::read_all))
+        .route("/api/notifications/{notification_id}", axum::routing::patch(routes::notifications::mark_read).delete(routes::notifications::delete))
+        .route("/api/notification-preferences", get(routes::notifications::get_preferences).put(routes::notifications::put_preference))
         .route("/api/shopping-items", get(routes::shopping::list).post(routes::shopping::create))
         .route("/api/shopping-items/clear-purchased", axum::routing::delete(routes::shopping::clear_purchased))
         .route("/api/shopping-items/{item_id}", axum::routing::put(routes::shopping::update).delete(routes::shopping::delete))
