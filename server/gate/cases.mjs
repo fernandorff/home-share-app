@@ -80,7 +80,7 @@ export const cases = [
 
   // expenses: history, export, bulk delete (task 3.2)
   { name: 'expense history (fixture, no revisions)', path: '/api/expenses/00000000-0000-7000-8000-000000000502/history', as: 'ana' },
-  { name: 'expense history after update', path: '/api/expenses/{e1.expense.publicId}/history', as: 'ana' },
+  { name: 'expense history after update', path: '/api/expenses/{e1.expense.publicId}/history', as: 'ana', revisionIdsFree: true },
   { name: 'expense history bad id', path: '/api/expenses/abc/history', as: 'ana' },
   { name: 'expenses export', path: '/api/expenses/export', as: 'ana' },
   { name: 'expenses export other house', path: '/api/expenses/export', as: 'carla' },
@@ -89,4 +89,17 @@ export const cases = [
   { name: 'bulk delete none found', method: 'POST', path: '/api/expenses/bulk-delete', as: 'ana', body: { publicIds: ['00000000-0000-7000-8000-000000000504'] } },
   { name: 'bulk delete', method: 'POST', path: '/api/expenses/bulk-delete', as: 'ana', body: { publicIds: ['00000000-0000-7000-8000-000000000502', '{e1.expense.publicId}', '00000000-0000-7000-8000-000000000504'] } },
   { name: 'balances after bulk delete', path: '/api/balances', as: 'ana' },
+
+  // expenses: CSV import (task 3.2)
+  { name: "import empty", method: 'POST', path: '/api/expenses/import', as: 'ana', form: {"file": {"name": "a.csv", "text": "  "}} },
+  { name: "import no file", method: 'POST', path: '/api/expenses/import', as: 'ana', form: {"splitEqually": "true"} },
+  { name: "import missing columns", method: 'POST', path: '/api/expenses/import', as: 'ana', form: {"file": {"name": "a.csv", "text": "foo,bar\n1,2"}} },
+  { name: "import bad platform", method: 'POST', path: '/api/expenses/import', as: 'ana', form: {"file": {"name": "a.csv", "text": "description,amount\nx,1"}, "platform": "Nope"} },
+  { name: "import ex-member payer", method: 'POST', path: '/api/expenses/import', as: 'ana', form: {"file": {"name": "a.csv", "text": "description,amount\nx,1"}, "payerId": "3"} },
+  { name: "import no valid rows", method: 'POST', path: '/api/expenses/import', as: 'ana', form: {"file": {"name": "a.csv", "text": "description,amount\n,1\nx,abc"}} },
+  { name: "import equal split", method: 'POST', path: '/api/expenses/import', as: 'ana', form: {"file": {"name": "a.csv", "text": "Data;Descrição;Valor;Obs;Plataforma\n05/03/2026;Feira;R$ 1.234,56;semana;x\n;Sem data;10,01;;\n;;5;;\n2026-02-30;Ruim;3;;\n2026-03-01;Zero;0;;\n2026-03-02;\"Com ; aspas\";\"33.33\";\"nota\";\n"}, "splitEqually": "true", "platform": " Feira ", "payerId": "2"} },
+  { name: 'import payer carries it (json)', method: 'POST', path: '/api/expenses/import', as: 'bruno', body: {"csv": "amount,description,date\n7.5,Pão,1/3/2026\n1,234,x", "splitEqually": false} },
+  { name: 'import raw text', method: 'POST', path: '/api/expenses/import', as: 'ana', text: "description,amount,date\nTexto,2.5,2026-03-03" },
+  { name: 'balances after import', path: '/api/balances', as: 'ana' },
+  { name: 'expenses after import', path: '/api/expenses?pageSize=50&includeMonthTotals=true', as: 'ana' },
 ]

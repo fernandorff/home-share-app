@@ -123,7 +123,7 @@ pub struct ExportParams {
 }
 
 /// sanitizeDefaultDate: the browser's local day, accepted only within one day of the UTC day.
-fn local_day(raw: Option<&str>) -> Option<String> {
+pub fn local_day(raw: Option<&str>) -> Option<String> {
     let raw = raw.filter(|r| r.len() == 10 && r.as_bytes()[4] == b'-' && r.as_bytes()[7] == b'-' && r.bytes().filter(u8::is_ascii_digit).count() == 8)?;
     let day = chrono::NaiveDate::parse_from_str(raw, "%Y-%m-%d").ok()?;
     let today = chrono::Utc::now().date_naive();

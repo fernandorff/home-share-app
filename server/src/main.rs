@@ -3,6 +3,7 @@
 mod audit;
 mod auth;
 mod config;
+mod csv;
 mod db;
 mod errors;
 mod expense_input;
@@ -12,6 +13,7 @@ mod money;
 mod notifications;
 mod routes {
     pub mod balances;
+    pub mod expense_import;
     pub mod expense_more;
     pub mod expense_writes;
     pub mod expenses;
@@ -80,6 +82,7 @@ pub fn app(state: AppState) -> Router {
         )
         .route("/api/expenses/bulk-delete", axum::routing::post(routes::expense_more::bulk_delete))
         .route("/api/expenses/export", get(routes::expense_more::export))
+        .route("/api/expenses/import", axum::routing::post(routes::expense_import::import))
         .route("/api/expenses/{expense_id}/history", get(routes::expense_more::history))
         .route("/api/settlements", get(routes::settlements::get).post(routes::settlements::post))
         .route("/api/settlements/{settlement_id}", axum::routing::delete(routes::settlements::delete))
