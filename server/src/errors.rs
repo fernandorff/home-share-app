@@ -29,7 +29,7 @@ impl ApiError {
 
     /// An unexpected failure: logged, answered with the route's generic message and no detail.
     pub fn internal(message: &'static str, error: impl std::fmt::Display) -> ApiError {
-        eprintln!("{message}: {error}");
+        crate::observability::report(message, &error, 500, None);
         ApiError::plain(StatusCode::INTERNAL_SERVER_ERROR, message)
     }
 }

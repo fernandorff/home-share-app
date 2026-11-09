@@ -18,11 +18,7 @@ use axum::{
 };
 use deadpool_postgres::GenericClient;
 use serde_json::{json, Value};
-use std::{
-    collections::HashMap,
-    sync::{LazyLock, Mutex},
-    time::{Duration, Instant},
-};
+use std::time::Duration;
 
 const ISO: &str = r#"'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'"#;
 const CURRENCIES: [&str; 4] = ["BRL", "USD", "EUR", "GBP"];
@@ -48,21 +44,6 @@ fn generate_join_code() -> String {
 
 fn valid_join_code(code: &str) -> bool {
     code.encode_utf16().count() == 6 && code.chars().all(|c| JOIN_CODE_ALPHABET.contains(c))
-}
-
-/// rateLimit (src/lib/rate-limit.ts): at most `max` hits per window, per key, in this process.
-pub fn rate_limit(key: String, max: usize, window: Duration) -> bool {
-    static HITS: LazyLock<Mutex<HashMap<String, Vec<Instant>>>> = LazyLock::new(Default::default);
-    let now = Instant::now();
-    let mut hits = HITS.lock().unwrap_or_else(|e| e.into_inner());
-    let recent = hits.entry(key).or_default();
-    recent.retain(|t| now - *t < window);
-    recent.push(now);
-    let allowed = recent.len() <= max;
-    if hits.len() > 5000 {
-        hits.retain(|_, v| v.iter().any(|t| now - *t < window));
-    }
-    allowed
 }
 
 // ---- rows as Prisma returns them (the audit extension stores these) ----
@@ -220,7 +201,7 @@ async fn role_for_joiner(db: &impl GenericClient, group_id: i32) -> Result<&'sta
 pub async fn join(State(state): State<AppState>, Session(session): Session, body: Bytes) -> Result<Response, ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to join house", e);
     let actor = session.user_id as i32;
-    if !rate_limit(format!("join:user:{actor}"), 20, Duration::from_secs(60)) {
+    if !crate::rate_limit::allow(format!("join:user:{actor}"), 20, Duration::from_secs(60)) {
         return Err(ApiError::new(StatusCode::TOO_MANY_REQUESTS, "Too many attempts. Try again shortly.", "RATE_LIMITED"));
     }
     let body = parse(&body, &fail)?;
@@ -457,10 +438,4 @@ mod tests {
         assert!(js_number(&json!({})).is_nan());
     }
 
-    #[test]
-    fn rate_limit_window() {
-        let key = || "test:rate".to_string();
-        assert!((0..3).all(|_| rate_limit(key(), 3, Duration::from_secs(60))));
-        assert!(!rate_limit(key(), 3, Duration::from_secs(60)));
-    }
 }

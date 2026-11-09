@@ -37,7 +37,7 @@ fn too_many() -> ApiError {
 }
 
 fn limited(key: String) -> bool {
-    super::groups::rate_limit(key, 10, Duration::from_secs(60))
+    crate::rate_limit::allow(key, 10, Duration::from_secs(60))
 }
 
 /// clientIp: x-real-ip, else the last x-forwarded-for hop; "unknown" (never rate limited) without either.
@@ -158,7 +158,7 @@ pub async fn login(State(state): State<AppState>, headers: HeaderMap, body: Byte
         return Err(bad(StatusCode::BAD_REQUEST, "Username is required", "MISSING_USERNAME"));
     }
     if let Some(ip) = client_ip(&headers) {
-        if !super::groups::rate_limit(format!("login:ip:{ip}"), 30, Duration::from_secs(60)) {
+        if !crate::rate_limit::allow(format!("login:ip:{ip}"), 30, Duration::from_secs(60)) {
             return Err(too_many());
         }
     }
@@ -185,7 +185,7 @@ pub async fn register(State(state): State<AppState>, headers: HeaderMap, body: B
     let username = body["username"].as_str().map(|u| js_trim(u).to_lowercase()).unwrap_or_default();
     let password = body["password"].as_str().unwrap_or("");
     if let Some(ip) = client_ip(&headers) {
-        if !super::groups::rate_limit(format!("register:ip:{ip}"), 15, Duration::from_secs(60)) {
+        if !crate::rate_limit::allow(format!("register:ip:{ip}"), 15, Duration::from_secs(60)) {
             return Err(too_many());
         }
     }

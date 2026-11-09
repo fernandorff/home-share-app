@@ -156,7 +156,7 @@ pub async fn test(State(state): State<AppState>, Session(session): Session, head
     let Some(vapid) = state.vapid.clone() else { return Err(not_configured()) };
     require_json(&headers)?;
     let me = session.user_id as i32;
-    if !super::groups::rate_limit(format!("push:test:{me}"), 1, std::time::Duration::from_secs(10)) {
+    if !crate::rate_limit::allow(format!("push:test:{me}"), 1, std::time::Duration::from_secs(10)) {
         return Err(ApiError::new(StatusCode::TOO_MANY_REQUESTS, "Too many test notices. Try again shortly.", "RATE_LIMITED"));
     }
     let subs = crate::push::subscriptions(&state, &[me]).await.map_err(|e| fail(&e))?;

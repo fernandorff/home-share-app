@@ -11,8 +11,10 @@ mod house;
 mod input;
 mod money;
 mod notifications;
+mod observability;
 mod push;
 mod push_messages;
+mod rate_limit;
 mod recurrence;
 mod system_defaults;
 mod routes {
@@ -142,6 +144,7 @@ pub fn app(state: AppState) -> Router {
         .route("/api/shopping-items/{item_id}", axum::routing::put(routes::shopping::update).delete(routes::shopping::delete))
         .route("/api/shopping-items/{item_id}/toggle", axum::routing::patch(routes::shopping::toggle))
         .route("/api/shopping-items/{item_id}/expenses", axum::routing::put(routes::shopping::replace_links))
+        .route_layer(middleware::from_fn(observability::observe))
         .layer(middleware::from_fn_with_state(state.clone(), api_gate))
         .with_state(state)
 }

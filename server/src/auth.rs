@@ -111,6 +111,7 @@ where
                 ..ApiError::new(StatusCode::UNAUTHORIZED, "Session expired, please log in again", "SESSION_REVOKED")
             });
         }
+        crate::observability::set_user(&claims.public_id);
         Ok(Session(claims))
     }
 }
