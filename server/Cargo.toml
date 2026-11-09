@@ -17,6 +17,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 tokio-postgres-rustls = "0.13"
 webpki-roots = "1"
 jsonwebtoken = "9"
+bcrypt = "0.17"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 # Web Push (RFC 8291 encryption, RFC 8292 VAPID) and its HTTP client.

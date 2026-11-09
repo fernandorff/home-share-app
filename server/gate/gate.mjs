@@ -43,8 +43,10 @@ async function reset() {
 const USERS = { ana: [1, '00000000-0000-7000-8000-000000000001', 'Ana'], bruno: [2, '00000000-0000-7000-8000-000000000002', 'Bruno'],
   carla: [3, '00000000-0000-7000-8000-000000000003', 'Carla "C"'], davi: [4, '00000000-0000-7000-8000-000000000004', 'Davi'] }
 
-async function cookieFor(c) {
+async function cookieFor(c, side) {
   const parts = []
+  // `useSession: 'x'`: the session cookie this side handed out on an earlier case with `saveSession: 'x'`.
+  if (c.useSession) parts.push(`homeshare_session=${sessions[side][c.useSession] ?? ''}`)
   if (c.as) {
     const [userId, publicId, name] = USERS[c.as]
     const token = await new SignJWT({ userId, publicId, name, sessionVersion: c.sessionVersion ?? 0, authAt: Math.floor(Date.now() / 1000) })
@@ -79,6 +81,8 @@ function normalize(value, uuids = new Map()) {
     return Object.fromEntries(Object.entries(value).map(([k, v]) => {
       // A fresh join code is random on each side: only its format must match.
       if (k === 'joinCode' && typeof v === 'string' && JOIN_CODE.test(v)) return [k, '<joinCode>']
+      // bcrypt salts are random: only the format must match.
+      if (k === 'password' && typeof v === 'string' && /^\$2[aby]\$10\$[./A-Za-z0-9]{53}$/.test(v)) return [k, '<bcrypt>']
       const n = normalize(v, uuids)
       // Prisma groupBy has no ORDER BY: these lists come in whatever order Postgres groups them.
       return [k, UNORDERED.has(k) && Array.isArray(n) ? [...n].sort((x, y) => JSON.stringify(x).localeCompare(JSON.stringify(y))) : n]
@@ -90,12 +94,13 @@ function normalize(value, uuids = new Map()) {
 // `save: 'x'` keeps each side's raw answer; `{x.a.b}` in a later path or body reads it back on the same side
 // (ids and timestamps a server generated differ between the two, so each side uses its own).
 const saved = { next: {}, rust: {} }
+const sessions = { next: {}, rust: {} }
 const fill = (text, side) => text.replace(/\{(\w+)\.([\w.]+)\}/g, (_, name, path) => path.split('.').reduce((v, k) => v?.[k], saved[side][name]) ?? '')
 
 async function call(base, c, side) {
   const path = fill(c.path, side)
   const payload = c.body === undefined ? undefined : fill(JSON.stringify(c.body), side)
-  const headers = { cookie: await cookieFor(c), ...(c.headers ?? {}) }
+  const headers = { cookie: await cookieFor(c, side), ...(c.headers ?? {}) }
   let request = payload
   if (c.body !== undefined) headers['content-type'] = 'application/json'
   // `form`: a multipart upload like the browser's FormData ({ file: { name, text }, field: 'value' }).
@@ -112,6 +117,10 @@ async function call(base, c, side) {
   let body = text
   try { body = text ? JSON.parse(text) : null } catch {}
   if (c.save) saved[side][c.save] = body
+  if (c.saveSession) {
+    const set = res.headers.getSetCookie().map((v) => v.split(';')[0]).find((v) => v.startsWith('homeshare_session=') && v.length > 'homeshare_session='.length)
+    if (set) sessions[side][c.saveSession] = set.slice('homeshare_session='.length)
+  }
   // Revision ids come from the Next app's after-response writes, whose order can swap: cases that show them opt out.
   if (c.revisionIdsFree && body?.revisions) body.revisions = body.revisions.map(({ id, ...rest }) => rest)
   // The Next app stores a batch of revisions with one timestamp, and Postgres returns ties in no set order.
