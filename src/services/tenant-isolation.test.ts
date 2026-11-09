@@ -19,6 +19,7 @@ import { allActiveGroupMembers, allGroupMembers } from "@/lib/api-helpers";
 import { runWithAuditContext } from "@/lib/audit-context";
 import { flushAudit, WRITE_OPS } from "@/lib/prisma-audit";
 import { toCents } from "@/lib/currency";
+import { aggregateSpend } from "@/lib/insights";
 import { signSession, SESSION_COOKIE } from "@/lib/auth";
 
 // Spec 010: web-push never reaches the network here. Every send resolves unless a test says otherwise.
@@ -49,7 +50,7 @@ async function reset() {
   await flushPush();
   await flushAudit();
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "User","Group","GroupMember","Platform","Category","PaymentMethod","Expense","ExpenseParticipant","Settlement","AuditLog","EntityRevision" RESTART IDENTITY CASCADE`
+    `TRUNCATE "User","Group","GroupMember","Platform","Category","PaymentMethod","Expense","ExpenseParticipant","Settlement","AuditLog","EntityRevision","BalanceCredit","BalanceDebit","BalanceCategoryTotal","BalanceMonthTotal","GroupVersion" RESTART IDENTITY CASCADE`
   );
 }
 
@@ -3256,6 +3257,12 @@ describe("precomputed balances (integration, real pglite DB with the migrations)
     const vR = await version(houseA.id);
     await prisma.user.update({ where: { id: bob.id }, data: { name: "Robert" } });
     expect(await version(houseA.id)).toBeGreaterThan(vR);
+
+    // What the balances route reads equals what it used to compute from every expense.
+    const rows = await prisma.expense.findMany({ where: { groupId: houseA.id }, select: { amount: true, categories: true, date: true } });
+    const spend = await balanceService.spend(houseA.id);
+    expect({ byCategory: spend.byCategory, byMonth: spend.byMonth }).toEqual(aggregateSpend(rows));
+    expect(spend.totalCents).toBe(rows.reduce((sum, e) => sum + toCents(e.amount), 0));
 
     // Deleting a whole house cascades through its expenses and leaves no totals behind.
     await prisma.group.delete({ where: { id: houseA.id } });
