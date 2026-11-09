@@ -35,14 +35,20 @@ async fn insert(state: &AppState, group_id: i32, kind: &str, actor_id: Option<i3
         .iter()
         .map(|r| r.get(0))
         .collect();
+    // Only the rows actually inserted (a duplicate dedupe key is skipped) get a push.
+    let mut inserted = Vec::new();
     for (user_id, params) in drafts.into_iter().filter(|(u, _)| recipients.contains(u)) {
-        db.execute(
-            r#"INSERT INTO "Notification" ("publicId", "userId", "groupId", "type", "actorId", "params")
-               VALUES ($1::text::uuid, $2, $3, $4::text::"NotificationType", $5, $6) ON CONFLICT DO NOTHING"#,
-            &[&uuid::Uuid::now_v7().to_string(), &user_id, &group_id, &kind, &actor_id, &params],
-        )
-        .await?;
+        let row = db
+            .query_opt(
+                r#"INSERT INTO "Notification" ("publicId", "userId", "groupId", "type", "actorId", "params")
+                   VALUES ($1::text::uuid, $2, $3, $4::text::"NotificationType", $5, $6) ON CONFLICT DO NOTHING RETURNING "id""#,
+                &[&uuid::Uuid::now_v7().to_string(), &user_id, &group_id, &kind, &actor_id, &params],
+            )
+            .await?;
+        if row.is_some() {
+            inserted.push(crate::push::NoticeRow { user_id, group_id, kind: kind.to_string(), actor_id, params });
+        }
     }
-    // ponytail: Web Push delivery lands with the notifications routes (task 3.7); notices are stored already.
+    crate::push::schedule(state, inserted);
     Ok(())
 }

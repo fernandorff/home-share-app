@@ -51,7 +51,7 @@ fn valid_join_code(code: &str) -> bool {
 }
 
 /// rateLimit (src/lib/rate-limit.ts): at most `max` hits per window, per key, in this process.
-fn rate_limit(key: String, max: usize, window: Duration) -> bool {
+pub fn rate_limit(key: String, max: usize, window: Duration) -> bool {
     static HITS: LazyLock<Mutex<HashMap<String, Vec<Instant>>>> = LazyLock::new(Default::default);
     let now = Instant::now();
     let mut hits = HITS.lock().unwrap_or_else(|e| e.into_inner());

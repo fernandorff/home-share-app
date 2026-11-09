@@ -149,6 +149,25 @@ pub async fn unregister(State(state): State<AppState>, Session(session): Session
     Ok(Json(json!({ "ok": true })))
 }
 
+/// "Send test notice" (spec 010): one push to every subscription of the session user, each in its locale; 1 per 10 s.
+pub async fn test(State(state): State<AppState>, Session(session): Session, headers: HeaderMap) -> Result<Json<Value>, ApiError> {
+    let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to send the test notice", e);
+    // Before the rate limit, so a deployment without push never spends the member's bucket; a refused form neither.
+    let Some(vapid) = state.vapid.clone() else { return Err(not_configured()) };
+    require_json(&headers)?;
+    let me = session.user_id as i32;
+    if !super::groups::rate_limit(format!("push:test:{me}"), 1, std::time::Duration::from_secs(10)) {
+        return Err(ApiError::new(StatusCode::TOO_MANY_REQUESTS, "Too many test notices. Try again shortly.", "RATE_LIMITED"));
+    }
+    let subs = crate::push::subscriptions(&state, &[me]).await.map_err(|e| fail(&e))?;
+    if subs.is_empty() {
+        return Err(ApiError::new(StatusCode::CONFLICT, "No push subscription for this account", "NO_PUSH_SUBSCRIPTION"));
+    }
+    let deliveries = subs.into_iter().map(|s| { let p = crate::push::test_payload(&s.locale); (s, p) }).collect();
+    let (sent, failed) = crate::push::deliver(&state, &vapid, deliveries).await;
+    Ok(Json(json!({ "sent": sent, "failed": failed })))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

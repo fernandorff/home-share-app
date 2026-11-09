@@ -11,6 +11,8 @@ mod house;
 mod input;
 mod money;
 mod notifications;
+mod push;
+mod push_messages;
 mod system_defaults;
 mod routes {
     pub mod balances;
@@ -109,6 +111,7 @@ pub fn app(state: AppState) -> Router {
         .route("/api/groups/active/leave", axum::routing::post(routes::groups::leave))
         .route("/api/notifications", get(routes::notifications::list))
         .route("/api/notifications/unread-count", get(routes::notifications::unread_count))
+        .route("/api/notifications/test", axum::routing::post(routes::push::test))
         .route("/api/notifications/read-all", axum::routing::post(routes::notifications::read_all))
         .route("/api/notifications/{notification_id}", axum::routing::patch(routes::notifications::mark_read).delete(routes::notifications::delete))
         .route("/api/notification-preferences", get(routes::notifications::get_preferences).put(routes::notifications::put_preference))

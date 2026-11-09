@@ -319,4 +319,8 @@ export const cases = [
   {"name": "push unregister davi 8", "path": "/api/push-subscriptions", "as": "davi", "method": "DELETE", "body": {"endpoint": "https://fcm.googleapis.com/fcm/send/gate-108"}},
   {"name": "push unregister davi 9", "path": "/api/push-subscriptions", "as": "davi", "method": "DELETE", "body": {"endpoint": "https://fcm.googleapis.com/fcm/send/gate-109"}},
   {"name": "push unregister davi 10", "path": "/api/push-subscriptions", "as": "davi", "method": "DELETE", "body": {"endpoint": "https://fcm.googleapis.com/fcm/send/gate-110"}},
+  {"name": "push test not json", "method": "POST", "path": "/api/notifications/test", "as": "ana", "text": "{}"},
+  {"name": "push test without a subscription", "method": "POST", "path": "/api/notifications/test", "as": "ana", "body": {}},
+  {"name": "push test rate limited", "method": "POST", "path": "/api/notifications/test", "as": "ana", "body": {}},
+  {"name": "push test revoked session", "method": "POST", "path": "/api/notifications/test", "as": "ana", "body": {}, "sessionVersion": 9},
 ]
