@@ -20,6 +20,7 @@ mod routes {
     pub mod expenses;
     pub mod health;
     pub mod settlements;
+    pub mod shopping;
     pub mod tags;
 }
 
@@ -94,6 +95,11 @@ pub fn app(state: AppState) -> Router {
         .route("/api/payment-methods/{id}", axum::routing::delete(routes::tags::payment_methods::delete))
         .route("/api/settlements", get(routes::settlements::get).post(routes::settlements::post))
         .route("/api/settlements/{settlement_id}", axum::routing::delete(routes::settlements::delete))
+        .route("/api/shopping-items", get(routes::shopping::list).post(routes::shopping::create))
+        .route("/api/shopping-items/clear-purchased", axum::routing::delete(routes::shopping::clear_purchased))
+        .route("/api/shopping-items/{item_id}", axum::routing::put(routes::shopping::update).delete(routes::shopping::delete))
+        .route("/api/shopping-items/{item_id}/toggle", axum::routing::patch(routes::shopping::toggle))
+        .route("/api/shopping-items/{item_id}/expenses", axum::routing::put(routes::shopping::replace_links))
         .layer(middleware::from_fn_with_state(state.clone(), api_gate))
         .with_state(state)
 }
