@@ -12,6 +12,7 @@ mod money;
 mod notifications;
 mod routes {
     pub mod balances;
+    pub mod expense_more;
     pub mod expense_writes;
     pub mod expenses;
     pub mod health;
@@ -77,6 +78,9 @@ pub fn app(state: AppState) -> Router {
             "/api/expenses/{expense_id}",
             get(routes::expenses::get_one).put(routes::expense_writes::update).delete(routes::expense_writes::delete),
         )
+        .route("/api/expenses/bulk-delete", axum::routing::post(routes::expense_more::bulk_delete))
+        .route("/api/expenses/export", get(routes::expense_more::export))
+        .route("/api/expenses/{expense_id}/history", get(routes::expense_more::history))
         .route("/api/settlements", get(routes::settlements::get).post(routes::settlements::post))
         .route("/api/settlements/{settlement_id}", axum::routing::delete(routes::settlements::delete))
         .layer(middleware::from_fn_with_state(state.clone(), api_gate))

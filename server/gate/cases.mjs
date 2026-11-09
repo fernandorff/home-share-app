@@ -77,4 +77,16 @@ export const cases = [
   { name: 'expense delete', method: 'DELETE', path: '/api/expenses/{e2.expense.publicId}', as: 'ana' },
   { name: 'expenses after writes', path: '/api/expenses?includePayerTotals=true&includeMonthTotals=true', as: 'ana' },
   { name: 'balances after expense writes', path: '/api/balances', as: 'ana' },
+
+  // expenses: history, export, bulk delete (task 3.2)
+  { name: 'expense history (fixture, no revisions)', path: '/api/expenses/00000000-0000-7000-8000-000000000502/history', as: 'ana' },
+  { name: 'expense history after update', path: '/api/expenses/{e1.expense.publicId}/history', as: 'ana' },
+  { name: 'expense history bad id', path: '/api/expenses/abc/history', as: 'ana' },
+  { name: 'expenses export', path: '/api/expenses/export', as: 'ana' },
+  { name: 'expenses export other house', path: '/api/expenses/export', as: 'carla' },
+  { name: 'bulk delete no list', method: 'POST', path: '/api/expenses/bulk-delete', as: 'ana', body: { publicIds: [] } },
+  { name: 'bulk delete bad id', method: 'POST', path: '/api/expenses/bulk-delete', as: 'ana', body: { publicIds: ['00000000-0000-7000-8000-000000000502', 7] } },
+  { name: 'bulk delete none found', method: 'POST', path: '/api/expenses/bulk-delete', as: 'ana', body: { publicIds: ['00000000-0000-7000-8000-000000000504'] } },
+  { name: 'bulk delete', method: 'POST', path: '/api/expenses/bulk-delete', as: 'ana', body: { publicIds: ['00000000-0000-7000-8000-000000000502', '{e1.expense.publicId}', '00000000-0000-7000-8000-000000000504'] } },
+  { name: 'balances after bulk delete', path: '/api/balances', as: 'ana' },
 ]
