@@ -7,6 +7,7 @@ mod errors;
 mod house;
 mod money;
 mod routes {
+    pub mod balances;
     pub mod health;
 }
 
@@ -63,6 +64,7 @@ fn fail(message: &str) -> ! {
 pub fn app(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(routes::health::get))
+        .route("/api/balances", get(routes::balances::get))
         .layer(middleware::from_fn_with_state(state.clone(), api_gate))
         .with_state(state)
 }
