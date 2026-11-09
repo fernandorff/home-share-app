@@ -56,6 +56,7 @@ async function cookieFor(c) {
   return parts.join('; ')
 }
 
+const WRITTEN_AFTER_RESPONSE = new Set(['EntityRevision', 'Notification'])
 const UNORDERED = new Set(['payerTotals', 'monthTotals', 'payerMonthTotals'])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const FIXTURE_UUID = /^00000000-0000-7000-8000-/
@@ -107,7 +108,13 @@ async function dump(name) {
   const { rows: tables } = await db.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name <> '_prisma_migrations' ORDER BY 1`)
   const out = {}
   const uuids = new Map()
-  for (const { table_name } of tables) out[table_name] = normalize((await db.query(`SELECT * FROM "${table_name}" ORDER BY 1, 2`)).rows, uuids)
+  for (const { table_name } of tables) {
+    let rows = normalize((await db.query(`SELECT * FROM "${table_name}" ORDER BY 1, 2`)).rows, uuids)
+    // The Next app writes these after the response (after()), so two quick requests can swap their ids:
+    // compare them as a set of rows, without the id.
+    if (WRITTEN_AFTER_RESPONSE.has(table_name)) rows = rows.map(({ id, ...rest }) => rest).sort((x, y) => JSON.stringify(x).localeCompare(JSON.stringify(y)))
+    out[table_name] = rows
+  }
   await db.end()
   return out
 }
