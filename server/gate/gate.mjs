@@ -93,12 +93,24 @@ async function call(base, c, side) {
   const path = fill(c.path, side)
   const payload = c.body === undefined ? undefined : fill(JSON.stringify(c.body), side)
   const headers = { cookie: await cookieFor(c), ...(c.headers ?? {}) }
+  let request = payload
   if (c.body !== undefined) headers['content-type'] = 'application/json'
-  const res = await fetch(base + path, { method: c.method ?? 'GET', headers, body: payload, redirect: 'manual' })
+  // `form`: a multipart upload like the browser's FormData ({ file: { name, text }, field: 'value' }).
+  if (c.form) {
+    request = new FormData()
+    for (const [k, v] of Object.entries(c.form)) {
+      if (v && typeof v === 'object') request.append(k, new Blob([v.text], { type: 'text/csv' }), v.name)
+      else request.append(k, fill(String(v), side))
+    }
+  }
+  if (c.text !== undefined) { headers['content-type'] = 'text/plain'; request = c.text }
+  const res = await fetch(base + path, { method: c.method ?? 'GET', headers, body: request, redirect: 'manual' })
   const text = await res.text()
   let body = text
   try { body = text ? JSON.parse(text) : null } catch {}
   if (c.save) saved[side][c.save] = body
+  // Revision ids come from the Next app's after-response writes, whose order can swap: cases that show them opt out.
+  if (c.revisionIdsFree && body?.revisions) body.revisions = body.revisions.map(({ id, ...rest }) => rest)
   return { status: res.status, body: normalize(body), setCookie: res.headers.get('set-cookie') ? 'set' : null }
 }
 
