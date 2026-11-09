@@ -58,8 +58,9 @@ pub async fn record(db: &impl GenericClient, r: Revision<'_>) -> Result<(), toki
         Action::Delete => ("DELETE", Some(row), None),
     };
     db.execute(
-        r#"INSERT INTO "EntityRevision" ("entityType", "entityId", "groupId", "action", "actorId", "before", "after")
-           VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
+        // clock_timestamp, not now(): several revisions of one transaction keep the order they were written in.
+        r#"INSERT INTO "EntityRevision" ("entityType", "entityId", "groupId", "action", "actorId", "before", "after", "createdAt")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, clock_timestamp() AT TIME ZONE 'UTC')"#,
         &[&r.entity_type, &r.entity_id, &r.group_id, &action, &r.actor_id, &before, &after],
     )
     .await?;
@@ -70,8 +71,8 @@ pub async fn record(db: &impl GenericClient, r: Revision<'_>) -> Result<(), toki
 /// `after`, whatever the action (the extension cannot see the individual rows).
 pub async fn bulk(db: &impl GenericClient, r: Revision<'_>, action: &str) -> Result<(), tokio_postgres::Error> {
     db.execute(
-        r#"INSERT INTO "EntityRevision" ("entityType", "entityId", "groupId", "action", "actorId", "before", "after")
-           VALUES ($1, $2, $3, $4, $5, NULL, $6)"#,
+        r#"INSERT INTO "EntityRevision" ("entityType", "entityId", "groupId", "action", "actorId", "before", "after", "createdAt")
+           VALUES ($1, $2, $3, $4, $5, NULL, $6, clock_timestamp() AT TIME ZONE 'UTC')"#,
         &[&r.entity_type, &r.entity_id, &r.group_id, &action, &r.actor_id, &sanitize(r.row)],
     )
     .await?;

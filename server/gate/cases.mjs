@@ -335,6 +335,19 @@ export const cases = [
   {"name": "recurring delete rent again", "path": "/api/recurring-expenses/{r1.rule.publicId}", "as": "ana", "method": "DELETE"},
   {"name": "recurring list after delete", "path": "/api/recurring-expenses", "as": "bruno"},
 
+  // activity summary and detailed history (task 3.9)
+  {"name": "activity summary casa", "path": "/api/activity", "as": "ana", "revisionIdsFree": true},
+  {"name": "activity summary praia", "path": "/api/activity", "as": "carla", "revisionIdsFree": true, "house": 2},
+  {"name": "activity summary no house", "path": "/api/activity", "as": "davi", "revisionIdsFree": true},
+  {"name": "activity detailed default", "revisionsAsSet": true, "path": "/api/revisions", "as": "ana", "revisionIdsFree": true},
+  {"name": "activity detailed expenses", "revisionsAsSet": true, "path": "/api/revisions?entityType=Expense", "as": "ana", "revisionIdsFree": true},
+  {"name": "activity detailed recurring", "path": "/api/revisions?entityType=RecurringExpense", "as": "ana", "revisionIdsFree": true},
+  {"name": "activity detailed unknown type", "path": "/api/revisions?entityType=EntityRevision&limit=3", "as": "ana", "revisionIdsFree": true},
+  {"name": "activity detailed limit 5", "path": "/api/revisions?limit=5", "as": "ana", "revisionIdsFree": true},
+  {"name": "activity detailed limit junk", "revisionsAsSet": true, "path": "/api/revisions?limit=abc", "as": "ana", "revisionIdsFree": true},
+  {"name": "activity detailed limit negative", "path": "/api/revisions?limit=-4", "as": "ana", "revisionIdsFree": true},
+  {"name": "activity detailed limit fraction", "path": "/api/revisions?limit=2.9&entityType=ShoppingItem", "as": "ana", "revisionIdsFree": true},
+
   // push subscriptions (task 3.7). Keep last: once a member has a subscription, a notice would send a real push.
   {"name": "push register not json", "path": "/api/push-subscriptions", "as": "ana", "method": "POST", "text": "{\"endpoint\": \"https://fcm.googleapis.com/fcm/send/gate-1\", \"keys\": {\"p256dh\": \"BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\", \"auth\": \"AAAAAAAAAAAAAAAAAAAAAQ\"}}"},
   {"name": "push register empty body", "path": "/api/push-subscriptions", "as": "ana", "method": "POST", "body": {}},

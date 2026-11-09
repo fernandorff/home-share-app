@@ -190,8 +190,8 @@ pub async fn delete(kind: &'static Kind, state: AppState, house: ActiveHouse, pu
         let mut before = after.clone();
         before[col] = json!(detached.iter().find(|d| d.0 == id).map(|d| d.1.clone()));
         tx.execute(
-            r#"INSERT INTO "EntityRevision" ("entityType", "entityId", "groupId", "action", "actorId", "before", "after")
-               VALUES ('Expense', $1, $2, 'UPDATE', $3, $4, $5)"#,
+            r#"INSERT INTO "EntityRevision" ("entityType", "entityId", "groupId", "action", "actorId", "before", "after", "createdAt")
+               VALUES ('Expense', $1, $2, 'UPDATE', $3, $4, $5, clock_timestamp() AT TIME ZONE 'UTC')"#,
             &[&id.to_string(), &house.group_id, &actor, &audit::sanitize(before), &audit::sanitize(after)],
         )
         .await

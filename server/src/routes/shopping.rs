@@ -223,8 +223,8 @@ pub async fn toggle(State(state): State<AppState>, house: ActiveHouse, Path(publ
     before["isPurchased"] = json!(!purchased);
     let written = db
         .execute(
-            r#"INSERT INTO "EntityRevision" ("entityType", "entityId", "groupId", "action", "actorId", "before", "after")
-               VALUES ('ShoppingItem', $1, $2, 'UPDATE', $3, $4, $5)"#,
+            r#"INSERT INTO "EntityRevision" ("entityType", "entityId", "groupId", "action", "actorId", "before", "after", "createdAt")
+               VALUES ('ShoppingItem', $1, $2, 'UPDATE', $3, $4, $5, clock_timestamp() AT TIME ZONE 'UTC')"#,
             &[&id.to_string(), &house.group_id, &actor, &audit::sanitize(before), &audit::sanitize(row)],
         )
         .await;
@@ -349,8 +349,8 @@ pub async fn replace_links(State(state): State<AppState>, house: ActiveHouse, Pa
         audit::sanitize(r)
     };
     tx.execute(
-        r#"INSERT INTO "EntityRevision" ("entityType", "entityId", "groupId", "action", "actorId", "before", "after")
-           VALUES ('ShoppingItem', $1, $2, 'UPDATE', $3, $4, $5)"#,
+        r#"INSERT INTO "EntityRevision" ("entityType", "entityId", "groupId", "action", "actorId", "before", "after", "createdAt")
+           VALUES ('ShoppingItem', $1, $2, 'UPDATE', $3, $4, $5, clock_timestamp() AT TIME ZONE 'UTC')"#,
         &[&id.to_string(), &house.group_id, &actor, &row(linked.len()), &row(expenses.len())],
     )
     .await

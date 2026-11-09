@@ -114,6 +114,12 @@ async function call(base, c, side) {
   if (c.save) saved[side][c.save] = body
   // Revision ids come from the Next app's after-response writes, whose order can swap: cases that show them opt out.
   if (c.revisionIdsFree && body?.revisions) body.revisions = body.revisions.map(({ id, ...rest }) => rest)
+  // The Next app stores a batch of revisions with one timestamp, and Postgres returns ties in no set order.
+  // Fresh UUIDs lose their numbering here (it follows the order of appearance, which is what is being ignored).
+  if (c.revisionsAsSet && body?.revisions) {
+    const unnumbered = JSON.parse(JSON.stringify(normalize(body.revisions)).replace(/#uuid\d+/g, '#uuid'))
+    body.revisions = unnumbered.sort((x, y) => JSON.stringify(x).localeCompare(JSON.stringify(y)))
+  }
   return { status: res.status, body: normalize(body), setCookie: res.headers.get('set-cookie') ? 'set' : null }
 }
 
