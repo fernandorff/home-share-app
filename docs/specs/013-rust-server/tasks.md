@@ -8,7 +8,8 @@ One commit per task (Fernando, 2026-11-09: "cada ponto em commits separados").
 - [ ] 1.1 Migration with the total tables, version table, triggers and backfill —
       `prisma/schema.prisma`, `prisma/migrations/<ts>_precomputed_balances/migration.sql` _Requirements: 5, 6_
 - [ ] 1.2 Trigger matrix as a test: single write, edit, move house, delete, settlement, CSV `createMany`,
-      recurring posting, bulk delete, user rename — `test/db/precomputed-balances.test.ts` _Requirements: 5, 6_
+      recurring posting, bulk delete, user rename — `test/global-setup.ts` (apply migrations),
+      `src/services/tenant-isolation.test.ts` (the single pglite integration file) _Requirements: 5, 6_
 - [ ] 1.3 Next route reads the totals and the version cache (ETag/304) —
       `src/app/api/balances/route.ts`, `src/services/balance.service.ts` _Requirements: 5, 7_
 - [ ] 1.4 Apply on staging (`npm run db:migrate`, Neon branch `dev`), then production — manual _Requirements: 5_

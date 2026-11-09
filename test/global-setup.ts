@@ -1,4 +1,5 @@
-import { execSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 
@@ -11,12 +12,14 @@ export default async function setup() {
   const db = new PGlite();
   await db.waitReady;
 
-  // Schema DDL straight from the Prisma schema (offline diff — no datasource needed).
-  const ddl = execSync(
-    "npx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script",
-    { encoding: "utf8" }
-  );
-  await db.exec(ddl);
+  // The real migrations, in order: they carry what schema.prisma cannot (the precomputed-balance triggers,
+  // spec 013), and CI already proves they reproduce the schema.
+  const dir = "prisma/migrations";
+  const migrations = readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort((a, b) => parseInt(a) - parseInt(b));
+  for (const name of migrations) await db.exec(readFileSync(join(dir, name, "migration.sql"), "utf8"));
 
   // Port must match vitest.config.ts's test.env.DATABASE_URL.
   const server = new PGLiteSocketServer({ db, port: 45432, host: "127.0.0.1" });
