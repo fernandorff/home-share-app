@@ -5,12 +5,14 @@ mod auth;
 mod config;
 mod db;
 mod errors;
+mod expense_input;
 mod house;
 mod input;
 mod money;
 mod notifications;
 mod routes {
     pub mod balances;
+    pub mod expense_writes;
     pub mod expenses;
     pub mod health;
     pub mod settlements;
@@ -70,8 +72,11 @@ pub fn app(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(routes::health::get))
         .route("/api/balances", get(routes::balances::get))
-        .route("/api/expenses", get(routes::expenses::list))
-        .route("/api/expenses/{expense_id}", get(routes::expenses::get_one))
+        .route("/api/expenses", get(routes::expenses::list).post(routes::expense_writes::create))
+        .route(
+            "/api/expenses/{expense_id}",
+            get(routes::expenses::get_one).put(routes::expense_writes::update).delete(routes::expense_writes::delete),
+        )
         .route("/api/settlements", get(routes::settlements::get).post(routes::settlements::post))
         .route("/api/settlements/{settlement_id}", axum::routing::delete(routes::settlements::delete))
         .layer(middleware::from_fn_with_state(state.clone(), api_gate))

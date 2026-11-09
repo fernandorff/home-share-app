@@ -9,6 +9,7 @@ use axum::{
 };
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
+use deadpool_postgres::GenericClient;
 use tokio_postgres::types::ToSql;
 
 const ISO: &str = r#"'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'"#;
@@ -38,9 +39,9 @@ fn expense_json(r: &tokio_postgres::Row, participants: Vec<Value>) -> Value {
 }
 
 /// Participants per expense, in id order. `with_user` = the detail shape (participant.user included).
-async fn participants(db: &deadpool_postgres::Client, ids: &[i32], with_user: bool) -> Result<HashMap<i32, Vec<Value>>, tokio_postgres::Error> {
+async fn participants(db: &impl GenericClient, ids: &[i32], with_user: bool) -> Result<HashMap<i32, Vec<Value>>, tokio_postgres::Error> {
     let rows = db
-        .cq(
+        .query(
             r#"SELECT x."id", x."expenseId", x."userId", x."amount"::text, u."publicId"::text, u."name", u."username"
                FROM "ExpenseParticipant" x JOIN "User" u ON u."id" = x."userId"
                WHERE x."expenseId" = ANY($1) ORDER BY x."expenseId", x."id""#,
@@ -61,7 +62,11 @@ async fn participants(db: &deadpool_postgres::Client, ids: &[i32], with_user: bo
 
 /// expenseService.findByPublicId, house-scoped, in the detail shape.
 pub async fn find(db: &deadpool_postgres::Client, group_id: i32, public_id: &str) -> Result<Option<Value>, tokio_postgres::Error> {
-    let rows = db.cq(&format!(r#"{} WHERE e."publicId" = $1::text::uuid AND e."groupId" = $2"#, select()), &[&public_id, &group_id]).await?;
+    find_with(db, group_id, public_id).await
+}
+
+pub async fn find_with(db: &impl GenericClient, group_id: i32, public_id: &str) -> Result<Option<Value>, tokio_postgres::Error> {
+    let rows = db.query(&format!(r#"{} WHERE e."publicId" = $1::text::uuid AND e."groupId" = $2"#, select()), &[&public_id, &group_id]).await?;
     let Some(r) = rows.first() else { return Ok(None) };
     let id: i32 = r.get(0);
     let mut parts = participants(db, &[id], true).await?;

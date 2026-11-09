@@ -66,6 +66,18 @@ pub async fn record(db: &impl GenericClient, r: Revision<'_>) -> Result<(), toki
     Ok(())
 }
 
+/// A bulk write's marker (createMany/updateMany/deleteMany): entityId "bulk:<count>", the targeting clause in
+/// `after`, whatever the action (the extension cannot see the individual rows).
+pub async fn bulk(db: &impl GenericClient, r: Revision<'_>, action: &str) -> Result<(), tokio_postgres::Error> {
+    db.execute(
+        r#"INSERT INTO "EntityRevision" ("entityType", "entityId", "groupId", "action", "actorId", "before", "after")
+           VALUES ($1, $2, $3, $4, $5, NULL, $6)"#,
+        &[&r.entity_type, &r.entity_id, &r.group_id, &action, &r.actor_id, &sanitize(r.row)],
+    )
+    .await?;
+    Ok(())
+}
+
 pub struct Activity<'a> {
     pub group_id: i32,
     pub actor_id: Option<i32>,
