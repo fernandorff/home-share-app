@@ -1,5 +1,6 @@
 //! Home Share server (spec 013): one always-on Axum process for the API (and, later, the exported web app).
 
+mod audit;
 mod auth;
 mod config;
 mod db;

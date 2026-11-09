@@ -111,7 +111,10 @@ async function run(filter) {
   for (const c of cases.filter((c) => !filter || c.name.includes(filter))) {
     const [a, b] = [await call(NEXT_URL, c), await call(RUST_URL, c)]
     let diff = firstDifference(a, b)
-    if (!diff && c.method && c.method !== 'GET') diff = firstDifference(await dump('gate_a'), await dump('gate_b'))
+    if (!diff && c.method && c.method !== 'GET') {
+      await new Promise((r) => setTimeout(r, 300)) // Next writes the audit revision after the response (after())
+      diff = firstDifference(await dump('gate_a'), await dump('gate_b'))
+    }
     console.log(`${diff ? 'FAIL' : 'ok  '} ${c.name} (${a.status})${diff ? `\n     ${diff}` : ''}`)
     if (diff) failed++
   }
