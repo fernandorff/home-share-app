@@ -26,6 +26,7 @@ mod routes {
     pub mod google;
     pub mod groups;
     pub mod health;
+    pub mod jobs;
     pub mod notifications;
     pub mod push;
     pub mod recurring;
@@ -134,6 +135,8 @@ pub fn app(state: AppState) -> Router {
         .route("/api/auth/me", get(routes::account::me).patch(routes::account::update_me).delete(routes::account::delete_me))
         .route("/api/auth/google", get(routes::google::start))
         .route("/api/auth/google/callback", get(routes::google::callback))
+        .route("/api/cron/recurring-expenses", get(routes::jobs::recurring_expenses))
+        .route("/api/cron/notifications", get(routes::jobs::notices))
         .route("/api/shopping-items", get(routes::shopping::list).post(routes::shopping::create))
         .route("/api/shopping-items/clear-purchased", axum::routing::delete(routes::shopping::clear_purchased))
         .route("/api/shopping-items/{item_id}", axum::routing::put(routes::shopping::update).delete(routes::shopping::delete))
@@ -148,5 +151,6 @@ async fn main() {
     let cfg = Config::from_env(|k| std::env::var(k).ok()).unwrap_or_else(|e| fail(&e));
     let state = AppState { pool: pool(&cfg), keys: Arc::new(auth::Keys::new(&cfg.jwt_secret)), vapid: cfg.vapid.map(Arc::new) };
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", cfg.port)).await.unwrap_or_else(|e| fail(&e.to_string()));
+    routes::jobs::start(&state);
     axum::serve(listener, app(state)).await.unwrap_or_else(|e| fail(&e.to_string()));
 }

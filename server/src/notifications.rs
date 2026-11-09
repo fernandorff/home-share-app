@@ -6,12 +6,18 @@ use crate::AppState;
 use serde_json::Value;
 
 pub async fn create(state: &AppState, group_id: i32, kind: &str, actor_id: Option<i32>, notices: Vec<(i32, Value)>) {
-    if let Err(e) = insert(state, group_id, kind, actor_id, notices).await {
+    if let Err(e) = insert(state, group_id, kind, actor_id, notices, None).await {
         eprintln!("notification failed ({kind}): {e}");
     }
 }
 
-async fn insert(state: &AppState, group_id: i32, kind: &str, actor_id: Option<i32>, notices: Vec<(i32, Value)>) -> Result<(), Box<dyn std::error::Error>> {
+/// A scheduled producer's notices (system, actor null): at most once per recipient and `dedupe` key; returns how many
+/// were inserted. The caller counts a failure.
+pub async fn create_scheduled(state: &AppState, group_id: i32, kind: &str, notices: Vec<(i32, Value)>, dedupe: &str) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
+    insert(state, group_id, kind, None, notices, Some(dedupe)).await
+}
+
+async fn insert(state: &AppState, group_id: i32, kind: &str, actor_id: Option<i32>, notices: Vec<(i32, Value)>, dedupe: Option<&str>) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
     let mut drafts: Vec<(i32, Value)> = Vec::new();
     for (user_id, params) in notices {
         if Some(user_id) != actor_id && !drafts.iter().any(|(u, _)| *u == user_id) {
@@ -19,7 +25,7 @@ async fn insert(state: &AppState, group_id: i32, kind: &str, actor_id: Option<i3
         }
     }
     if drafts.is_empty() {
-        return Ok(());
+        return Ok(0);
     }
     let db = state.pool.get().await?;
     let ids: Vec<i32> = drafts.iter().map(|(u, _)| *u).collect();
@@ -40,15 +46,16 @@ async fn insert(state: &AppState, group_id: i32, kind: &str, actor_id: Option<i3
     for (user_id, params) in drafts.into_iter().filter(|(u, _)| recipients.contains(u)) {
         let row = db
             .query_opt(
-                r#"INSERT INTO "Notification" ("publicId", "userId", "groupId", "type", "actorId", "params")
-                   VALUES ($1::text::uuid, $2, $3, $4::text::"NotificationType", $5, $6) ON CONFLICT DO NOTHING RETURNING "id""#,
-                &[&uuid::Uuid::now_v7().to_string(), &user_id, &group_id, &kind, &actor_id, &params],
+                r#"INSERT INTO "Notification" ("publicId", "userId", "groupId", "type", "actorId", "params", "dedupeKey")
+                   VALUES ($1::text::uuid, $2, $3, $4::text::"NotificationType", $5, $6, $7) ON CONFLICT DO NOTHING RETURNING "id""#,
+                &[&uuid::Uuid::now_v7().to_string(), &user_id, &group_id, &kind, &actor_id, &params, &dedupe],
             )
             .await?;
         if row.is_some() {
             inserted.push(crate::push::NoticeRow { user_id, group_id, kind: kind.to_string(), actor_id, params });
         }
     }
+    let count = inserted.len();
     crate::push::schedule(state, inserted);
-    Ok(())
+    Ok(count)
 }

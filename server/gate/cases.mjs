@@ -2,6 +2,7 @@
 // the effects of earlier ones. `as` = fixture user (ana, bruno, carla, davi); `house` = homeshare_group cookie.
 // Recurring cases use the real calendar (UTC): the day of month that is due today, and months from now.
 const TODAY_DAY = new Date().getUTCDate()
+const TOMORROW_DAY = new Date(Date.now() + 86_400_000).getUTCDate()
 const period = (n) => { const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1)).toISOString().slice(0, 7) }
 export const cases = [
   // health
@@ -402,6 +403,16 @@ export const cases = [
   {"name": "google callback without code", "path": "/api/auth/google/callback?state=abc", "headers": {"cookie": "homeshare_oauth_state=abc"}},
   {"name": "google callback without state cookie", "path": "/api/auth/google/callback?code=c&state=abc"},
   {"name": "google callback state mismatch", "path": "/api/auth/google/callback?code=c&state=abc", "headers": {"cookie": "homeshare_oauth_state=xyz"}},
+
+  // daily jobs through /api/cron (task 3.11)
+  {"name": "jobs recurring without secret", "path": "/api/cron/recurring-expenses"},
+  {"name": "jobs notices wrong secret", "path": "/api/cron/notifications", "headers": {"authorization": "Bearer nope"}},
+  {"name": "jobs rule due tomorrow", "method": "POST", "path": "/api/recurring-expenses", "as": "ana", "body": {"description": "Luz", "amount": 120.35, "payerId": 1, "dayOfMonth": TOMORROW_DAY, "splitMode": "ALL", "timezone": "UTC"}},
+  {"name": "jobs recurring run", "path": "/api/cron/recurring-expenses", "headers": {"authorization": "Bearer gate-cron-local-only"}},
+  {"name": "jobs recurring run again", "path": "/api/cron/recurring-expenses", "headers": {"authorization": "Bearer gate-cron-local-only"}},
+  {"name": "jobs notices run", "path": "/api/cron/notifications", "headers": {"authorization": "Bearer gate-cron-local-only"}},
+  {"name": "jobs notices run again (deduped)", "path": "/api/cron/notifications", "headers": {"authorization": "Bearer gate-cron-local-only"}},
+  {"name": "jobs ana notices after", "path": "/api/notifications", "as": "ana"},
 
   // push subscriptions (task 3.7). Keep last: once a member has a subscription, a notice would send a real push.
   {"name": "push register not json", "path": "/api/push-subscriptions", "as": "ana", "method": "POST", "text": "{\"endpoint\": \"https://fcm.googleapis.com/fcm/send/gate-1\", \"keys\": {\"p256dh\": \"BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\", \"auth\": \"AAAAAAAAAAAAAAAAAAAAAQ\"}}"},

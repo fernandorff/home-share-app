@@ -39,7 +39,7 @@ One commit per task (Fernando, 2026-11-09: "cada ponto em commits separados").
 - [x] 3.8 Recurring expenses and skips — `server/src/routes/recurring.rs` _Requirements: 1, 2_
 - [x] 3.9 Activity and revisions — `server/src/routes/activity.rs` _Requirements: 1, 13_
 - [x] 3.10 Auth: login, register, password, me, logout, logout-all, Google — `server/src/routes/auth.rs` _Requirements: 1, 9, 10, 11_
-- [ ] 3.11 Scheduled jobs in-process — `server/src/jobs.rs` _Requirements: 15_
+- [x] 3.11 Scheduled jobs in-process — `server/src/jobs.rs` _Requirements: 15_
 
 ## 4. Web app from the same process
 

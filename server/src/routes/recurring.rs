@@ -572,11 +572,13 @@ pub struct PostResult {
     pub paused: usize,
     pub duplicates: usize,
     pub failed: usize,
+    /// Rules or periods not started because the deadline passed (the next run picks them up).
+    pub remaining: usize,
 }
 
 /// postRuleNow: post what this rule has due right away; on any failure the saved rule is answered as is.
 async fn post_now(state: &AppState, viewer: &Viewer, rule: &Rule, saved: Value) -> (Value, usize) {
-    let run = post_due(state, Some(rule.id), Some(viewer.user_id)).await;
+    let run = post_due(state, Some(rule.id), Some(viewer.user_id), None).await;
     if run.posted + run.skipped + run.paused + run.duplicates == 0 {
         return (saved, run.posted);
     }
@@ -592,7 +594,7 @@ async fn post_now(state: &AppState, viewer: &Viewer, rule: &Rule, saved: Value) 
 /// postDue: every unpaused rule (or one), oldest due first; each period claimed once in the ledger. `request_actor`: the
 /// Next app loses its system audit context inside the posting transaction, so an expense posted while answering a request
 /// is recorded under that request's member; the scheduled job (no request) records it as the system.
-pub async fn post_due(state: &AppState, only: Option<i32>, request_actor: Option<i32>) -> PostResult {
+pub async fn post_due(state: &AppState, only: Option<i32>, request_actor: Option<i32>, deadline: Option<std::time::Instant>) -> PostResult {
     let mut result = PostResult::default();
     let rules: Vec<Rule> = match state.pool.get().await {
         Ok(db) => match db.query(&format!(r#"{} WHERE "pausedAt" IS NULL AND ($1::int IS NULL OR "id" = $1) ORDER BY "id""#, select()), &[&only]).await {
@@ -622,8 +624,13 @@ pub async fn post_due(state: &AppState, only: Option<i32>, request_actor: Option
         }
     }
     due.sort_by(|a, b| a.2.cmp(&b.2).then(a.0.id.cmp(&b.0.id)));
-    for (rule, periods, _) in due {
-        if let Err(e) = post_rule(state, &rule, &periods, request_actor, &mut result).await {
+    let total = due.len();
+    for (index, (rule, periods, _)) in due.into_iter().enumerate() {
+        if deadline.is_some_and(|d| std::time::Instant::now() >= d) {
+            result.remaining = total - index;
+            break;
+        }
+        if let Err(e) = post_rule(state, &rule, &periods, request_actor, deadline, &mut result).await {
             result.failed += 1;
             eprintln!("recurring expense posting failed (rule {}): {e}", rule.id);
         }
@@ -637,9 +644,13 @@ enum Claim {
     Aborted,
 }
 
-async fn post_rule(state: &AppState, rule: &Rule, periods: &[String], request_actor: Option<i32>, result: &mut PostResult) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn post_rule(state: &AppState, rule: &Rule, periods: &[String], request_actor: Option<i32>, deadline: Option<std::time::Instant>, result: &mut PostResult) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut active: Option<Vec<i32>> = None;
-    for period in periods {
+    for (index, period) in periods.iter().enumerate() {
+        if index > 0 && deadline.is_some_and(|d| std::time::Instant::now() >= d) {
+            result.remaining += 1;
+            return Ok(());
+        }
         let due = due_on(period, rule.day_of_month);
         if rule.skipped.contains(period) {
             match claim_skip(state, rule, period, &due).await? {
@@ -755,4 +766,53 @@ async fn pause_member_left(state: &AppState, rule: &Rule) -> Result<bool, Box<dy
     }
     tx.commit().await?;
     Ok(true)
+}
+
+/// sendRecurringDueReminders: RECURRING_DUE to the payer of every unpaused rule whose first unskipped upcoming period is
+/// due tomorrow in the rule's timezone, once per rule and period (dedupe key). One failing rule never costs the others.
+pub async fn due_reminders(state: &AppState, deadline: std::time::Instant) -> (usize, usize, usize) {
+    let (mut created, mut failed, mut remaining) = (0, 0, 0);
+    let rules: Vec<Rule> = match state.pool.get().await {
+        Ok(db) => match db.query(&format!(r#"{} WHERE "pausedAt" IS NULL ORDER BY "id""#, select()), &[]).await {
+            Ok(rows) => rows.iter().map(from_row).collect(),
+            Err(e) => {
+                eprintln!("recurring due reminders failed: {e}");
+                return (0, 1, 0);
+            }
+        },
+        Err(e) => {
+            eprintln!("recurring due reminders failed: {e}");
+            return (0, 1, 0);
+        }
+    };
+    let mut due: Vec<(Rule, String, String)> = Vec::new();
+    for rule in rules {
+        let closed = match state.pool.get().await {
+            Ok(db) => last_closed(&db, rule.id).await.ok().flatten(),
+            Err(_) => None,
+        };
+        let today = local_today(&rule.timezone);
+        let tomorrow = chrono::NaiveDate::parse_from_str(&today, "%Y-%m-%d").ok().and_then(|d| d.succ_opt()).map(|d| d.format("%Y-%m-%d").to_string());
+        if let Some(next) = upcoming_periods(rule.day_of_month, false, &rule.skipped, &today, closed.as_deref(), 1).into_iter().next() {
+            if !next.skipped && Some(&next.due_on) == tomorrow.as_ref() {
+                due.push((rule, next.period, next.due_on));
+            }
+        }
+    }
+    let total = due.len();
+    for (index, (rule, period, due_on)) in due.into_iter().enumerate() {
+        if std::time::Instant::now() >= deadline {
+            remaining = total - index;
+            break;
+        }
+        let params = json!({ "recurringExpensePublicId": rule.public_id, "description": rule.description, "amount": money::fixed2(rule.cents), "dueOn": due_on });
+        match notifications::create_scheduled(state, rule.group_id, "RECURRING_DUE", vec![(rule.payer_id, params)], &format!("RECURRING_DUE:{}:{period}", rule.id)).await {
+            Ok(n) => created += n,
+            Err(e) => {
+                failed += 1;
+                eprintln!("recurring due reminder failed (rule {}): {e}", rule.id);
+            }
+        }
+    }
+    (created, failed, remaining)
 }
