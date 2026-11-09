@@ -16,30 +16,30 @@ One commit per task (Fernando, 2026-11-09: "cada ponto em commits separados").
 
 ## 2. Rust core
 
-- [ ] 2.1 Workspace, config with fail-fast env check, pool, health — `server/Cargo.toml`,
+- [x] 2.1 Workspace, config with fail-fast env check, pool, health — `server/Cargo.toml`,
       `server/src/main.rs`, `server/src/config.rs`, `server/src/routes/health.rs` _Requirements: 21, 22_
-- [ ] 2.2 Session cookie (verify, sliding renewal, `sessionVersion`), active house, auth layer —
+- [x] 2.2 Session cookie (verify, sliding renewal, `sessionVersion`), active house, auth layer —
       `server/src/auth.rs`, `server/src/house.rs` _Requirements: 9, 10, 11, 12_
-- [ ] 2.3 Error `code` contract and money serialization — `server/src/errors.rs`, `server/src/money.rs` _Requirements: 3, 4_
-- [ ] 2.4 Audit writer, sensitive-field markers, explicit revisions — `server/src/audit.rs` _Requirements: 13_
-- [ ] 2.5 Expected-state tokens, rate limit, Sentry — `server/src/concurrency.rs`,
+- [x] 2.3 Error `code` contract and money serialization — `server/src/errors.rs`, `server/src/money.rs` _Requirements: 3, 4_
+- [x] 2.4 Audit writer, sensitive-field markers, explicit revisions — `server/src/audit.rs` _Requirements: 13_
+- [x] 2.5 Expected-state tokens, rate limit, Sentry — `server/src/concurrency.rs`,
       `server/src/rate_limit.rs`, `server/src/observability.rs` _Requirements: 14, 17, 18_
-- [ ] 2.6 Parity gate for every route (generalized `compare.mjs`: status, body, rows touched) —
-      `server/gate/compare.mjs`, `server/gate/cases/*.json` _Requirements: 1, 2, 3_
+- [x] 2.6 Parity gate for every route (status, body, every table after writes) —
+      `server/gate/gate.mjs`, `server/gate/cases.mjs`, `server/gate/fixture.sql` _Requirements: 1, 2, 3_
 
 ## 3. Route groups (each: handlers + services + gate green)
 
-- [ ] 3.1 Balances — `server/src/routes/balances.rs` _Requirements: 1, 5, 7, 8_
-- [ ] 3.2 Expenses, history, bulk delete, import, export — `server/src/routes/expenses.rs`, `server/src/csv.rs` _Requirements: 1, 2, 3, 5_
-- [ ] 3.3 Settlements — `server/src/routes/settlements.rs` _Requirements: 1, 2_
-- [ ] 3.4 Categories, platforms, payment methods — `server/src/routes/catalogs.rs` _Requirements: 1, 2_
-- [ ] 3.5 Shopping items and expense links — `server/src/routes/shopping.rs` _Requirements: 1, 2_
-- [ ] 3.6 Groups, join, active house, members, currency, leave, join code — `server/src/routes/groups.rs` _Requirements: 1, 2, 6, 12_
-- [ ] 3.7 Notifications, preferences, push subscriptions, test push — `server/src/routes/notifications.rs`, `server/src/push.rs` _Requirements: 1, 2, 16_
-- [ ] 3.8 Recurring expenses and skips — `server/src/routes/recurring.rs` _Requirements: 1, 2_
-- [ ] 3.9 Activity and revisions — `server/src/routes/activity.rs` _Requirements: 1, 13_
-- [ ] 3.10 Auth: login, register, password, me, logout, logout-all, Google — `server/src/routes/auth.rs` _Requirements: 1, 9, 10, 11_
-- [ ] 3.11 Scheduled jobs in-process — `server/src/jobs.rs` _Requirements: 15_
+- [x] 3.1 Balances — `server/src/routes/balances.rs` _Requirements: 1, 5, 7, 8_
+- [x] 3.2 Expenses, history, bulk delete, import, export — `server/src/routes/expenses.rs`, `server/src/csv.rs` _Requirements: 1, 2, 3, 5_
+- [x] 3.3 Settlements — `server/src/routes/settlements.rs` _Requirements: 1, 2_
+- [x] 3.4 Categories, platforms, payment methods — `server/src/routes/catalogs.rs` _Requirements: 1, 2_
+- [x] 3.5 Shopping items and expense links — `server/src/routes/shopping.rs` _Requirements: 1, 2_
+- [x] 3.6 Groups, join, active house, members, currency, leave, join code — `server/src/routes/groups.rs` _Requirements: 1, 2, 6, 12_
+- [x] 3.7 Notifications, preferences, push subscriptions, test push — `server/src/routes/notifications.rs`, `server/src/push.rs` _Requirements: 1, 2, 16_
+- [x] 3.8 Recurring expenses and skips — `server/src/routes/recurring.rs` _Requirements: 1, 2_
+- [x] 3.9 Activity and revisions — `server/src/routes/activity.rs` _Requirements: 1, 13_
+- [x] 3.10 Auth: login, register, password, me, logout, logout-all, Google — `server/src/routes/auth.rs` _Requirements: 1, 9, 10, 11_
+- [x] 3.11 Scheduled jobs in-process — `server/src/jobs.rs` _Requirements: 15_
 
 ## 4. Web app from the same process
 
