@@ -5,6 +5,7 @@ mod config;
 mod db;
 mod errors;
 mod house;
+mod money;
 mod routes {
     pub mod health;
 }
