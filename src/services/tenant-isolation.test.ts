@@ -19,6 +19,7 @@ import { allActiveGroupMembers, allGroupMembers } from "@/lib/api-helpers";
 import { runWithAuditContext } from "@/lib/audit-context";
 import { flushAudit, WRITE_OPS } from "@/lib/prisma-audit";
 import { toCents } from "@/lib/currency";
+import { aggregateSpend } from "@/lib/insights";
 import { signSession, SESSION_COOKIE } from "@/lib/auth";
 
 // Spec 010: web-push never reaches the network here. Every send resolves unless a test says otherwise.
@@ -49,7 +50,7 @@ async function reset() {
   await flushPush();
   await flushAudit();
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "User","Group","GroupMember","Platform","Category","PaymentMethod","Expense","ExpenseParticipant","Settlement","AuditLog","EntityRevision" RESTART IDENTITY CASCADE`
+    `TRUNCATE "User","Group","GroupMember","Platform","Category","PaymentMethod","Expense","ExpenseParticipant","Settlement","AuditLog","EntityRevision","BalanceCredit","BalanceDebit","BalanceCategoryTotal","BalanceMonthTotal","GroupVersion" RESTART IDENTITY CASCADE`
   );
 }
 
@@ -3136,5 +3137,142 @@ describe("recurring expenses (spec 008, integration, real pglite DB)", () => {
 
     expect(await svc.postDue(noonSP("2026-10-05"), { deadline: new Date(Date.now() - 1) })).toMatchObject({ posted: 0, remaining: 2 });
     expect(await svc.postDue(noonSP("2026-10-05"))).toMatchObject({ posted: 2, remaining: 0 });
+  });
+});
+
+// Spec 013 (criteria 5 and 6): the trigger-kept totals of migration 2_precomputed_balances must equal a live
+// SUM after every kind of write the app does — nested create, update, participant change, move between
+// houses, delete (cascade), deleteMany, createMany (CSV import) — and every such write must bump the
+// house's version. Recurring posting goes through expenseService.create, so the create case covers it.
+
+// Live sums and stored totals as comparable "kind/house/key=cents" lines (same split as balance_shares).
+const LIVE = `
+  SELECT 'credit/' || "groupId" || '/' || "payerId" || '=' || SUM(("amount" * 100)::bigint) AS line FROM "Expense" GROUP BY "groupId", "payerId"
+  UNION ALL SELECT 'debit/' || e."groupId" || '/' || p."userId" || '=' || SUM((p."amount" * 100)::bigint)
+    FROM "ExpenseParticipant" p JOIN "Expense" e ON e."id" = p."expenseId" GROUP BY e."groupId", p."userId"
+  UNION ALL SELECT 'month/' || "groupId" || '/' || to_char("date", 'YYYY-MM') || '=' || SUM(("amount" * 100)::bigint)
+    FROM "Expense" GROUP BY "groupId", to_char("date", 'YYYY-MM')
+  UNION ALL SELECT 'cat/' || e."groupId" || '/' || s.category || '=' || SUM(s.share)
+    FROM "Expense" e, balance_shares(("amount" * 100)::bigint, e."categories") s GROUP BY e."groupId", s.category`;
+const STORED = `
+  SELECT 'credit/' || "groupId" || '/' || "userId" || '=' || cents AS line FROM "BalanceCredit"
+  UNION ALL SELECT 'debit/' || "groupId" || '/' || "userId" || '=' || cents FROM "BalanceDebit"
+  UNION ALL SELECT 'month/' || "groupId" || '/' || month || '=' || cents FROM "BalanceMonthTotal"
+  UNION ALL SELECT 'cat/' || "groupId" || '/' || category || '=' || cents FROM "BalanceCategoryTotal"`;
+
+async function lines(sql: string) {
+  const rows = await prisma.$queryRawUnsafe<{ line: string }[]>(sql);
+  return rows.map((row) => row.line).sort();
+}
+
+async function expectTotalsMatchLiveSums() {
+  expect(await lines(STORED)).toEqual(await lines(LIVE));
+}
+
+async function version(groupId: number) {
+  const row = await prisma.groupVersion.findUnique({ where: { groupId } });
+  return row?.v ?? BigInt(0);
+}
+
+async function resetBalances() {
+  await flushAudit();
+  await prisma.$executeRawUnsafe(
+    `TRUNCATE "User","Group","GroupMember","Expense","ExpenseParticipant","Settlement","AuditLog","EntityRevision",
+      "BalanceCredit","BalanceDebit","BalanceCategoryTotal","BalanceMonthTotal","GroupVersion" RESTART IDENTITY CASCADE`
+  );
+}
+
+async function seedBalanceHouses() {
+  const mkUser = (name: string) => prisma.user.create({ data: { publicId: randomUUID(), name, username: name.toLowerCase() } });
+  const ana = await mkUser("Ana");
+  const bob = await mkUser("Bob");
+  const carol = await mkUser("Carol");
+  const houseA = await prisma.group.create({ data: { publicId: randomUUID(), name: "House A" } });
+  const houseB = await prisma.group.create({ data: { publicId: randomUUID(), name: "House B" } });
+  await prisma.groupMember.createMany({
+    data: [
+      { userId: ana.id, groupId: houseA.id, role: "ADMIN" },
+      { userId: bob.id, groupId: houseA.id, role: "MEMBER" },
+      { userId: carol.id, groupId: houseA.id, role: "MEMBER" },
+      { userId: carol.id, groupId: houseB.id, role: "ADMIN" },
+    ],
+  });
+  return { ana, bob, carol, houseA, houseB, members: [ana.id, bob.id, carol.id] };
+}
+
+describe("precomputed balances (integration, real pglite DB with the migrations)", () => {
+  beforeEach(resetBalances);
+
+  it("keeps the totals equal to the live sums through every kind of write, and bumps the version", async () => {
+    const { ana, bob, carol, houseA, houseB, members } = await seedBalanceHouses();
+
+    // Nested create (the app's create and the recurring poster), odd cents across three categories.
+    const v0 = await version(houseA.id);
+    const first = await expenseService.create(houseA.id, members, {
+      payerId: ana.id, description: "Groceries", amount: 100.01, categories: ["groceries", "home", "zz-new"],
+      date: new Date("2026-01-15T12:00:00"), splitEqually: true,
+    });
+    await expenseService.create(houseA.id, members, {
+      payerId: bob.id, description: "Power", amount: 59.9, date: new Date("2026-02-10T12:00:00"), splitEqually: true,
+    });
+    await expectTotalsMatchLiveSums();
+    expect(await version(houseA.id)).toBeGreaterThan(v0);
+
+    // Update amount, payer, categories and month (participants are rebuilt).
+    await expenseService.update(houseA.id, first.id, ana.id, true, members, {
+      payerId: carol.id, amount: 7.77, categories: [], date: new Date("2025-12-01T12:00:00"), splitEqually: true,
+    });
+    await expectTotalsMatchLiveSums();
+
+    // One participant's share changes on its own.
+    await prisma.expenseParticipant.updateMany({ where: { expenseId: first.id, userId: bob.id }, data: { amount: 1.11 } });
+    await expectTotalsMatchLiveSums();
+
+    // Moved to another house: its participants' debits move along; both houses' versions change.
+    const vA = await version(houseA.id);
+    const vB = await version(houseB.id);
+    await prisma.expense.update({ where: { id: first.id }, data: { groupId: houseB.id } });
+    await expectTotalsMatchLiveSums();
+    expect(await version(houseA.id)).toBeGreaterThan(vA);
+    expect(await version(houseB.id)).toBeGreaterThan(vB);
+
+    // Delete one expense (participants cascade), then the CSV import (createMany), then deleteMany.
+    await prisma.expense.delete({ where: { id: first.id } });
+    await expectTotalsMatchLiveSums();
+    const csv = "date,description,amount\n2026-03-01,Rent,1000.00\n2026-03-02,Water,33.33\n2026-04-05,Gas,10.01\n";
+    await expenseService.importFromCSV(houseA.id, members, csv, ana.id, null, true);
+    await expectTotalsMatchLiveSums();
+    const imported = await prisma.expense.findMany({ where: { groupId: houseA.id }, select: { id: true } });
+    expect(imported).toHaveLength(4); // "Power" plus the three CSV rows
+    await expenseService.bulkDelete(houseA.id, imported.slice(0, 2).map((e) => e.id));
+    await expectTotalsMatchLiveSums();
+
+    // Settlements and a rename change the response, so they bump the version too.
+    const vS = await version(houseA.id);
+    const payment = await settlementService.create(houseA.id, { fromUserId: bob.id, toUserId: ana.id, amount: 20 });
+    expect(await version(houseA.id)).toBeGreaterThan(vS);
+    const vD = await version(houseA.id);
+    await settlementService.delete(houseA.id, payment.publicId);
+    expect(await version(houseA.id)).toBeGreaterThan(vD);
+    const vR = await version(houseA.id);
+    await prisma.user.update({ where: { id: bob.id }, data: { name: "Robert" } });
+    expect(await version(houseA.id)).toBeGreaterThan(vR);
+
+    // What the balances route reads equals what it used to compute from every expense.
+    const rows = await prisma.expense.findMany({ where: { groupId: houseA.id }, select: { amount: true, categories: true, date: true } });
+    const spend = await balanceService.spend(houseA.id);
+    expect({ byCategory: spend.byCategory, byMonth: spend.byMonth }).toEqual(aggregateSpend(rows));
+    expect(spend.totalCents).toBe(rows.reduce((sum, e) => sum + toCents(e.amount), 0));
+
+    // Deleting a whole house cascades through its expenses and leaves no totals behind.
+    await prisma.group.delete({ where: { id: houseA.id } });
+    await expectTotalsMatchLiveSums();
+  });
+
+  it("detects a corrupted total (the comparison is not vacuous)", async () => {
+    const { ana, houseA, members } = await seedBalanceHouses();
+    await expenseService.create(houseA.id, members, { payerId: ana.id, description: "Bread", amount: 9.99, splitEqually: true });
+    await prisma.$executeRawUnsafe(`UPDATE "BalanceCredit" SET cents = cents + 1`);
+    await expect(expectTotalsMatchLiveSums()).rejects.toThrow();
   });
 });

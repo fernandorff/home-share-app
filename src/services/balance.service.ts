@@ -1,29 +1,20 @@
-import { fromCents, toCents } from '@/lib/currency'
+import { fromCents } from '@/lib/currency'
 import { prisma } from '@/lib/prisma'
 import type { Balance } from '@/lib/balance'
+import type { CategorySpend, MonthSpend } from '@/lib/insights'
 
+// Reads the running totals that database triggers keep for every house (spec 013, migration
+// 2_precomputed_balances): a few rows per house instead of a SUM over every expense.
 export class BalanceService {
-  /** Aggregate the source-of-truth expense ledger for one house in PostgreSQL. */
+  /** Credit (paid as payer) minus debit (share as participant), per member, from the stored totals. */
   async aggregate(groupId: number): Promise<Balance[]> {
-    const [creditByPayer, debitByUser] = await Promise.all([
-      prisma.expense.groupBy({
-        by: ['payerId'],
-        where: { groupId },
-        _sum: { amount: true },
-      }),
-      prisma.expenseParticipant.groupBy({
-        by: ['userId'],
-        where: { expense: { groupId } },
-        _sum: { amount: true },
-      }),
+    const [credits, debits] = await Promise.all([
+      prisma.balanceCredit.findMany({ where: { groupId }, orderBy: { userId: 'asc' } }),
+      prisma.balanceDebit.findMany({ where: { groupId }, orderBy: { userId: 'asc' } }),
     ])
 
-    const creditCents = new Map(
-      creditByPayer.map((row) => [row.payerId, toCents(row._sum.amount ?? 0)])
-    )
-    const debitCents = new Map(
-      debitByUser.map((row) => [row.userId, toCents(row._sum.amount ?? 0)])
-    )
+    const creditCents = new Map(credits.map((row) => [row.userId, Number(row.cents)]))
+    const debitCents = new Map(debits.map((row) => [row.userId, Number(row.cents)]))
     const userIds = [...new Set([...creditCents.keys(), ...debitCents.keys()])]
 
     const users = await prisma.user.findMany({
@@ -39,6 +30,25 @@ export class BalanceService {
         balance: fromCents((creditCents.get(userId) ?? 0) - (debitCents.get(userId) ?? 0)),
       }))
       .sort((a, b) => b.balance - a.balance)
+  }
+
+  /** Spend charts and the house total, from the stored totals (same split as `aggregateSpend`). */
+  async spend(groupId: number): Promise<{ totalCents: number; byCategory: CategorySpend[]; byMonth: MonthSpend[] }> {
+    const [categories, months] = await Promise.all([
+      prisma.balanceCategoryTotal.findMany({ where: { groupId }, orderBy: [{ cents: 'desc' }, { category: 'asc' }] }),
+      prisma.balanceMonthTotal.findMany({ where: { groupId }, orderBy: { month: 'desc' } }),
+    ])
+    return {
+      totalCents: months.reduce((sum, row) => sum + Number(row.cents), 0),
+      byCategory: categories.map((row) => ({ category: row.category, total: fromCents(Number(row.cents)) })),
+      byMonth: months.map((row) => ({ month: row.month, total: fromCents(Number(row.cents)) })),
+    }
+  }
+
+  /** Bumped by triggers on every write that changes this house's balances response. */
+  async version(groupId: number): Promise<bigint> {
+    const row = await prisma.groupVersion.findUnique({ where: { groupId } })
+    return row?.v ?? BigInt(0)
   }
 }
 

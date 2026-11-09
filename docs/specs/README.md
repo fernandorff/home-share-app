@@ -30,3 +30,4 @@ Rules that make specs work with AI agents:
 - [008 — Recurring expenses](008-recurring-expenses/requirements.md)
 - [009 — Installable app + notification center](009-pwa-notification-center/requirements.md)
 - [010 — Web Push notifications](010-web-push/requirements.md)
+- [013 — Rust server with precomputed balances](013-rust-server/requirements.md)

@@ -1,42 +1,45 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { applySettlements, simplifyDebts } from '@/lib/balance'
-import { aggregateSpend } from '@/lib/insights'
 import { settlementService } from '@/services/settlement.service'
 import { handleApiError, requireActiveGroup } from '@/lib/api-helpers'
-import { toCents, fromCents } from '@/lib/currency'
+import { fromCents } from '@/lib/currency'
 import { balanceService } from '@/services/balance.service'
 
-export async function GET() {
+// Finished response per house, valid while the house's version (bumped by database triggers on every write
+// that changes it) is unchanged. ponytail: per process; a shared cache only if a measured miss rate asks for it.
+const bodies = new Map<number, { version: bigint; body: string }>()
+
+export async function GET(request: Request) {
   try {
     const check = await requireActiveGroup()
     if (!check.ok) return check.response
     const groupId = check.groupId
 
-    // Balances = credit (what you paid as payer) - debit (your share as participant). These are
-    // exact SUMs over Decimal(10,2), so we aggregate in the DB instead of hydrating every expense
-    // with its participants+user (which grew unboundedly). Insights still need amount/categories/date,
-    // fetched with a MINIMAL select and fed to the tested aggregateSpend (no SQL re-implementation).
-    const [rawBalances, spendRows, payments] = await Promise.all([
+    // Read the version BEFORE computing: a write landing mid-way bumps it again, so a stale body is never
+    // stored under a newer version.
+    const version = await balanceService.version(groupId)
+    const etag = `"g${groupId}v${version}"`
+    if (request.headers.get('if-none-match') === etag) return new NextResponse(null, { status: 304, headers: { etag } })
+    const hit = bodies.get(groupId)
+    if (hit?.version === version) return new NextResponse(hit.body, { headers: { 'content-type': 'application/json', etag } })
+
+    // Totals come precomputed (spec 013); recorded payments are folded in as signed transfers.
+    const [rawBalances, spend, payments] = await Promise.all([
       balanceService.aggregate(groupId),
-      prisma.expense.findMany({ where: { groupId }, select: { amount: true, categories: true, date: true } }),
+      balanceService.spend(groupId),
       settlementService.list(groupId),
     ])
-
-    // Recorded payments folded in as signed transfers.
     const balances = applySettlements(rawBalances, payments)
-    const settlements = simplifyDebts(balances)
-    const totalCents = spendRows.reduce((sum, e) => sum + toCents(e.amount), 0)
-    const { byCategory, byMonth } = aggregateSpend(spendRows)
-
-    return NextResponse.json({
+    const body = JSON.stringify({
       balances,
-      settlements,
-      totalExpenses: fromCents(totalCents),
+      settlements: simplifyDebts(balances),
+      totalExpenses: fromCents(spend.totalCents),
       payments,
-      byCategory,
-      byMonth,
+      byCategory: spend.byCategory,
+      byMonth: spend.byMonth,
     })
+    bodies.set(groupId, { version, body })
+    return new NextResponse(body, { headers: { 'content-type': 'application/json', etag } })
   } catch (error) {
     return handleApiError(error, 'Erro ao calcular saldos')
   }
