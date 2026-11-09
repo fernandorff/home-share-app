@@ -56,6 +56,7 @@ async function cookieFor(c) {
   return parts.join('; ')
 }
 
+const UNORDERED = new Set(['payerTotals', 'monthTotals', 'payerMonthTotals'])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const FIXTURE_UUID = /^00000000-0000-7000-8000-/
 const ISO = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?Z?$/
@@ -72,7 +73,13 @@ function normalize(value, uuids = new Map()) {
     return value
   }
   if (Array.isArray(value)) return value.map((v) => normalize(v, uuids))
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, normalize(v, uuids)]))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => {
+      const n = normalize(v, uuids)
+      // Prisma groupBy has no ORDER BY: these lists come in whatever order Postgres groups them.
+      return [k, UNORDERED.has(k) && Array.isArray(n) ? [...n].sort((x, y) => JSON.stringify(x).localeCompare(JSON.stringify(y))) : n]
+    }))
+  }
   return value
 }
 

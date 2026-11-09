@@ -6,11 +6,12 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde_json::json;
+use std::borrow::Cow;
 
 #[derive(Debug)]
 pub struct ApiError {
     pub status: StatusCode,
-    pub message: &'static str,
+    pub message: Cow<'static, str>,
     pub code: Option<&'static str>,
     /// Extra headers the error must carry (e.g. clearing a revoked session cookie).
     pub set_cookie: Option<&'static str>,
@@ -18,13 +19,18 @@ pub struct ApiError {
 
 impl ApiError {
     pub const fn new(status: StatusCode, message: &'static str, code: &'static str) -> ApiError {
-        ApiError { status, message, code: Some(code), set_cookie: None }
+        ApiError { status, message: Cow::Borrowed(message), code: Some(code), set_cookie: None }
+    }
+
+    /// An error the Next route answers without a `code` (a plain NextResponse.json({ error })).
+    pub fn plain(status: StatusCode, message: impl Into<Cow<'static, str>>) -> ApiError {
+        ApiError { status, message: message.into(), code: None, set_cookie: None }
     }
 
     /// An unexpected failure: logged, answered with the route's generic message and no detail.
     pub fn internal(message: &'static str, error: impl std::fmt::Display) -> ApiError {
         eprintln!("{message}: {error}");
-        ApiError { status: StatusCode::INTERNAL_SERVER_ERROR, message, code: None, set_cookie: None }
+        ApiError::plain(StatusCode::INTERNAL_SERVER_ERROR, message)
     }
 }
 

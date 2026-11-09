@@ -143,7 +143,7 @@ pub async fn post(State(state): State<AppState>, house: ActiveHouse, body: Bytes
         .map_err(|e| fail(&e))?[0]
         .get(0);
     if members != 2 {
-        return Err(ApiError { code: None, ..bad("Payer or recipient is not a member of this house", "") });
+        return Err(ApiError::plain(StatusCode::BAD_REQUEST, "Payer or recipient is not a member of this house"));
     }
 
     let actor = house.session.user_id as i32;
@@ -192,7 +192,7 @@ pub async fn post(State(state): State<AppState>, house: ActiveHouse, body: Bytes
 pub async fn delete(State(state): State<AppState>, house: ActiveHouse, Path(public_id): Path<String>) -> Result<Json<Value>, ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to delete settlement", e);
     if !input::is_uuid(&public_id) {
-        return Err(ApiError { code: None, ..bad("Invalid ID", "") });
+        return Err(ApiError::plain(StatusCode::BAD_REQUEST, "Invalid ID"));
     }
     let mut db = state.pool.get().await.map_err(|e| fail(&e))?;
     let found = db
@@ -200,7 +200,7 @@ pub async fn delete(State(state): State<AppState>, house: ActiveHouse, Path(publ
         .await
         .map_err(|e| fail(&e))?;
     let Some(settlement) = found.first().map(from_row) else {
-        return Err(ApiError { code: None, ..ApiError::new(StatusCode::NOT_FOUND, "Payment not found in this house", "") });
+        return Err(ApiError::plain(StatusCode::NOT_FOUND, "Payment not found in this house"));
     };
     let actor = house.session.user_id as i32;
     let tx = db.transaction().await.map_err(|e| fail(&e))?;
