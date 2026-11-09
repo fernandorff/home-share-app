@@ -24,8 +24,8 @@ One commit per task (Fernando, 2026-11-09: "cada ponto em commits separados").
 - [ ] 2.4 Audit writer, sensitive-field markers, explicit revisions — `server/src/audit.rs` _Requirements: 13_
 - [ ] 2.5 Expected-state tokens, rate limit, Sentry — `server/src/concurrency.rs`,
       `server/src/rate_limit.rs`, `server/src/observability.rs` _Requirements: 14, 17, 18_
-- [ ] 2.6 Parity gate for every route (generalized `compare.mjs`: status, body, rows touched) —
-      `server/gate/compare.mjs`, `server/gate/cases/*.json` _Requirements: 1, 2, 3_
+- [x] 2.6 Parity gate for every route (status, body, every table after writes) —
+      `server/gate/gate.mjs`, `server/gate/cases.mjs`, `server/gate/fixture.sql` _Requirements: 1, 2, 3_
 
 ## 3. Route groups (each: handlers + services + gate green)
 
