@@ -11,6 +11,7 @@ mod house;
 mod input;
 mod money;
 mod notifications;
+mod system_defaults;
 mod routes {
     pub mod balances;
     pub mod expense_import;
@@ -19,6 +20,7 @@ mod routes {
     pub mod expenses;
     pub mod health;
     pub mod settlements;
+    pub mod tags;
 }
 
 use axum::{
@@ -84,6 +86,12 @@ pub fn app(state: AppState) -> Router {
         .route("/api/expenses/export", get(routes::expense_more::export))
         .route("/api/expenses/import", axum::routing::post(routes::expense_import::import))
         .route("/api/expenses/{expense_id}/history", get(routes::expense_more::history))
+        .route("/api/categories", get(routes::tags::categories::list).post(routes::tags::categories::create))
+        .route("/api/categories/{id}", axum::routing::delete(routes::tags::categories::delete))
+        .route("/api/platforms", get(routes::tags::platforms::list).post(routes::tags::platforms::create))
+        .route("/api/platforms/{id}", axum::routing::delete(routes::tags::platforms::delete))
+        .route("/api/payment-methods", get(routes::tags::payment_methods::list).post(routes::tags::payment_methods::create))
+        .route("/api/payment-methods/{id}", axum::routing::delete(routes::tags::payment_methods::delete))
         .route("/api/settlements", get(routes::settlements::get).post(routes::settlements::post))
         .route("/api/settlements/{settlement_id}", axum::routing::delete(routes::settlements::delete))
         .layer(middleware::from_fn_with_state(state.clone(), api_gate))
