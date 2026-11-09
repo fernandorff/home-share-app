@@ -23,6 +23,7 @@ mod routes {
     pub mod expense_more;
     pub mod expense_writes;
     pub mod expenses;
+    pub mod google;
     pub mod groups;
     pub mod health;
     pub mod notifications;
@@ -131,6 +132,8 @@ pub fn app(state: AppState) -> Router {
         .route("/api/auth/logout-all", axum::routing::post(routes::account::logout_all))
         .route("/api/auth/password", axum::routing::post(routes::account::password))
         .route("/api/auth/me", get(routes::account::me).patch(routes::account::update_me).delete(routes::account::delete_me))
+        .route("/api/auth/google", get(routes::google::start))
+        .route("/api/auth/google/callback", get(routes::google::callback))
         .route("/api/shopping-items", get(routes::shopping::list).post(routes::shopping::create))
         .route("/api/shopping-items/clear-purchased", axum::routing::delete(routes::shopping::clear_purchased))
         .route("/api/shopping-items/{item_id}", axum::routing::put(routes::shopping::update).delete(routes::shopping::delete))

@@ -396,6 +396,13 @@ export const cases = [
   {"name": "account fred session gone", "path": "/api/auth/me", "useSession": "fred"},
   {"name": "account fred cannot log in", "path": "/api/auth/login", "method": "POST", "body": {"username": "fred", "password": "casa2026x"}},
 
+  // sign in with Google: redirects only (task 3.10)
+  {"name": "google start", "path": "/api/auth/google"},
+  {"name": "google callback cancelled", "path": "/api/auth/google/callback?error=access_denied&state=x"},
+  {"name": "google callback without code", "path": "/api/auth/google/callback?state=abc", "headers": {"cookie": "homeshare_oauth_state=abc"}},
+  {"name": "google callback without state cookie", "path": "/api/auth/google/callback?code=c&state=abc"},
+  {"name": "google callback state mismatch", "path": "/api/auth/google/callback?code=c&state=abc", "headers": {"cookie": "homeshare_oauth_state=xyz"}},
+
   // push subscriptions (task 3.7). Keep last: once a member has a subscription, a notice would send a real push.
   {"name": "push register not json", "path": "/api/push-subscriptions", "as": "ana", "method": "POST", "text": "{\"endpoint\": \"https://fcm.googleapis.com/fcm/send/gate-1\", \"keys\": {\"p256dh\": \"BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\", \"auth\": \"AAAAAAAAAAAAAAAAAAAAAQ\"}}"},
   {"name": "push register empty body", "path": "/api/push-subscriptions", "as": "ana", "method": "POST", "body": {}},

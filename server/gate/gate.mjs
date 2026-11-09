@@ -129,7 +129,12 @@ async function call(base, c, side) {
     const unnumbered = JSON.parse(JSON.stringify(normalize(body.revisions)).replace(/#uuid\d+/g, '#uuid'))
     body.revisions = unnumbered.sort((x, y) => JSON.stringify(x).localeCompare(JSON.stringify(y)))
   }
-  return { status: res.status, body: normalize(body), setCookie: res.headers.get('set-cookie') ? 'set' : null }
+  // Redirects: the target, with this server's own origin and any fresh id taken out.
+  // (next dev reports its origin as localhost even when called on 127.0.0.1.)
+  let location = res.headers.get('location') ?? null
+  for (const origin of [base, base.replace('127.0.0.1', 'localhost')]) location = location?.replaceAll(encodeURIComponent(origin), '<origin>').replaceAll(origin, '<origin>') ?? null
+  location = location?.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<uuid>') ?? null
+  return { status: res.status, body: normalize(body), setCookie: res.headers.get('set-cookie') ? 'set' : null, location }
 }
 
 async function dump(name) {

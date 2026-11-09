@@ -11,6 +11,8 @@ export NEXT_URL="http://127.0.0.1:$NEXT_PORT" RUST_URL="http://127.0.0.1:$RUST_P
 export JWT_SECRET="gate-secret-local-only"
 # Push "configured" with placeholder keys, so the subscription routes run; the gate never sends a real push.
 export NEXT_PUBLIC_VAPID_PUBLIC_KEY="gate-vapid-public" VAPID_PRIVATE_KEY="gate-vapid-private" VAPID_SUBJECT="mailto:gate@example.com"
+# Google sign-in "configured" with placeholders: the gate checks the redirects, never a real code exchange.
+export GOOGLE_CLIENT_ID="gate-client-id" GOOGLE_CLIENT_SECRET="gate-client-secret"
 SERVER_DIR="$(cd server && pwd -W 2>/dev/null || pwd)"
 
 docker start hs-gate-pg >/dev/null 2>&1 || docker run -d --name hs-gate-pg -e POSTGRES_PASSWORD=gate -p "127.0.0.1:$PG_PORT:5432" postgres:16-alpine >/dev/null
@@ -21,7 +23,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$SERVER_DIR:/w" -v hs-cargo:/usr/local/ca
   rust:1.90-bookworm cargo build --release -q
 docker rm -f hs-server-gate >/dev/null 2>&1 || true
 MSYS_NO_PATHCONV=1 docker run -d --rm --name hs-server-gate -p "127.0.0.1:$RUST_PORT:8080" -v hs-target:/t \
-  -e DATABASE_URL="postgresql://postgres:gate@host.docker.internal:$PG_PORT/gate_b" -e JWT_SECRET -e NEXT_PUBLIC_VAPID_PUBLIC_KEY -e VAPID_PRIVATE_KEY -e VAPID_SUBJECT \
+  -e DATABASE_URL="postgresql://postgres:gate@host.docker.internal:$PG_PORT/gate_b" -e JWT_SECRET -e NEXT_PUBLIC_VAPID_PUBLIC_KEY -e VAPID_PRIVATE_KEY -e VAPID_SUBJECT -e GOOGLE_CLIENT_ID -e GOOGLE_CLIENT_SECRET \
   debian:bookworm-slim /t/release/home-share-server >/dev/null
 
 TZ=UTC DATABASE_URL="postgresql://postgres:gate@127.0.0.1:$PG_PORT/gate_a" node node_modules/next/dist/bin/next dev --webpack -p "$NEXT_PORT" >/tmp/gate-next.log 2>&1 &
