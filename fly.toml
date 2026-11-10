@@ -1,0 +1,30 @@
+# Fly.io, São Paulo (spec 013, task 5.2): the Rust server (API + Vite web app) from the root Dockerfile, one machine always on.
+# Secrets are never here: `fly secrets set DATABASE_URL=... JWT_SECRET=...` (list in docs/specs/013-rust-server/design.md).
+app = "home-share"  # final name chosen at `fly launch`
+primary_region = "gru"
+kill_timeout = 10  # SIGINT (Fly's default kill_signal) → the server stops taking connections and finishes the ones in flight
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DATABASE_POOL_MAX = "4"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 1
+
+[[http_service.checks]]
+  grace_period = "5s"
+  interval = "15s"
+  method = "GET"
+  path = "/api/health"
+  timeout = "2s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"

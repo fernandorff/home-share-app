@@ -57,7 +57,7 @@ One commit per task (Fernando, 2026-11-09: "cada ponto em commits separados").
 
 - [ ] 5.1 Host decision (official prices + criterion 8 measured on each finalist) and a new ADR
       superseding 0004 and 0010 — `docs/decisions/0014-*.md` _Requirements: 8_
-- [ ] 5.2 Container and deploy for staging, then production — `server/Dockerfile`, deploy config _Requirements: 8, 21_
+- [ ] 5.2 Container and deploy for staging, then production — `Dockerfile`, `.dockerignore`, `fly.toml` _Requirements: 8, 21_
 - [ ] 5.3 Next app moves to the `-next` host name, crons removed, same database — `vercel.json`,
       DNS/Vercel domain (manual) _Requirements: 23, 24, 25_
 - [ ] 5.4 Verify: `cargo test`, `npm run test`, gate green on staging, criterion 8 on the host, live check.

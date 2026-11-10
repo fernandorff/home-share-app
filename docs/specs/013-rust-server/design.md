@@ -117,6 +117,16 @@ The web build takes `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VITE_SENTRY_DSN` (same DSN)
 (Fly's default) or SIGTERM stops new connections and lets the requests in flight finish. Responses are
 gzipped on the fly.
 
+Image: the root `Dockerfile` (Node builds `dist/`, Rust builds the release binary, the final stage is
+`distroless/cc-debian12:nonroot` with both and `WEB_DIR=/app/dist`); `.dockerignore` is an allow-list, so no
+`.env` or local build output enters the context. Fly: `fly.toml` (gru, shared 1 CPU, 256 MB, always on,
+health check `/api/health`; secrets with `fly secrets set`). Cloud Run, for the cold-boot comparison (asleep
+between requests, so the in-process timer is off there):
+
+```bash
+gcloud run deploy home-share --source . --region=southamerica-east1   --min-instances=0 --max-instances=2 --memory=512Mi --cpu=1 --port=8080 --allow-unauthenticated   --set-env-vars=SCHEDULED_JOBS=off,DATABASE_POOL_MAX=4   --set-secrets=DATABASE_URL=home-share-database-url:latest,JWT_SECRET=home-share-jwt-secret:latest
+```
+
 ## Alternatives considered
 
 - Next on Vercel + Rust API on another host behind a rewrite — rejected by Fernando on 2026-11-09: two
