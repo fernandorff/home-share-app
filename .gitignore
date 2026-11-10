@@ -85,3 +85,7 @@ neon-dev-url.tmp
 !.env.example
 
 .env*.local
+
+# playwright
+/test-results/
+/playwright-report/
