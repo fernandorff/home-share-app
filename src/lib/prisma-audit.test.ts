@@ -119,4 +119,11 @@ describe("audit extension: rows that used to lose their key, house or system act
     const row = await record("ShoppingItem", "deleteMany", { where: { groupId: 4, isPurchased: true } }, { count: 2 });
     expect(row).toMatchObject({ entityId: "bulk:2", groupId: 4 });
   });
+
+  it("an expense posted by a recurring rule is the system's, even inside a member's request", async () => {
+    const row = await record("Expense", "create", { data: {} }, { id: 7, groupId: 4, recurringExpenseId: 3 });
+    expect(row).toMatchObject({ entityId: "7", actorId: null });
+    const manual = await record("Expense", "create", { data: {} }, { id: 8, groupId: 4, recurringExpenseId: null });
+    expect(manual).toMatchObject({ actorId: 5 });
+  });
 });

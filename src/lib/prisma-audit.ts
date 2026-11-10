@@ -140,12 +140,15 @@ export function auditExtension(base: PrismaClient) {
           // request's session cookie (reliable in real route handlers). A system context (scheduled
           // writes) is never attributed to a person, cookie or not.
           const ctx = getAuditContext();
-          const actorId = ctx.system ? null : ctx.actorId ?? (await actorFromRequest());
+          let actorId = ctx.system ? null : ctx.actorId ?? (await actorFromRequest());
 
           const result = await query(args);
 
           try {
             const a = args as { where?: AnyRow; data?: AnyRow | AnyRow[] };
+            // A recurring posting is the system's write, also when it runs inside a member's request: the
+            // ALS context does not survive the interactive transaction, so the posted row itself says so.
+            if (model === "Expense" && operation === "create" && (result as AnyRow).recurringExpenseId != null) actorId = null;
             const stamp = { entityType: model, actorId };
             // A `select` without the id (e.g. only sessionVersion) leaves the row keyless: the where names it.
             const idOf = (row: AnyRow) => String(row.id ?? a.where?.id);
