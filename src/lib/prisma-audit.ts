@@ -145,22 +145,24 @@ export function auditExtension(base: PrismaClient) {
           const result = await query(args);
 
           try {
-            const a = args as { where?: object; data?: AnyRow | AnyRow[] };
+            const a = args as { where?: AnyRow; data?: AnyRow | AnyRow[] };
             const stamp = { entityType: model, actorId };
+            // A `select` without the id (e.g. only sessionVersion) leaves the row keyless: the where names it.
+            const idOf = (row: AnyRow) => String(row.id ?? a.where?.id);
 
             if (operation === "create") {
               const row = result as AnyRow;
-              enqueue([{ ...stamp, entityId: String(row.id), action: "CREATE",
+              enqueue([{ ...stamp, entityId: idOf(row), action: "CREATE",
                 groupId: pickGroupId(model, row, ctx), after: sanitize(row) as Prisma.InputJsonValue }]);
             } else if (operation === "update" || operation === "upsert") {
               const row = result as AnyRow;
-              enqueue([{ ...stamp, entityId: String(row.id), action: "UPDATE",
+              enqueue([{ ...stamp, entityId: idOf(row), action: "UPDATE",
                 groupId: pickGroupId(model, row, ctx),
                 after: { ...(sanitize(row) as AnyRow), ...changeMarkers(a.data) } as Prisma.InputJsonValue }]);
             } else if (operation === "delete") {
               // delete returns the removed row — record its final state.
               const row = result as AnyRow;
-              enqueue([{ ...stamp, entityId: String(row.id), action: "DELETE",
+              enqueue([{ ...stamp, entityId: idOf(row), action: "DELETE",
                 groupId: pickGroupId(model, row, ctx), before: sanitize(row) as Prisma.InputJsonValue }]);
             } else if (
               (operation === "createManyAndReturn" || operation === "updateManyAndReturn") &&

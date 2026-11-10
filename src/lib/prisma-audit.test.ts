@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { auditExtension, flushAudit, WRITE_OPS } from "@/lib/prisma-audit";
 import { logger } from "@/lib/logger";
+import { runWithAuditContext } from "@/lib/audit-context";
 
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
@@ -98,5 +99,19 @@ describe("audit extension: a write it has no branch for (POC 009 re-review)", ()
       data: [{ entityType: "Expense", entityId: "7", action: "CREATE", groupId: 3 }],
     });
     expect(logger.error).not.toHaveBeenCalled();
+  });
+});
+
+describe("audit extension: rows that used to lose their key, house or system actor", () => {
+  const record = async (model: string, operation: string, args: unknown, result: unknown) => {
+    const { allOperations, createMany } = captureExtension();
+    await runWithAuditContext({ actorId: 5 }, () => allOperations({ model, operation, args, query: vi.fn().mockResolvedValue(result) }));
+    await flushAudit();
+    return createMany.mock.calls[0][0].data[0];
+  };
+
+  it("an update that selects no id is keyed by its where", async () => {
+    const row = await record("User", "update", { where: { id: 9 }, data: { sessionVersion: { increment: 1 } }, select: { sessionVersion: true } }, { sessionVersion: 2 });
+    expect(row).toMatchObject({ entityId: "9", action: "UPDATE", actorId: 5 });
   });
 });
