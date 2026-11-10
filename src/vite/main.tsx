@@ -1,11 +1,6 @@
 // Vite entry (spec 013, 4.1): what src/app/layout.tsx does on the server, done in the browser. The theme is
 // set by the inline script in index.html; the locale's messages load before the first render, so a
 // non-English user never sees English first.
-import "@fontsource/space-mono/400.css";
-import "@fontsource/space-mono/700.css";
-import "@fontsource-variable/jetbrains-mono";
-import "@fontsource-variable/nunito";
-import "@fontsource-variable/fredoka";
 import "@/app/globals.css";
 import "./fonts.css";
 import { StrictMode, useEffect } from "react";

@@ -29,4 +29,7 @@ export default defineConfig({
     "process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY": JSON.stringify(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""),
   },
   build: { outDir: "dist", sourcemap: false },
+  // `vite preview` stands in for Axum in the screenshot comparison (server/gate/screens.mjs): /api goes to
+  // the Next server named by PREVIEW_API, so both sides read the same data.
+  preview: process.env.PREVIEW_API ? { proxy: { "/api": process.env.PREVIEW_API } } : undefined,
 });
