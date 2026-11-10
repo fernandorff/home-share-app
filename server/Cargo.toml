@@ -16,7 +16,7 @@ icu_collator = "2"
 icu_locale_core = "2"
 deadpool-postgres = "0.14"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
-tokio-postgres-rustls = "0.13"
+tokio-postgres-rustls = "0.14"
 webpki-roots = "1"
 jsonwebtoken = "9"
 bcrypt = "0.17"

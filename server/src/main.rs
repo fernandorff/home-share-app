@@ -71,14 +71,19 @@ async fn api_gate(State(state): State<AppState>, request: Request, next: Next) -
     next.run(request).await
 }
 
-fn pool(cfg: &Config) -> Pool {
-    // TLS when the URL asks for it (Neon: sslmode=require); a local database without TLS still connects.
-    let roots = rustls::RootCertStore { roots: webpki_roots::TLS_SERVER_ROOTS.to_vec() };
-    let tls = rustls::ClientConfig::builder_with_provider(rustls::crypto::ring::default_provider().into())
+/// The database TLS client. Neon's URLs carry `channel_binding=require` (SCRAM-SHA-256-PLUS): the connector
+/// must hand tokio-postgres the server certificate's hash, which tokio-postgres-rustls does from 0.14 on.
+fn tls_config(roots: rustls::RootCertStore) -> rustls::ClientConfig {
+    rustls::ClientConfig::builder_with_provider(rustls::crypto::ring::default_provider().into())
         .with_safe_default_protocol_versions()
         .expect("TLS protocol versions")
         .with_root_certificates(roots)
-        .with_no_client_auth();
+        .with_no_client_auth()
+}
+
+fn pool(cfg: &Config) -> Pool {
+    // TLS when the URL asks for it (Neon: sslmode=require); a local database without TLS still connects.
+    let tls = tls_config(rustls::RootCertStore { roots: webpki_roots::TLS_SERVER_ROOTS.to_vec() });
     let pg = tokio_postgres::Config::from_str(&cfg.database_url).unwrap_or_else(|_| fail("DATABASE_URL is not a valid Postgres URL"));
     let mgr = Manager::new(pg, tokio_postgres_rustls::MakeRustlsConnect::new(tls));
     Pool::builder(mgr).max_size(cfg.pool_max).build().expect("pool")
@@ -180,4 +185,24 @@ async fn main() {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap_or_else(|e| fail(&e.to_string()));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tls_config;
+
+    /// Neon's `channel_binding=require` over TLS + SCRAM (bug found on the Fly measurement deploy, 2026-11-10).
+    /// Needs a Postgres with TLS: `bash server/gate/tls-check.sh` sets TLS_TEST_URL and TLS_TEST_CA (DER).
+    #[tokio::test]
+    #[ignore]
+    async fn connects_with_channel_binding_required() {
+        let url = std::env::var("TLS_TEST_URL").expect("TLS_TEST_URL");
+        let ca = std::fs::read(std::env::var("TLS_TEST_CA").expect("TLS_TEST_CA")).expect("CA file");
+        let mut roots = rustls::RootCertStore::empty();
+        roots.add(ca.into()).expect("CA certificate");
+        let tls = tokio_postgres_rustls::MakeRustlsConnect::new(tls_config(roots));
+        let (client, connection) = tokio_postgres::connect(&url, tls).await.expect("connect");
+        tokio::spawn(connection);
+        assert_eq!(client.query_one("SELECT 1", &[]).await.expect("query").get::<_, i32>(0), 1);
+    }
 }
