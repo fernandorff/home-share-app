@@ -1,4 +1,4 @@
-//! Home Share server (spec 013): one always-on Axum process for the API (and, later, the exported web app).
+//! Home Share server (spec 013): one always-on Axum process for the API and the web app built by Vite.
 
 mod audit;
 mod auth;
@@ -16,6 +16,7 @@ mod push;
 mod push_messages;
 mod rate_limit;
 mod recurrence;
+mod static_files;
 mod system_defaults;
 mod routes {
     pub mod account;
@@ -88,8 +89,8 @@ fn fail(message: &str) -> ! {
     std::process::exit(1)
 }
 
-pub fn app(state: AppState) -> Router {
-    Router::new()
+pub fn app(state: AppState, web_dir: std::path::PathBuf, production: bool) -> Router {
+    let api = Router::new()
         .route("/api/health", get(routes::health::get))
         .route("/api/balances", get(routes::balances::get))
         .route("/api/expenses", get(routes::expenses::list).post(routes::expense_writes::create))
@@ -144,9 +145,29 @@ pub fn app(state: AppState) -> Router {
         .route("/api/shopping-items/{item_id}", axum::routing::put(routes::shopping::update).delete(routes::shopping::delete))
         .route("/api/shopping-items/{item_id}/toggle", axum::routing::patch(routes::shopping::toggle))
         .route("/api/shopping-items/{item_id}/expenses", axum::routing::put(routes::shopping::replace_links))
-        .route_layer(middleware::from_fn(observability::observe))
+        .route_layer(middleware::from_fn(observability::observe));
+    static_files::routes(api, web_dir)
         .layer(middleware::from_fn_with_state(state.clone(), api_gate))
+        .layer(middleware::from_fn(static_files::strip_trailing_slash))
+        .layer(middleware::from_fn_with_state(Arc::new(static_files::security_headers(production)), static_files::add_security_headers))
+        // ponytail: gzip on the fly; brotli files precompressed at build time if the bundle size matters more.
+        .layer(tower_http::compression::CompressionLayer::new().no_br().no_deflate().no_zstd())
         .with_state(state)
+}
+
+/// Fly stops a machine with SIGINT (its default kill_signal), Docker and most hosts with SIGTERM: either one stops
+/// taking new connections and lets the requests in flight finish.
+async fn shutdown_signal() {
+    let terminate = async {
+        #[cfg(unix)]
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).expect("SIGTERM handler").recv().await;
+        #[cfg(not(unix))]
+        std::future::pending::<()>().await;
+    };
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {},
+        _ = terminate => {},
+    }
 }
 
 #[tokio::main]
@@ -155,5 +176,8 @@ async fn main() {
     let state = AppState { pool: pool(&cfg), keys: Arc::new(auth::Keys::new(&cfg.jwt_secret)), vapid: cfg.vapid.map(Arc::new) };
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", cfg.port)).await.unwrap_or_else(|e| fail(&e.to_string()));
     routes::jobs::start(&state);
-    axum::serve(listener, app(state)).await.unwrap_or_else(|e| fail(&e.to_string()));
+    axum::serve(listener, app(state, cfg.web_dir, cfg.production))
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .unwrap_or_else(|e| fail(&e.to_string()));
 }

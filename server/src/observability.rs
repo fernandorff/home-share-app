@@ -40,16 +40,16 @@ fn current() -> RequestContext {
     CONTEXT.try_with(|c| c.borrow().clone()).unwrap_or_default()
 }
 
-struct Dsn {
+pub(crate) struct Dsn {
     key: String,
-    envelope: String,
+    pub(crate) envelope: String,
     raw: String,
 }
 
-static DSN: LazyLock<Option<Dsn>> = LazyLock::new(|| parse_dsn(&std::env::var("SENTRY_DSN").unwrap_or_default()));
+pub(crate) static DSN: LazyLock<Option<Dsn>> = LazyLock::new(|| parse_dsn(&std::env::var("SENTRY_DSN").unwrap_or_default()));
 
 /// https://<public key>@<host>/<project id>
-fn parse_dsn(raw: &str) -> Option<Dsn> {
+pub(crate) fn parse_dsn(raw: &str) -> Option<Dsn> {
     let raw = raw.trim();
     let (scheme, rest) = raw.split_once("://")?;
     let (key, rest) = rest.split_once('@')?;
@@ -58,7 +58,7 @@ fn parse_dsn(raw: &str) -> Option<Dsn> {
         .then(|| Dsn { key: key.to_string(), envelope: format!("{scheme}://{host}/api/{project}/envelope/"), raw: raw.to_string() })
 }
 
-static CLIENT: LazyLock<reqwest::Client> =
+pub(crate) static CLIENT: LazyLock<reqwest::Client> =
     LazyLock::new(|| reqwest::Client::builder().timeout(Duration::from_secs(5)).build().expect("Sentry HTTP client"));
 
 fn is_push_host(host: &str) -> bool {
