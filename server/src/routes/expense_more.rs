@@ -53,9 +53,9 @@ pub async fn bulk_delete(State(state): State<AppState>, house: ActiveHouse, body
         .execute(r#"DELETE FROM "Expense" WHERE "id" = ANY($1) AND "groupId" = $2"#, &[&found, &house.group_id])
         .await
         .map_err(|e| fail(&e))?;
-    // deleteMany marker; its house comes from the audit context, null in the Next app (see expense_writes.rs).
+    // deleteMany marker; its house comes from the where clause.
     let marker = Revision {
-        entity_type: "Expense", entity_id: format!("bulk:{deleted}"), group_id: None, action: Action::Delete,
+        entity_type: "Expense", entity_id: format!("bulk:{deleted}"), group_id: Some(house.group_id), action: Action::Delete,
         actor_id: Some(house.session.user_id as i32), row: json!({ "where": { "id": { "in": found }, "groupId": house.group_id }, "data": null }),
         fields_set: &[],
     };

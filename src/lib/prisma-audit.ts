@@ -186,7 +186,7 @@ export function auditExtension(base: PrismaClient) {
               const count = Array.isArray(result) ? result.length : (result as { count?: number })?.count ?? 0;
               enqueue([{ ...stamp, entityId: `bulk:${count}`,
                 action: operation === "deleteMany" ? "DELETE" : "UPDATE",
-                groupId: pickGroupId(model, ctx),
+                groupId: pickGroupId(model, a.where, ctx),
                 after: sanitize({ where: a.where ?? {}, data: a.data ?? null }) as Prisma.InputJsonValue }]);
             } else {
               // A WRITE_OPS action with no branch above would otherwise vanish from the trail: say so (ids only, no data).

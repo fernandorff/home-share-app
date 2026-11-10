@@ -114,4 +114,9 @@ describe("audit extension: rows that used to lose their key, house or system act
     const row = await record("User", "update", { where: { id: 9 }, data: { sessionVersion: { increment: 1 } }, select: { sessionVersion: true } }, { sessionVersion: 2 });
     expect(row).toMatchObject({ entityId: "9", action: "UPDATE", actorId: 5 });
   });
+
+  it("a bulk marker takes the house from its where", async () => {
+    const row = await record("ShoppingItem", "deleteMany", { where: { groupId: 4, isPurchased: true } }, { count: 2 });
+    expect(row).toMatchObject({ entityId: "bulk:2", groupId: 4 });
+  });
 });
