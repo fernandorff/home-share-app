@@ -578,7 +578,7 @@ pub struct PostResult {
 
 /// postRuleNow: post what this rule has due right away; on any failure the saved rule is answered as is.
 async fn post_now(state: &AppState, viewer: &Viewer, rule: &Rule, saved: Value) -> (Value, usize) {
-    let run = post_due(state, Some(rule.id), Some(viewer.user_id), None).await;
+    let run = post_due(state, Some(rule.id), None).await;
     if run.posted + run.skipped + run.paused + run.duplicates == 0 {
         return (saved, run.posted);
     }
@@ -591,10 +591,9 @@ async fn post_now(state: &AppState, viewer: &Viewer, rule: &Rule, saved: Value) 
     (fresh.await.unwrap_or(saved), run.posted)
 }
 
-/// postDue: every unpaused rule (or one), oldest due first; each period claimed once in the ledger. `request_actor`: the
-/// Next app loses its system audit context inside the posting transaction, so an expense posted while answering a request
-/// is recorded under that request's member; the scheduled job (no request) records it as the system.
-pub async fn post_due(state: &AppState, only: Option<i32>, request_actor: Option<i32>, deadline: Option<std::time::Instant>) -> PostResult {
+/// postDue: every unpaused rule (or one), oldest due first; each period claimed once in the ledger. The posted expense is
+/// always the system's write (actorId null), also when a member's request triggers it.
+pub async fn post_due(state: &AppState, only: Option<i32>, deadline: Option<std::time::Instant>) -> PostResult {
     let mut result = PostResult::default();
     let rules: Vec<Rule> = match state.pool.get().await {
         Ok(db) => match db.query(&format!(r#"{} WHERE "pausedAt" IS NULL AND ($1::int IS NULL OR "id" = $1) ORDER BY "id""#, select()), &[&only]).await {
@@ -630,7 +629,7 @@ pub async fn post_due(state: &AppState, only: Option<i32>, request_actor: Option
             result.remaining = total - index;
             break;
         }
-        if let Err(e) = post_rule(state, &rule, &periods, request_actor, deadline, &mut result).await {
+        if let Err(e) = post_rule(state, &rule, &periods, deadline, &mut result).await {
             result.failed += 1;
             eprintln!("recurring expense posting failed (rule {}): {e}", rule.id);
         }
@@ -644,7 +643,7 @@ enum Claim {
     Aborted,
 }
 
-async fn post_rule(state: &AppState, rule: &Rule, periods: &[String], request_actor: Option<i32>, deadline: Option<std::time::Instant>, result: &mut PostResult) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn post_rule(state: &AppState, rule: &Rule, periods: &[String], deadline: Option<std::time::Instant>, result: &mut PostResult) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut active: Option<Vec<i32>> = None;
     for (index, period) in periods.iter().enumerate() {
         if index > 0 && deadline.is_some_and(|d| std::time::Instant::now() >= d) {
@@ -671,7 +670,7 @@ async fn post_rule(state: &AppState, rule: &Rule, periods: &[String], request_ac
             }
             return Ok(());
         }
-        match post_period(state, rule, period, &due, &share_members(rule, active_ids), request_actor).await? {
+        match post_period(state, rule, period, &due, &share_members(rule, active_ids)).await? {
             Claim::Aborted => return Ok(()),
             Claim::Duplicate => result.duplicates += 1,
             Claim::Done => result.posted += 1,
@@ -710,7 +709,7 @@ async fn claim_skip(state: &AppState, rule: &Rule, period: &str, due: &str) -> R
     Ok(Claim::Done)
 }
 
-async fn post_period(state: &AppState, rule: &Rule, period: &str, due: &str, members: &[i32], request_actor: Option<i32>) -> Result<Claim, Box<dyn std::error::Error + Send + Sync>> {
+async fn post_period(state: &AppState, rule: &Rule, period: &str, due: &str, members: &[i32]) -> Result<Claim, Box<dyn std::error::Error + Send + Sync>> {
     let mut db = state.pool.get().await?;
     let tx = db.transaction().await?;
     let Some(occurrence) = claim(&tx, rule, period, due, "POSTED").await? else { return Ok(Claim::Duplicate) };
@@ -728,7 +727,7 @@ async fn post_period(state: &AppState, rule: &Rule, period: &str, due: &str, mem
         .get(0);
     super::expense_writes::insert_participants(&tx, id, &shares).await?;
     let expense = super::expense_writes::find_in(&tx, rule.group_id, id).await?;
-    let revision = Revision { entity_type: "Expense", entity_id: id.to_string(), group_id: Some(rule.group_id), action: Action::Create, actor_id: request_actor, row: expense.clone(), fields_set: &[] };
+    let revision = Revision { entity_type: "Expense", entity_id: id.to_string(), group_id: Some(rule.group_id), action: Action::Create, actor_id: None, row: expense.clone(), fields_set: &[] };
     audit::record(&tx, revision).await?;
     tx.execute(r#"UPDATE "RecurringExpenseOccurrence" SET "expenseId" = $2 WHERE "id" = $1"#, &[&occurrence, &id]).await?;
     tx.commit().await?;

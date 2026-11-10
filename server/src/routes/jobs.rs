@@ -37,7 +37,7 @@ pub async fn notices(State(state): State<AppState>, headers: HeaderMap) -> Resul
 
 async fn run_recurring(state: &AppState) -> Value {
     let started = Instant::now();
-    let r = super::recurring::post_due(state, None, None, Some(started + DEADLINE)).await;
+    let r = super::recurring::post_due(state, None, Some(started + DEADLINE)).await;
     let counts = json!({ "posted": r.posted, "skipped": r.skipped, "paused": r.paused, "duplicates": r.duplicates, "failed": r.failed, "remaining": r.remaining });
     eprintln!("recurring expenses job finished in {} ms: {counts}", started.elapsed().as_millis());
     let mut out = json!({ "ok": true });

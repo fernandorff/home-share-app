@@ -234,9 +234,8 @@ async fn bump(db: &mut deadpool_postgres::Object, user_id: i32, password: Option
         .await?
         .get(0);
     tx.execute(r#"DELETE FROM "PushSubscription" WHERE "userId" = $1"#, &[&user_id]).await?;
-    // The update selects only sessionVersion, so the extension's snapshot has no id: its entityId is "undefined".
     let fields: &'static [&'static str] = if password.is_some() { &["password"] } else { &[] };
-    revise(&tx, "undefined".into(), Action::Update, Some(user_id), json!({ "sessionVersion": version }), fields).await?;
+    revise(&tx, user_id.to_string(), Action::Update, Some(user_id), json!({ "sessionVersion": version }), fields).await?;
     tx.commit().await?;
     Ok(version)
 }

@@ -247,9 +247,9 @@ pub async fn clear_purchased(State(state): State<AppState>, house: ActiveHouse) 
         .execute(r#"DELETE FROM "ShoppingItem" WHERE "groupId" = $1 AND "isPurchased" = true"#, &[&house.group_id])
         .await
         .map_err(|e| fail(&e))?;
-    // deleteMany marker; its house comes from the audit context, null in the Next app (see expense_writes.rs).
+    // deleteMany marker; its house comes from the where clause.
     let marker = Revision {
-        entity_type: "ShoppingItem", entity_id: format!("bulk:{deleted}"), group_id: None, action: Action::Delete,
+        entity_type: "ShoppingItem", entity_id: format!("bulk:{deleted}"), group_id: Some(house.group_id), action: Action::Delete,
         actor_id: Some(actor), row: json!({ "where": { "groupId": house.group_id, "isPurchased": true }, "data": null }), fields_set: &[],
     };
     audit::bulk(&tx, marker, "DELETE").await.map_err(|e| fail(&e))?;
