@@ -46,12 +46,12 @@ One commit per task (Fernando, 2026-11-09: "cada ponto em commits separados").
 - [x] 4.1 Vite web build (Rolldown, one bundle) next to the normal Next build; shims for `next/link`,
       `next/navigation`, `next-intl`; theme/locale applied in the browser — `vite.config.ts`,
       `index.html`, `src/vite/**`, `package.json` _Requirements: 20, 23_
-- [ ] 4.2 Axum serves the Vite build (files + `index.html` fallback) with CSP, headers, old-path and `/` redirects, the `/monitoring`
-      Sentry tunnel; remove `src/middleware.ts` —
+- [x] 4.2 Axum serves the Vite build (files + `index.html` fallback) with CSP, headers, old-path and `/` redirects, the `/monitoring`
+      Sentry tunnel, the page gate and renewal of `src/middleware.ts` (kept for the `-next` app, task 5.3) —
       `server/src/static_files.rs` _Requirements: 18, 19_
-- [ ] 4.3 Screenshot comparison of every page before/after — `server/gate/screens.mjs` _Requirements: 19, 20_
-      (script done: 15 pages × phone/desktop × default-en/bolitas-pt, 60/60 identical Next vs `vite preview`,
-      2026-11-09 — run again against Axum after 4.2)
+- [x] 4.3 Screenshot comparison of every page before/after — `server/gate/screens.mjs` _Requirements: 19, 20_
+      (15 pages × phone/desktop × default-en/bolitas-pt: 60/60 identical Next vs `vite preview`, 2026-11-09,
+      and 60/60 Next vs Axum, 2026-11-10)
 
 ## 5. Deploy
 

@@ -6,6 +6,10 @@ pub struct Config {
     pub jwt_secret: String,
     pub pool_max: usize,
     pub port: u16,
+    /// The Vite build (`npm run build:web`); WEB_DIR, default `dist` in the working directory.
+    pub web_dir: std::path::PathBuf,
+    /// APP_ENV=production: the only deploy search engines may index (src/lib/deploy/robots.ts).
+    pub production: bool,
     /// Web Push keys (ADR 0011); None while push is not configured.
     pub vapid: Option<Vapid>,
 }
@@ -31,6 +35,8 @@ impl Config {
             jwt_secret: required("JWT_SECRET")?,
             pool_max: get("DATABASE_POOL_MAX").and_then(|v| v.parse().ok()).unwrap_or(10),
             port: get("PORT").and_then(|v| v.parse().ok()).unwrap_or(8080),
+            web_dir: get("WEB_DIR").filter(|v| !v.is_empty()).unwrap_or_else(|| "dist".into()).into(),
+            production: get("APP_ENV").as_deref() == Some("production"),
             // pushConfig: trimmed, and all three present.
             vapid: match VAPID.map(|n| get(n).map(|v| v.trim().to_string()).filter(|v| !v.is_empty())) {
                 [Some(public_key), Some(private_key), Some(subject)] => Some(Vapid { public_key, private_key, subject }),
@@ -71,5 +77,6 @@ mod tests {
     fn defaults() {
         let c = Config::from_env(env(&[("DATABASE_URL", "postgres://x"), ("JWT_SECRET", "s")])).unwrap();
         assert_eq!((c.pool_max, c.port), (10, 8080));
+        assert_eq!((c.web_dir.to_str(), c.production), (Some("dist"), false));
     }
 }

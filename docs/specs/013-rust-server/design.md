@@ -64,7 +64,14 @@ with the same secret and claims as `lib/auth` (jose).
 - `index.html` carries a small inline script that reads the theme and locale cookies before first
   paint; `use-intl` runs client-side (English bundled, the other three locales loaded on demand).
   The Next build keeps reading them on the server, unchanged.
-- `src/middleware.ts` is removed; its gate, public prefixes and sliding renewal move to an Axum layer.
+- Axum serves `WEB_DIR` (`server/src/static_files.rs`): an existing file as is (`/assets/*` cached as
+  immutable, the rest `no-cache`), any other page path `index.html` with 200 behind the page gate of
+  `src/middleware.ts` (no session → `/auth/login`, signed in on `/auth/*` → `/expenses`, renewal once a day),
+  `/` → `/expenses`, the old Portuguese paths 308, a trailing slash 308 to the path without it (Next's default), the `next.config.ts` headers on every response, and the
+  `/monitoring` tunnel (only envelopes whose DSN is `SENTRY_DSN`). Unknown `/api/*` stays 401 without a session (the API gate runs first) and 404 with one; a missing
+  file is 404.
+- `src/middleware.ts` stays: the Next app keeps running on the `-next` host (criterion 23, task 5.3) and
+  needs its own gate; the Rust server has the same rules in `static_files.rs` and `api_gate`.
 - No visible change; screenshot comparison of every page before and after (same method as the pilot's
   pixel comparison).
 
@@ -86,6 +93,29 @@ with the same secret and claims as `lib/auth` (jose).
   it); the Vercel build stays a normal Next build, so the `-next` app keeps its server.
 - In-memory rate limit and body cache are per process; with one instance this matches today's limits.
   `ponytail:` one instance only; a shared store when a second instance is needed.
+
+## Running the server (for task 5.2)
+
+Variables (a missing required one stops the start, naming it; criterion 21):
+
+| Variable | Required | Notes |
+|---|---|---|
+| `DATABASE_URL` | yes | Neon pooled URL with `sslmode=require` |
+| `JWT_SECRET` | yes | same as the Next app (cookies work on both) |
+| `DATABASE_POOL_MAX` | no, 10 | 4 on a 256 MB machine |
+| `PORT` | no, 8080 | |
+| `WEB_DIR` | no, `dist` | the `npm run build:web` output |
+| `APP_ENV` | no | `production` only on the production deploy (drops `X-Robots-Tag`) |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | all or none | Web Push |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | no | Google sign-in |
+| `CRON_SECRET` | no | `/api/cron/*` |
+| `SCHEDULED_JOBS` | no, on | `off` stops the in-process timer (gate, the `-next` side never runs it) |
+| `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE` | no | server events and the `/monitoring` tunnel |
+
+The web build takes `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VITE_SENTRY_DSN` (same DSN), `VITE_SENTRY_ENVIRONMENT` and
+`VITE_SENTRY_TRACES_SAMPLE_RATE`. Health check: `GET /api/health` (`?db=1` also reaches the database). SIGINT
+(Fly's default) or SIGTERM stops new connections and lets the requests in flight finish. Responses are
+gzipped on the fly.
 
 ## Alternatives considered
 
