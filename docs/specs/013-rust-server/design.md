@@ -25,7 +25,7 @@ Order inside the spec (dependency order, also the commit order):
 3. Route groups, each with its gate run: balances → expenses (incl. import/export/bulk) → settlements →
    catalogs (categories, platforms, payment methods) → shopping → groups/house → notifications/push →
    recurring → activity/revisions → auth (incl. Google) → cron.
-4. Static export of the web app served by Axum; theme/locale moved to the browser.
+4. The web app built by Vite (Rolldown, one bundle) and served by Axum; theme/locale moved to the browser.
 5. Deploy on the chosen host; staging (`dev`) first, then production. The Next app stays deployed on
    Vercel at the `-next` host name, same database, with its crons removed (Fernando, 2026-11-09: both
    side by side for the portfolio, Rust latency first).
@@ -51,13 +51,19 @@ with the same secret and claims as `lib/auth` (jose).
 
 ## UI
 
-- `next.config.ts` gets `output: 'export'`. Every page under `(app)` and `auth` is a client component;
-  the four server files (`src/app/layout.tsx`, `src/app/auth/layout.tsx`, `src/app/page.tsx`,
-  `src/app/not-found.tsx`) lose their server-only calls: the root redirect moves to Axum.
+- Vite 8 (Rolldown) builds the same `src/app` pages into one JS bundle, no lazy routes (Fernando,
+  2026-11-09, from the front-end build pilot: list visible 0.32–0.47 s sooner than a Next export on the
+  three main screens, ~193 KB vs ~280 KB of JS per page, and Axum serves plain files with an
+  `index.html` fallback instead of Next's RSC segment files). Routes come from the `src/app` folders;
+  small shims stand in for `next/link`, `next/navigation` and `next-intl` (`src/vite/**`). Every page
+  under `(app)` and `auth` is already a client component; the four server files (`src/app/layout.tsx`,
+  `src/app/auth/layout.tsx`, `src/app/page.tsx`, `src/app/not-found.tsx`) are not used by the Vite
+  build: the root redirect moves to Axum.
 - Browser Sentry keeps its `/monitoring` tunnel (added today by `withSentryConfig`); Axum proxies it to
   Sentry and the CSP stays `connect-src 'self'`.
-- `src/app/layout.tsx` stops calling `cookies()`/`getLocale()`: a small inline script reads the theme
-  and locale cookies before first paint; `next-intl` runs client-side with all four locales bundled.
+- `index.html` carries a small inline script that reads the theme and locale cookies before first
+  paint; `use-intl` runs client-side (English bundled, the other three locales loaded on demand).
+  The Next build keeps reading them on the server, unchanged.
 - `src/middleware.ts` is removed; its gate, public prefixes and sliding renewal move to an Axum layer.
 - No visible change; screenshot comparison of every page before and after (same method as the pilot's
   pixel comparison).
@@ -76,8 +82,8 @@ with the same secret and claims as `lib/auth` (jose).
 - Two writers on one database: totals and version stay right because triggers do the work; the
   Rust body cache revalidates by version on every read, so a Next write is seen at once. Rate limits
   are per server (a client could get twice the limit by using both URLs; accepted).
-- The static export for Rust is a separate build (`STATIC_EXPORT=1`, route handlers left out); the
-  Vercel build stays a normal Next build, so the `-next` app keeps its server.
+- The web build for Rust is a separate Vite build (`npm run build:web`, route handlers never part of
+  it); the Vercel build stays a normal Next build, so the `-next` app keeps its server.
 - In-memory rate limit and body cache are per process; with one instance this matches today's limits.
   `ponytail:` one instance only; a shared store when a second instance is needed.
 

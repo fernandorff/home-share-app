@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" data-theme="default">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#16140f" />
+    <title>Home Share</title>
+    <meta name="description" content="Shared household expenses, split right." />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" sizes="any" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <script>
+      (function(){var m=/(?:^|; )homeshare_theme=([^;]*)/.exec(document.cookie);if(m&&(m[1]==="default"||m[1]==="bolitas"))document.documentElement.dataset.theme=m[1]})();
+    </script>
+  </head>
+  <body class="antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/vite/main.tsx"></script>
+    <script>(function(){var d=document.documentElement,s=document.createElement("style");document.head.appendChild(s);function m(){if(document.body.hasAttribute("data-scroll-locked"))return;s.textContent=":root{--scrollbar-gutter-w:"+(innerWidth-d.getBoundingClientRect().width)+"px}"}m();addEventListener("resize",m)})()</script>
+  </body>
+</html>
