@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { EARLY_INSTALL_CAPTURE_SCRIPT } from "./src/lib/install-prompt";
 
 const src = fileURLToPath(new URL("./src", import.meta.url));
@@ -13,6 +14,9 @@ export default defineConfig({
     // Spec 009: first in <body>, before the app module, so an early beforeinstallprompt is kept. Inline
     // (not eval'd from the bundle): the CSP allows 'unsafe-inline' scripts, not 'unsafe-eval'.
     { name: "early-install-capture", transformIndexHtml: () => [{ tag: "script", children: EARLY_INSTALL_CAPTURE_SCRIPT, injectTo: "body-prepend" }] },
+    // The favicon lives in src/app (Next serves it from there; a public/ copy would clash with that route),
+    // so the Vite build copies it to dist/icon.svg for index.html's <link rel="icon" href="/icon.svg">.
+    { name: "app-icon", generateBundle() { this.emitFile({ type: "asset", fileName: "icon.svg", source: readFileSync(src + "/app/icon.svg") }); } },
   ],
   resolve: {
     alias: [
