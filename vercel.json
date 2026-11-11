@@ -2,9 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "prisma generate && next build",
   "ignoreCommand": "node scripts/vercel-ignore-build.mjs",
-  "framework": "nextjs",
-  "crons": [
-    { "path": "/api/cron/recurring-expenses", "schedule": "0 11 * * *" },
-    { "path": "/api/cron/notifications", "schedule": "0 12 * * *" }
-  ]
+  "framework": "nextjs"
 }
