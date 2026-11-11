@@ -12,6 +12,7 @@ import * as Sentry from "@sentry/react";
 import { buildSentryOptions } from "@/lib/observability/options";
 import { LOCALES, type Locale } from "@/i18n/locales";
 import { routes } from "./routes";
+import { scrollToTop } from "./scroll";
 
 // Same options as the Next browser SDK (spec 007), and the same-origin tunnel that withSentryConfig adds
 // there; Axum proxies /monitoring to Sentry (4.2). VITE_SENTRY_DSN / VITE_SENTRY_ENVIRONMENT /
@@ -32,7 +33,7 @@ document.documentElement.lang = locale;
 // `router.replace(..., { scroll: false })` query updates (activity, house param) keep their place.
 function ScrollToTop() {
   const { pathname } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  useEffect(scrollToTop, [pathname]);
   return <Outlet />;
 }
 
