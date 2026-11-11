@@ -142,16 +142,11 @@ describe("GET /api/cron/notifications (spec 009 — criteria 7, 8, 17, 18)", () 
   });
 });
 
-describe("vercel.json cron schedule for notices (Hobby plan: once a day)", () => {
-  const config = JSON.parse(readFileSync(path.join(process.cwd(), "vercel.json"), "utf8"));
-  const crons = config.crons as { path: string; schedule: string }[];
-
-  it("registers this route exactly once", () => {
-    expect(crons.filter((c) => c.path === "/api/cron/notifications")).toHaveLength(1);
-  });
-
-  it("fires daily at 12:00 UTC (09:00 in Brasília), after the 11:00 posting run", () => {
-    expect(crons.find((c) => c.path === "/api/cron/notifications")?.schedule).toBe("0 12 * * *");
-    expect(crons.find((c) => c.path === "/api/cron/recurring-expenses")?.schedule).toBe("0 11 * * *");
+describe("vercel.json cron schedule for notices", () => {
+  // Spec 013, task 5.3: the Rust server runs the daily jobs (server/src/routes/jobs.rs, 11:00 and 12:00 UTC); the
+  // Next app on the -next host shares its database, so a Vercel cron here would run every job twice.
+  it("is not scheduled on Vercel", () => {
+    const config = JSON.parse(readFileSync(path.join(process.cwd(), "vercel.json"), "utf8"));
+    expect(config.crons ?? []).toEqual([]);
   });
 });
