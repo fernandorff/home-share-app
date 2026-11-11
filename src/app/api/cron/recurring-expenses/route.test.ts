@@ -114,27 +114,11 @@ describe("GET /api/cron/recurring-expenses (spec 008 — criterion 19)", () => {
   });
 });
 
-describe("vercel.json cron schedule (Hobby plan: once a day)", () => {
-  const config = JSON.parse(readFileSync(path.join(process.cwd(), "vercel.json"), "utf8"));
-
-  it("registers this route exactly once", () => {
-    const entries = (config.crons as { path: string; schedule: string }[]).filter((c) => c.path === "/api/cron/recurring-expenses");
-    expect(entries).toHaveLength(1);
-  });
-
-  it("fires once a day: fixed minute and hour, every day, month and weekday", () => {
-    const { schedule } = (config.crons as { path: string; schedule: string }[]).find((c) => c.path === "/api/cron/recurring-expenses")!;
-    const [minute, hour, dayOfMonth, month, dayOfWeek] = schedule.split(" ");
-    expect(schedule.split(" ")).toHaveLength(5);
-    expect(minute).toMatch(/^\d+$/);
-    expect(hour).toMatch(/^\d+$/);
-    expect([dayOfMonth, month, dayOfWeek]).toEqual(["*", "*", "*"]);
-    // 08:00 in America/Sao_Paulo (UTC-3) — ADR 0010.
-    expect(schedule).toBe("0 11 * * *");
-  });
-
-  it("keeps the existing build settings", () => {
-    expect(config.buildCommand).toBe("prisma generate && next build");
-    expect(config.framework).toBe("nextjs");
+describe("vercel.json cron schedule", () => {
+  // Spec 013, task 5.3: the Rust server posts due rules at 11:00 UTC (server/src/routes/jobs.rs); a Vercel cron on the
+  // -next host, same database, would be a second runner.
+  it("is not scheduled on Vercel", () => {
+    const config = JSON.parse(readFileSync(path.join(process.cwd(), "vercel.json"), "utf8"));
+    expect(config.crons ?? []).toEqual([]);
   });
 });

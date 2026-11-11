@@ -16,7 +16,9 @@
     "db:migrate:status": "prisma migrate status",
     "db:studio": "npx prisma studio",
     "setup": "docker compose up -d --wait && npx prisma migrate deploy",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:web": "vite build",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",
@@ -43,8 +45,11 @@
     "@electric-sql/pglite": "^0.4.1",
     "@electric-sql/pglite-socket": "^0.1.1",
     "@formatjs/icu-messageformat-parser": "^3.5.3",
+    "@playwright/test": "^1.58.2",
     "@resvg/resvg-js": "2.6.2",
+    "@sentry/react": "^11.4.0",
     "@tailwindcss/postcss": "^4.2.4",
+    "@tailwindcss/vite": "^4.2.4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.16.0",
@@ -52,11 +57,15 @@
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
     "@types/web-push": "3.6.4",
+    "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
     "intl-messageformat": "^11.2.0",
+    "react-router": "^7.18.5",
     "tailwindcss": "^4.2.4",
     "typescript": "^5",
-    "vitest": "^3.2.4"
+    "use-intl": "^4.8.3",
+    "vite": "^8.3.5",
+    "vitest": "^4.1.12"
   }
 }

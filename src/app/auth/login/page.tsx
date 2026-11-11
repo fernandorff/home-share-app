@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
@@ -34,7 +34,12 @@ export default function LoginPage() {
   // not its already-translated text — so a language switch (which refreshes this page's
   // translations without remounting it, see LanguageSelector) re-translates the banner
   // instead of leaving it stuck in the old language (I2).
-  const [error, setError] = useState<ErrorRef | null>(null);
+  // Seeded from `?error=` (the Google callback's failure codes) during render, not in an effect.
+  const searchParams = useSearchParams();
+  const [error, setError] = useState<ErrorRef | null>(() => {
+    const code = searchParams.get("error");
+    return code ? { key: CODE_TO_KEY[code] ?? "genericError" } : null;
+  });
   // R3-03: an error that belongs to one field renders under it (Field: debt border, aria-invalid,
   // message) and that field gets focus; the banner stays for whole-form errors. Stored as keys /
   // API errors too, so a language switch re-translates them (I2).
@@ -48,11 +53,6 @@ export default function LoginPage() {
   function clearFieldError(field: AuthField) {
     if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
   }
-
-  useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("error");
-    if (code) setError({ key: CODE_TO_KEY[code] ?? "genericError" });
-  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

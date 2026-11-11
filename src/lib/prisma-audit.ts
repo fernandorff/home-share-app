@@ -140,27 +140,32 @@ export function auditExtension(base: PrismaClient) {
           // request's session cookie (reliable in real route handlers). A system context (scheduled
           // writes) is never attributed to a person, cookie or not.
           const ctx = getAuditContext();
-          const actorId = ctx.system ? null : ctx.actorId ?? (await actorFromRequest());
+          let actorId = ctx.system ? null : ctx.actorId ?? (await actorFromRequest());
 
           const result = await query(args);
 
           try {
-            const a = args as { where?: object; data?: AnyRow | AnyRow[] };
+            const a = args as { where?: AnyRow; data?: AnyRow | AnyRow[] };
+            // A recurring posting is the system's write, also when it runs inside a member's request: the
+            // ALS context does not survive the interactive transaction, so the posted row itself says so.
+            if (model === "Expense" && operation === "create" && (result as AnyRow).recurringExpenseId != null) actorId = null;
             const stamp = { entityType: model, actorId };
+            // A `select` without the id (e.g. only sessionVersion) leaves the row keyless: the where names it.
+            const idOf = (row: AnyRow) => String(row.id ?? a.where?.id);
 
             if (operation === "create") {
               const row = result as AnyRow;
-              enqueue([{ ...stamp, entityId: String(row.id), action: "CREATE",
+              enqueue([{ ...stamp, entityId: idOf(row), action: "CREATE",
                 groupId: pickGroupId(model, row, ctx), after: sanitize(row) as Prisma.InputJsonValue }]);
             } else if (operation === "update" || operation === "upsert") {
               const row = result as AnyRow;
-              enqueue([{ ...stamp, entityId: String(row.id), action: "UPDATE",
+              enqueue([{ ...stamp, entityId: idOf(row), action: "UPDATE",
                 groupId: pickGroupId(model, row, ctx),
                 after: { ...(sanitize(row) as AnyRow), ...changeMarkers(a.data) } as Prisma.InputJsonValue }]);
             } else if (operation === "delete") {
               // delete returns the removed row — record its final state.
               const row = result as AnyRow;
-              enqueue([{ ...stamp, entityId: String(row.id), action: "DELETE",
+              enqueue([{ ...stamp, entityId: idOf(row), action: "DELETE",
                 groupId: pickGroupId(model, row, ctx), before: sanitize(row) as Prisma.InputJsonValue }]);
             } else if (
               (operation === "createManyAndReturn" || operation === "updateManyAndReturn") &&
@@ -184,7 +189,7 @@ export function auditExtension(base: PrismaClient) {
               const count = Array.isArray(result) ? result.length : (result as { count?: number })?.count ?? 0;
               enqueue([{ ...stamp, entityId: `bulk:${count}`,
                 action: operation === "deleteMany" ? "DELETE" : "UPDATE",
-                groupId: pickGroupId(model, ctx),
+                groupId: pickGroupId(model, a.where, ctx),
                 after: sanitize({ where: a.where ?? {}, data: a.data ?? null }) as Prisma.InputJsonValue }]);
             } else {
               // A WRITE_OPS action with no branch above would otherwise vanish from the trail: say so (ids only, no data).

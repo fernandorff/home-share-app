@@ -10,6 +10,8 @@ import { startInstallPromptCapture } from "@/lib/install-prompt";
  * in the store until the Notices page offers the install. Renders nothing.
  */
 export function InstallPromptCapture() {
-  useEffect(() => startInstallPromptCapture(), []);
+  useEffect(() => {
+    return startInstallPromptCapture();
+  }, []);
   return null;
 }

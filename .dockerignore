@@ -1,0 +1,14 @@
+# Allow-list: only what the image build reads (no .env, node_modules, .next, dist or target from the host).
+*
+!Dockerfile
+!package.json
+!package-lock.json
+!index.html
+!vite.config.ts
+!tsconfig.json
+!postcss.config.mjs
+!public
+!src
+!server/Cargo.toml
+!server/Cargo.lock
+!server/src

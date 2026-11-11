@@ -1,0 +1,208 @@
+//! Home Share server (spec 013): one always-on Axum process for the API and the web app built by Vite.
+
+mod audit;
+mod auth;
+mod config;
+mod csv;
+mod db;
+mod errors;
+mod expense_input;
+mod house;
+mod input;
+mod money;
+mod notifications;
+mod observability;
+mod push;
+mod push_messages;
+mod rate_limit;
+mod recurrence;
+mod static_files;
+mod system_defaults;
+mod routes {
+    pub mod account;
+    pub mod activity;
+    pub mod balances;
+    pub mod expense_import;
+    pub mod expense_more;
+    pub mod expense_writes;
+    pub mod expenses;
+    pub mod google;
+    pub mod groups;
+    pub mod health;
+    pub mod jobs;
+    pub mod notifications;
+    pub mod push;
+    pub mod recurring;
+    pub mod settlements;
+    pub mod shopping;
+    pub mod tags;
+}
+
+use axum::{
+    extract::{Request, State},
+    http::StatusCode,
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
+    routing::get,
+    Json, Router,
+};
+use config::Config;
+use deadpool_postgres::{Manager, Pool};
+use std::{str::FromStr, sync::Arc};
+
+#[derive(Clone)]
+pub struct AppState {
+    pub pool: Pool,
+    pub keys: Arc<auth::Keys>,
+    pub vapid: Option<Arc<config::Vapid>>,
+}
+
+// Routes that authenticate themselves (src/middleware.ts): login/register, health, and the cron jobs (bearer).
+const PUBLIC_API_PREFIXES: [&str; 3] = ["/api/auth", "/api/health", "/api/cron/"];
+
+/// The middleware's API gate: no or invalid JWT → 401 with no `code` (unlike requireSession), no DB read.
+async fn api_gate(State(state): State<AppState>, request: Request, next: Next) -> Response {
+    let path = request.uri().path();
+    let public = PUBLIC_API_PREFIXES.iter().any(|p| path.starts_with(p));
+    let signed_in = auth::read_cookie(request.headers(), auth::SESSION_COOKIE).and_then(|t| state.keys.verify(t)).is_some();
+    if !public && path.starts_with("/api") && !signed_in {
+        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({ "error": "Not authenticated" }))).into_response();
+    }
+    next.run(request).await
+}
+
+/// The database TLS client. Neon's URLs carry `channel_binding=require` (SCRAM-SHA-256-PLUS): the connector
+/// must hand tokio-postgres the server certificate's hash, which tokio-postgres-rustls does from 0.14 on.
+fn tls_config(roots: rustls::RootCertStore) -> rustls::ClientConfig {
+    rustls::ClientConfig::builder_with_provider(rustls::crypto::ring::default_provider().into())
+        .with_safe_default_protocol_versions()
+        .expect("TLS protocol versions")
+        .with_root_certificates(roots)
+        .with_no_client_auth()
+}
+
+fn pool(cfg: &Config) -> Pool {
+    // TLS when the URL asks for it (Neon: sslmode=require); a local database without TLS still connects.
+    let tls = tls_config(rustls::RootCertStore { roots: webpki_roots::TLS_SERVER_ROOTS.to_vec() });
+    let pg = tokio_postgres::Config::from_str(&cfg.database_url).unwrap_or_else(|_| fail("DATABASE_URL is not a valid Postgres URL"));
+    let mgr = Manager::new(pg, tokio_postgres_rustls::MakeRustlsConnect::new(tls));
+    Pool::builder(mgr).max_size(cfg.pool_max).build().expect("pool")
+}
+
+fn fail(message: &str) -> ! {
+    eprintln!("home-share-server: {message}");
+    std::process::exit(1)
+}
+
+pub fn app(state: AppState, web_dir: std::path::PathBuf, production: bool) -> Router {
+    let api = Router::new()
+        .route("/api/health", get(routes::health::get))
+        .route("/api/balances", get(routes::balances::get))
+        .route("/api/expenses", get(routes::expenses::list).post(routes::expense_writes::create))
+        .route(
+            "/api/expenses/{expense_id}",
+            get(routes::expenses::get_one).put(routes::expense_writes::update).delete(routes::expense_writes::delete),
+        )
+        .route("/api/expenses/bulk-delete", axum::routing::post(routes::expense_more::bulk_delete))
+        .route("/api/expenses/export", get(routes::expense_more::export))
+        .route("/api/expenses/import", axum::routing::post(routes::expense_import::import))
+        .route("/api/expenses/{expense_id}/history", get(routes::expense_more::history))
+        .route("/api/categories", get(routes::tags::categories::list).post(routes::tags::categories::create))
+        .route("/api/categories/{id}", axum::routing::delete(routes::tags::categories::delete))
+        .route("/api/platforms", get(routes::tags::platforms::list).post(routes::tags::platforms::create))
+        .route("/api/platforms/{id}", axum::routing::delete(routes::tags::platforms::delete))
+        .route("/api/payment-methods", get(routes::tags::payment_methods::list).post(routes::tags::payment_methods::create))
+        .route("/api/payment-methods/{id}", axum::routing::delete(routes::tags::payment_methods::delete))
+        .route("/api/settlements", get(routes::settlements::get).post(routes::settlements::post))
+        .route("/api/settlements/{settlement_id}", axum::routing::delete(routes::settlements::delete))
+        .route("/api/groups", get(routes::groups::list).post(routes::groups::create))
+        .route("/api/groups/join", axum::routing::post(routes::groups::join))
+        .route("/api/groups/active", axum::routing::post(routes::groups::switch))
+        .route("/api/groups/active/members", get(routes::groups::members))
+        .route("/api/groups/active/members/{user_id}", axum::routing::delete(routes::groups::kick).patch(routes::groups::promote))
+        .route("/api/groups/active/currency", axum::routing::post(routes::groups::currency))
+        .route("/api/groups/active/regenerate-code", axum::routing::post(routes::groups::regenerate_code))
+        .route("/api/groups/active/leave", axum::routing::post(routes::groups::leave))
+        .route("/api/notifications", get(routes::notifications::list))
+        .route("/api/notifications/unread-count", get(routes::notifications::unread_count))
+        .route("/api/notifications/test", axum::routing::post(routes::push::test))
+        .route("/api/notifications/read-all", axum::routing::post(routes::notifications::read_all))
+        .route("/api/notifications/{notification_id}", axum::routing::patch(routes::notifications::mark_read).delete(routes::notifications::delete))
+        .route("/api/notification-preferences", get(routes::notifications::get_preferences).put(routes::notifications::put_preference))
+        .route("/api/push-subscriptions", axum::routing::post(routes::push::register).delete(routes::push::unregister))
+        .route("/api/recurring-expenses", get(routes::recurring::list).post(routes::recurring::create))
+        .route("/api/recurring-expenses/{id}", axum::routing::patch(routes::recurring::patch).delete(routes::recurring::delete))
+        .route("/api/recurring-expenses/{id}/skips/{period}", axum::routing::put(routes::recurring::skip).delete(routes::recurring::unskip))
+        .route("/api/activity", get(routes::activity::summary))
+        .route("/api/revisions", get(routes::activity::detailed))
+        .route("/api/auth/login", axum::routing::post(routes::account::login))
+        .route("/api/auth/register", axum::routing::post(routes::account::register))
+        .route("/api/auth/logout", axum::routing::post(routes::account::logout))
+        .route("/api/auth/logout-all", axum::routing::post(routes::account::logout_all))
+        .route("/api/auth/password", axum::routing::post(routes::account::password))
+        .route("/api/auth/me", get(routes::account::me).patch(routes::account::update_me).delete(routes::account::delete_me))
+        .route("/api/auth/google", get(routes::google::start))
+        .route("/api/auth/google/callback", get(routes::google::callback))
+        .route("/api/cron/recurring-expenses", get(routes::jobs::recurring_expenses))
+        .route("/api/cron/notifications", get(routes::jobs::notices))
+        .route("/api/shopping-items", get(routes::shopping::list).post(routes::shopping::create))
+        .route("/api/shopping-items/clear-purchased", axum::routing::delete(routes::shopping::clear_purchased))
+        .route("/api/shopping-items/{item_id}", axum::routing::put(routes::shopping::update).delete(routes::shopping::delete))
+        .route("/api/shopping-items/{item_id}/toggle", axum::routing::patch(routes::shopping::toggle))
+        .route("/api/shopping-items/{item_id}/expenses", axum::routing::put(routes::shopping::replace_links))
+        .route_layer(middleware::from_fn(observability::observe));
+    static_files::routes(api, web_dir)
+        .layer(middleware::from_fn_with_state(state.clone(), api_gate))
+        .layer(middleware::from_fn(static_files::strip_trailing_slash))
+        .layer(middleware::from_fn_with_state(Arc::new(static_files::security_headers(production)), static_files::add_security_headers))
+        // ponytail: gzip on the fly; brotli files precompressed at build time if the bundle size matters more.
+        .layer(tower_http::compression::CompressionLayer::new().no_br().no_deflate().no_zstd())
+        .with_state(state)
+}
+
+/// Fly stops a machine with SIGINT (its default kill_signal), Docker and most hosts with SIGTERM: either one stops
+/// taking new connections and lets the requests in flight finish.
+async fn shutdown_signal() {
+    let terminate = async {
+        #[cfg(unix)]
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).expect("SIGTERM handler").recv().await;
+        #[cfg(not(unix))]
+        std::future::pending::<()>().await;
+    };
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {},
+        _ = terminate => {},
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let cfg = Config::from_env(|k| std::env::var(k).ok()).unwrap_or_else(|e| fail(&e));
+    let state = AppState { pool: pool(&cfg), keys: Arc::new(auth::Keys::new(&cfg.jwt_secret)), vapid: cfg.vapid.map(Arc::new) };
+    let listener = tokio::net::TcpListener::bind(("0.0.0.0", cfg.port)).await.unwrap_or_else(|e| fail(&e.to_string()));
+    routes::jobs::start(&state);
+    axum::serve(listener, app(state, cfg.web_dir, cfg.production))
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .unwrap_or_else(|e| fail(&e.to_string()));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tls_config;
+
+    /// Neon's `channel_binding=require` over TLS + SCRAM (bug found on the Fly measurement deploy, 2026-11-10).
+    /// Needs a Postgres with TLS: `bash server/gate/tls-check.sh` sets TLS_TEST_URL and TLS_TEST_CA (DER).
+    #[tokio::test]
+    #[ignore]
+    async fn connects_with_channel_binding_required() {
+        let url = std::env::var("TLS_TEST_URL").expect("TLS_TEST_URL");
+        let ca = std::fs::read(std::env::var("TLS_TEST_CA").expect("TLS_TEST_CA")).expect("CA file");
+        let mut roots = rustls::RootCertStore::empty();
+        roots.add(ca.into()).expect("CA certificate");
+        let tls = tokio_postgres_rustls::MakeRustlsConnect::new(tls_config(roots));
+        let (client, connection) = tokio_postgres::connect(&url, tls).await.expect("connect");
+        tokio::spawn(connection);
+        assert_eq!(client.query_one("SELECT 1", &[]).await.expect("query").get::<_, i32>(0), 1);
+    }
+}

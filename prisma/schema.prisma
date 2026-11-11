@@ -239,6 +239,54 @@ model Settlement {
   @@index([groupId, date])
 }
 
+// Precomputed balances (spec 013): running totals per house, kept by database triggers on Expense,
+// ExpenseParticipant and Settlement (migration 2_precomputed_balances), so GET /api/balances reads a few
+// rows instead of summing every expense. `cents` is the sum, `n` the number of rows behind it: a total whose
+// rows are all gone is deleted, exactly like a GROUP BY that finds no rows. No foreign keys on purpose: a
+// cascading house delete fires the expense triggers, which must still be able to write these rows.
+model BalanceCredit {
+  groupId Int
+  userId  Int
+  cents   BigInt
+  n       Int
+
+  @@id([groupId, userId])
+}
+
+model BalanceDebit {
+  groupId Int
+  userId  Int
+  cents   BigInt
+  n       Int
+
+  @@id([groupId, userId])
+}
+
+model BalanceCategoryTotal {
+  groupId  Int
+  category String
+  cents    BigInt
+  n        Int
+
+  @@id([groupId, category])
+}
+
+model BalanceMonthTotal {
+  groupId Int
+  month   String // YYYY-MM of the expense date
+  cents   BigInt
+  n       Int
+
+  @@id([groupId, month])
+}
+
+// Bumped by triggers on every write that changes a house's balances (expenses, participants, settlements,
+// a member's name), so a server can keep the finished response and revalidate it with one primary-key read.
+model GroupVersion {
+  groupId Int    @id
+  v       BigInt @default(0)
+}
+
 enum RecurringSplitMode {
   ALL // every active member at posting time
   SELECTED // exactly participantIds; all must still be active

@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /out/
+/dist/
 
 # production
 /build
@@ -85,3 +86,7 @@ neon-dev-url.tmp
 !.env.example
 
 .env*.local
+
+# playwright
+/test-results/
+/playwright-report/
