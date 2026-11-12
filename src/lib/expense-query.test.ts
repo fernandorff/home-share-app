@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import { buildExpenseQuery, type ExpenseQueryFilters } from "./expense-query";
 
 const EMPTY_FILTERS: ExpenseQueryFilters = {
@@ -16,6 +17,11 @@ function paramsOf(url: string): URLSearchParams {
 }
 
 describe("buildExpenseQuery", () => {
+  it("matches the list URL index.html preloads (else the preload goes unused)", () => {
+    const url = buildExpenseQuery({ page: 1, pageSize: 50, sortField: "date", sortDirection: "desc", filters: EMPTY_FILTERS, includeMonthTotals: true });
+    expect(readFileSync(new URL("../../index.html", import.meta.url), "utf8")).toContain(`"${url}"`);
+  });
+
   it("opts into exact payer totals for the by-person feed", () => {
     const url = buildExpenseQuery({ page: 1, pageSize: 50, sortField: "date", sortDirection: "desc", filters: EMPTY_FILTERS, includePayerTotals: true });
     expect(new URL(url, "http://localhost").searchParams.get("includePayerTotals")).toBe("true");
