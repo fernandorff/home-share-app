@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createTranslator } from "next-intl";
+import { createTranslator } from "use-intl";
 import en from "@/messages/en.json";
 import pt from "@/messages/pt.json";
 import { groupByDay, NOTIFICATION_LIST_LIMIT, NOTIFICATION_TYPES } from "@/lib/notifications";
@@ -103,9 +103,9 @@ describe("isFullList (the limit notice)", () => {
     expect(isFullList([])).toBe(false);
   });
 
-  it("the limit is defined once: the service's list bound reads the same constant", () => {
-    const service = readFileSync(join(process.cwd(), "src/services/notification.service.ts"), "utf8");
-    expect(service).toContain("LIST: NOTIFICATION_LIST_LIMIT,");
+  it("the limit matches the Rust server's list bound and is not hard-coded in the view", () => {
+    const server = readFileSync(join(process.cwd(), "server/src/routes/notifications.rs"), "utf8");
+    expect(server).toContain(`const LIST_LIMIT: i64 = ${NOTIFICATION_LIST_LIMIT};`);
     expect(readFileSync(join(process.cwd(), "src/lib/notification-view.ts"), "utf8")).not.toMatch(/=\s*50\b/);
   });
 });

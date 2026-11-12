@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/nextjs";
+import * as Sentry from "@sentry/react";
 
 // What Sentry may know about who/where (spec 007, LGPD): opaque publicIds only — never names,
 // e-mails or amounts. Without an initialized SDK every call is a no-op.

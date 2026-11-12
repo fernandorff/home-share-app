@@ -1,7 +1,7 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "use-intl";
+import { useRouter } from "@/vite/shims/navigation";
 import { Menu, MenuItem } from "@/components/ui/Menu";
 import { setClientCookie } from "@/lib/client-cookie";
 

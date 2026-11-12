@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import Link from "@/vite/shims/link";
+import { usePathname, useRouter } from "@/vite/shims/navigation";
+import { useTranslations } from "use-intl";
 import { useSession } from "@/lib/session";
 import { cn } from "@/components/ui/cn";
 import { MemberDot } from "@/components/ui/Member";

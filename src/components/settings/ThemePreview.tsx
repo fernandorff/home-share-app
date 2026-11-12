@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 import { Money } from "@/components/ui/Money";
 import type { Theme } from "@/lib/theme";
 

@@ -6,7 +6,7 @@ pub struct Config {
     pub jwt_secret: String,
     pub pool_max: usize,
     pub port: u16,
-    /// The Vite build (`npm run build:web`); WEB_DIR, default `dist` in the working directory.
+    /// The Vite build (`npm run build`); WEB_DIR, default `dist` in the working directory.
     pub web_dir: std::path::PathBuf,
     /// APP_ENV=production: the only deploy search engines may index (src/lib/deploy/robots.ts).
     pub production: bool,

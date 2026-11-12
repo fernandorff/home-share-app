@@ -5,18 +5,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
-    // Boots an in-process Postgres (pglite) over a socket for integration tests.
-    globalSetup: ['./test/global-setup.ts'],
-    // The app's Prisma client reads DATABASE_URL; point it at the pglite socket. Unit tests
-    // that mock @/lib/prisma ignore it; integration tests use it.
-    env: {
-      // Port must match test/global-setup.ts. Windows periodically reserves random TCP ranges
-      // for Hyper-V/WSL2/Docker (`netsh interface ipv4 show excludedportrange protocol=tcp`);
-      // if this port ever collides with one of those, pick another free one in both places.
-      DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:45432/postgres',
-      // pglite serves one connection at a time — keep the test pool single-connection.
-      DATABASE_POOL_MAX: '1',
-    },
   },
   resolve: {
     alias: {

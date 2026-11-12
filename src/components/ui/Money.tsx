@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useLocale } from "use-intl";
 import { cn } from "./cn";
 import { useSession } from "@/lib/session";
 import { money } from "@/lib/format";

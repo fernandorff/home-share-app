@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// The hook's React/Next dependencies are not exercised here (no DOM environment): only the pure decision is
+// The hook's React/router dependencies are not exercised here (no DOM environment): only the pure decision is
 // behavior-tested; the hook and the chrome are pinned on the source below.
-vi.mock("next/navigation", () => ({ usePathname: vi.fn(), useRouter: vi.fn(), useSearchParams: vi.fn() }));
+vi.mock("@/vite/shims/navigation", () => ({ usePathname: vi.fn(), useRouter: vi.fn(), useSearchParams: vi.fn() }));
 vi.mock("@/lib/session", () => ({ useSession: vi.fn() }));
 
 import { HOUSE_PARAM, houseParamAction, withoutHouseParam } from "./use-house-param";
@@ -79,7 +79,7 @@ describe("useHouseParam + AppChrome (criterion 12): switch before the screen sho
   });
 
   it("then replaces the URL without the parameter (no history entry, no scroll jump)", () => {
-    expect(hook).toContain("router.replace(`${pathname}${withoutHouseParam(searchParams.toString())}`, { scroll: false })");
+    expect(hook).toContain("router.replace(`${pathname}${withoutHouseParam(searchParams.toString())}`)");
   });
 
   it("reports the switch as pending until it ran", () => {

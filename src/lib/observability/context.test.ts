@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const { sentry } = vi.hoisted(() => ({
   sentry: { getClient: vi.fn(), captureException: vi.fn(), setUser: vi.fn(), setTag: vi.fn() },
 }));
-vi.mock("@sentry/nextjs", () => sentry);
+vi.mock("@sentry/react", () => sentry);
 
 import { captureServerError, setObservedHouse, setObservedUser } from "./context";
 

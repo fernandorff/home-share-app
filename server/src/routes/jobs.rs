@@ -129,7 +129,7 @@ fn until(hour: u32) -> Duration {
     (next - now).to_std().unwrap_or(Duration::from_secs(60))
 }
 
-/// Starts the two daily timers (vercel.json's schedules). SCHEDULED_JOBS=off leaves them out (the parity gate).
+/// Starts the two daily timers. SCHEDULED_JOBS=off leaves them out (e.g. a local server against a copy of production).
 pub fn start(state: &AppState) {
     if std::env::var("SCHEDULED_JOBS").is_ok_and(|v| v == "off") {
         return;

@@ -30,3 +30,4 @@ Conventions:
 - [0011 — Installable PWA with a static manifest; notices in Postgres; optional standard Web Push from a push-only service worker](0011-pwa-web-push.md)
 - [0012 — Sensitive fields: an audit revision records that they changed, never their value](0012-sensitive-field-change-markers.md)
 - [0013 — Sliding 30-day session; "Log out" signs out this device only](0013-sliding-session-per-device-logout.md)
+- [0014 — Rust/Axum on Fly is the only app; one branch, and a merge to it deploys](0014-rust-only-repo-single-branch-ci-deploy.md)

@@ -1,0 +1,117 @@
+# One pipeline, one branch. Every PR to main and every push to main runs `check`; a push to main then runs `deploy`:
+# pending migrations on the production database, then the Fly deploy (Rust server + Vite web app in one image),
+# then a live health check.
+#
+# Repository secrets: FLY_API_TOKEN (`fly tokens create deploy -a home-share`), DATABASE_URL (the production Neon
+# URL, the same one the Fly app has). Repository variables (public values, built into the web app):
+# VAPID_PUBLIC_KEY, VITE_SENTRY_DSN, VITE_SENTRY_ENVIRONMENT, VITE_SENTRY_TRACES_SAMPLE_RATE (all optional).
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      # Shadow database for `prisma migrate diff --from-migrations`: it replays prisma/migrations here, then wipes
+      # it. Empty and disposable — never a real database.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shadow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d shadow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      # The migrations folder must still reproduce schema.prisma. Exit 2 = schema changed without a migration →
+      # `npx prisma migrate dev --name <change>` against the local Docker database, then commit it.
+      - run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
+          SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shadow
+
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.90" # same as the Dockerfile
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server
+      - run: cargo test --manifest-path server/Cargo.toml
+
+  deploy:
+    needs: check
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      # The queue above runs deploys one at a time, not in commit order: an older run whose checks finished late
+      # must not put its commit back over a newer one. Only the commit still at the tip of main deploys.
+      - id: tip
+        run: |
+          tip=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$tip" = "$GITHUB_SHA" ]; then echo "latest=true" >> "$GITHUB_OUTPUT"
+          else echo "latest=false" >> "$GITHUB_OUTPUT"; echo "main moved on to $tip; that run deploys it."; fi
+
+      - if: steps.tip.outputs.latest == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - if: steps.tip.outputs.latest == 'true'
+        run: npm ci
+
+      # Additive migrations only: the running server must keep working with the new schema until the deploy below
+      # replaces it.
+      - if: steps.tip.outputs.latest == 'true'
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - if: steps.tip.outputs.latest == 'true'
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      - if: steps.tip.outputs.latest == 'true'
+        run: >-
+          flyctl deploy --remote-only
+          --build-arg NEXT_PUBLIC_VAPID_PUBLIC_KEY="${{ vars.VAPID_PUBLIC_KEY }}"
+          --build-arg VITE_SENTRY_DSN="${{ vars.VITE_SENTRY_DSN }}"
+          --build-arg VITE_SENTRY_ENVIRONMENT="${{ vars.VITE_SENTRY_ENVIRONMENT }}"
+          --build-arg VITE_SENTRY_TRACES_SAMPLE_RATE="${{ vars.VITE_SENTRY_TRACES_SAMPLE_RATE }}"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Live check (API + database)
+        if: steps.tip.outputs.latest == 'true'
+        run: |
+          for i in $(seq 1 12); do
+            curl -fsS --max-time 10 "https://homeshare.fernandorffdev.com/api/health?db=1" && exit 0
+            sleep 5
+          done
+          echo "Production did not answer /api/health?db=1 within a minute after the deploy" >&2
+          exit 1

@@ -1,5 +1,6 @@
 import { describe, it, expect, expectTypeOf, beforeAll, afterAll } from "vitest";
-import { NotificationType as SchemaNotificationType } from "@/generated/prisma/enums";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { groupByDay, isoWeek, notificationHref, NOTIFICATION_TYPES, type NotificationType } from "./notifications";
 
 describe("notificationHref", () => {
@@ -12,12 +13,12 @@ describe("notificationHref", () => {
     expect(notificationHref(type)).toBe(href);
   });
 
-  it("the client type union matches the schema's NotificationType enum", () => {
-    expectTypeOf<NotificationType>().toEqualTypeOf<SchemaNotificationType>();
-  });
-
-  it("the runtime list NOTIFICATION_TYPES holds exactly the schema enum's values", () => {
-    expect([...NOTIFICATION_TYPES].sort()).toEqual(Object.values(SchemaNotificationType).sort());
+  it("NOTIFICATION_TYPES (and so the NotificationType union) holds exactly the schema enum's values", () => {
+    const schema = readFileSync(join(process.cwd(), "prisma/schema.prisma"), "utf8");
+    const block = schema.match(/enum NotificationType \{([^}]*)\}/);
+    expect(block).not.toBeNull();
+    expect([...NOTIFICATION_TYPES].sort()).toEqual(block![1].split(/\s+/).filter(Boolean).sort());
+    expectTypeOf<NotificationType>().toEqualTypeOf<(typeof NOTIFICATION_TYPES)[number]>();
   });
 });
 

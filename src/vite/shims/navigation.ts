@@ -1,4 +1,4 @@
-// next/navigation on top of react-router (Vite variant only).
+// The router API the pages use (push/replace/back, pathname, search params), on top of react-router.
 import { useMemo } from "react";
 import { useLocation, useNavigate, useSearchParams as useRRSearchParams } from "react-router";
 

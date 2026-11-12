@@ -4,7 +4,7 @@ import { createContext, memo, useCallback, useContext, useEffect, useId, useMemo
 import { useFetch } from "@/lib/use-fetch";
 import { useInfiniteExpenses } from "@/lib/use-infinite-expenses";
 import { buildExpenseQuery } from "@/lib/expense-query";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations, useLocale } from "use-intl";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";

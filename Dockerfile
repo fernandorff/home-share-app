@@ -10,7 +10,7 @@ COPY index.html vite.config.ts tsconfig.json postcss.config.mjs ./
 COPY public public
 COPY src src
 ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY VITE_SENTRY_DSN VITE_SENTRY_ENVIRONMENT VITE_SENTRY_TRACES_SAMPLE_RATE
-RUN npm run build:web
+RUN npm run build
 
 FROM rust:1.90-bookworm AS server
 WORKDIR /w

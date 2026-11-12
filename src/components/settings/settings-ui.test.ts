@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import nextConfig from "../../../next.config";
 import en from "@/messages/en.json";
 import pt from "@/messages/pt.json";
 import es from "@/messages/es.json";
@@ -23,11 +22,6 @@ const chrome = read("src/components/app/AppChrome.tsx");
 const drawer = read("src/components/app/MobileNavDrawer.tsx");
 
 describe("routes (criteria 1, 8)", () => {
-  it.each(["/account", "/conta"])("redirects %s straight to /settings/account (permanent, no chain)", async (source) => {
-    const rules = (await nextConfig.redirects?.()) ?? [];
-    expect(rules.find((rule) => rule.source === source)).toMatchObject({ destination: "/settings/account", permanent: true });
-  });
-
   it("serves the four categories and no longer the old account page", () => {
     for (const page of [appearance, notifications, account, security]) expect(page).toContain("export default function");
     expect(existsSync(join(process.cwd(), "src/app/(app)/account/page.tsx"))).toBe(false);

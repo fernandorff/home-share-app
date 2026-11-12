@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { isPushServiceHost, PUSH_SERVICE_HOSTS } from "./hosts";
-import { isAllowedPushEndpoint } from "./endpoint";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 describe("PUSH_SERVICE_HOSTS / isPushServiceHost (spec 010)", () => {
   it("lists the four browsers' push services", () => {
@@ -36,19 +37,12 @@ describe("PUSH_SERVICE_HOSTS / isPushServiceHost (spec 010)", () => {
     }
   });
 
-  // endpoint.ts keeps its own copy of the list until both are unified (cycle G). They must agree: an endpoint stored on
-  // a host the scrubber does not know would reach Sentry and the logs uncut (criterion 13).
-  it("agrees with the endpoint validator's allow-list", () => {
-    const candidates = [
-      ...PUSH_SERVICE_HOSTS.flatMap((host) => [host, `sub.${host}`]),
-      "android.googleapis.com",
-      "updates.push.services.mozilla.com",
-      "evilfcm.googleapis.com",
-      "fcm.googleapis.com.evil.com",
-      "push.example.com",
-    ];
-    for (const host of candidates) {
-      expect(isPushServiceHost(host), host).toBe(isAllowedPushEndpoint(`https://${host}/x`));
-    }
+  // The Rust server keeps its own copy for the endpoint validator. They must agree: an endpoint stored on a host the
+  // browser scrubber does not know would reach Sentry uncut (criterion 13).
+  it("agrees with the Rust server's allow-list", () => {
+    const rust = readFileSync(join(process.cwd(), "server/src/routes/push.rs"), "utf8");
+    const list = rust.match(/pub const PUSH_SERVICE_HOSTS: \[&str; \d+\] = \[([^\]]*)\]/);
+    expect(list).not.toBeNull();
+    expect(list![1].match(/"[^"]+"/g)!.map((host) => JSON.parse(host))).toEqual([...PUSH_SERVICE_HOSTS]);
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "@/vite/shims/navigation";
 import { useSession } from "@/lib/session";
 import type { MeGroup } from "@/lib/types";
 
@@ -60,7 +60,7 @@ export function useHouseParam(): boolean {
         .finally(() => setTried(house));
       return;
     }
-    router.replace(`${pathname}${withoutHouseParam(searchParams.toString())}`, { scroll: false });
+    router.replace(`${pathname}${withoutHouseParam(searchParams.toString())}`);
   }, [house, target, tried, switchGroup, router, pathname, searchParams]);
 
   return target !== null && tried !== house;

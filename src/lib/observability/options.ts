@@ -1,4 +1,4 @@
-import type { init } from "@sentry/nextjs";
+import type { init } from "@sentry/react";
 import { ALLOWED_REQUEST_HEADERS, ALLOWED_RESPONSE_HEADERS, scrubEvent, scrubSpan } from "@/lib/observability/scrub";
 
 /** What Sentry.init accepts in whichever runtime (browser, Node, edge) imports this module. */

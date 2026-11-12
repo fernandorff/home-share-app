@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 import { api } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { NOTIFICATION_TYPES, type NotificationType } from "@/lib/notifications";

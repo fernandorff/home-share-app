@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 import { TagManager } from "@/components/app/TagManager";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EXPENSE_CATEGORIES } from "@/lib/categories";

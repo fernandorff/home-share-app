@@ -1,9 +1,9 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
-import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import Link from "@/vite/shims/link";
+import { useTranslations } from "use-intl";
+import { useRouter } from "@/vite/shims/navigation";
 import { useEffect, useState } from "react";
 import { APP_NAVIGATION } from "@/components/app/navigation";
 import { MemberDot } from "@/components/ui/Member";
