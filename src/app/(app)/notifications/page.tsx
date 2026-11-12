@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import Link from "@/vite/shims/link";
+import { useRouter } from "@/vite/shims/navigation";
+import { useTranslations } from "use-intl";
 import { api, ApiError } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { useSession } from "@/lib/session";

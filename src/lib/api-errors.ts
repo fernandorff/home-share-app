@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 import { ApiError } from "@/lib/api";
 
 /**

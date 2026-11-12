@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "use-intl";
 import { MemberDot } from "@/components/ui/Member";
 import { cn } from "@/components/ui/cn";
 import { useSession } from "@/lib/session";

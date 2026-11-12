@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "use-intl";
 import { api } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { useSession } from "@/lib/session";

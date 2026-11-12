@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useLocale } from "next-intl";
+import { useLocale } from "use-intl";
 import { useSession } from "@/lib/session";
 import { useNotifications } from "@/lib/notifications-context";
 import { listenForPushMessages, pushSupport, syncPush } from "@/lib/push/client";

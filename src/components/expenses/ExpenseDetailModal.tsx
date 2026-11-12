@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";

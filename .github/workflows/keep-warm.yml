@@ -1,5 +1,5 @@
-# Keep-warm ping (BL-15): hits /api/health?db=1 every 5 minutes so neither the Vercel serverless
-# function nor the Neon compute go cold — the ~7.8s white screen only happened on cold starts.
+# Keep-warm ping (BL-15): hits /api/health?db=1 every 5 minutes so the Neon compute does not go cold
+# (the Fly machine is always on).
 # GitHub's cron can lag a few minutes under load; that's fine, Neon's idle-suspend window is 5min
 # and an occasional cold hit just means one slower first paint.
 name: keep-warm

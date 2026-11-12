@@ -14,12 +14,12 @@ import { LOCALES, type Locale } from "@/i18n/locales";
 import { routes } from "./routes";
 import { scrollToTop } from "./scroll";
 
-// Same options as the Next browser SDK (spec 007), and the same-origin tunnel that withSentryConfig adds
-// there; Axum proxies /monitoring to Sentry (4.2). VITE_SENTRY_DSN / VITE_SENTRY_ENVIRONMENT /
-// VITE_SENTRY_TRACES_SAMPLE_RATE are inlined at build time (the Next build reads NEXT_PUBLIC_SENTRY_*).
+// Browser Sentry (spec 007) through the same-origin tunnel Axum proxies to Sentry (/monitoring).
+// VITE_SENTRY_DSN / VITE_SENTRY_ENVIRONMENT / VITE_SENTRY_TRACES_SAMPLE_RATE are inlined at build time; CI passes
+// them as build args even when unset, so an empty string means "not set" (|| rather than ??).
 const sentry = buildSentryOptions({
   dsn: import.meta.env.VITE_SENTRY_DSN,
-  environment: import.meta.env.VITE_SENTRY_ENVIRONMENT ?? import.meta.env.MODE,
+  environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE,
   tracesSampleRate: import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE,
 });
 if (sentry) Sentry.init({ ...sentry, tunnel: "/monitoring", integrations: [Sentry.browserTracingIntegration()] });
@@ -30,7 +30,7 @@ const messages = (await import(`../messages/${locale}.json`).catch(() => import(
 document.documentElement.lang = locale;
 
 // Next scrolls to the top on push/Link; react-router does not. Path changes only, so the
-// `router.replace(..., { scroll: false })` query updates (activity, house param) keep their place.
+// `router.replace(...)` query updates (activity, house param) keep their place.
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(scrollToTop, [pathname]);

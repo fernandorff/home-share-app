@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "use-intl";
+import { useRouter } from "@/vite/shims/navigation";
 import { SectionTitle } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { ThemePreview } from "@/components/settings/ThemePreview";

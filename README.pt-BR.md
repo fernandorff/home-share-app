@@ -6,7 +6,7 @@ Despesas domésticas compartilhadas: registre gastos, divida entre os moradores
 (**igualmente**, **por valor** ou **com um controle de %**) e veja **quem deve a quem**.
 Inclui lista de compras, plataformas de pagamento e suporte a múltiplas casas.
 
-**🔗 No ar:** https://home-share-app-xi.vercel.app
+**🔗 No ar:** https://homeshare.fernandorffdev.com
 
 Uma interface **retrô editorial mono** (estética de recibo/livro-caixa): monoespaçada, números
 tabulares, linhas pontilhadas e um único toque de "carimbo". Mobile-first, com animações de
@@ -24,89 +24,87 @@ entrada escalonadas e esqueletos de carregamento (respeitando `prefers-reduced-m
 
 ## Stack
 
-- **Next.js 16** (App Router) + **React 19** — monolito: frontend e API em um único app, mesma origem
+- Servidor **Rust / Axum** (`server/`) — serve a API JSON (`/api/*`) e o app web, mesma origem
+- App web **React 19** compilado pelo **Vite** (fontes em `src/`, rotas via react-router) · i18n com use-intl (EN/PT/ES/FR)
 - **Tailwind v4** + primitivas Radix · fontes **Space Mono** / **JetBrains Mono**
-- **Prisma 7** (`@prisma/adapter-pg`) + **PostgreSQL** (Neon)
-- **jose** (JWT) · **bcryptjs** · **Vitest**
+- **PostgreSQL** (Neon) — o servidor Rust fala direto com ele (tokio-postgres + deadpool); o **Prisma** fica só como ferramenta de migrations (`prisma/schema.prisma` + `prisma/migrations`)
+- Testes: **Vitest** (app web) · `cargo test` (servidor)
+
+A versão antiga em Next.js agora fica em https://github.com/fernandorff/home-share-next.
 
 ## Rodar localmente
 
 ```bash
-docker compose up -d          # local Postgres 16 (container homeshare-dev-pg, localhost:5433)
-cp .env.example .env.local    # DATABASE_URL already points at it; set JWT_SECRET
+npm run db:up                 # Postgres 16 local (Docker, localhost:5433)
+cp .env.example .env.local    # lido por `npm run db:migrate`
 npm install
-npm run db:migrate            # apply prisma/migrations (prisma migrate deploy)
-npm run dev                   # http://localhost:3000
-npm run test                  # vitest (self-contained: in-process Postgres, no Docker needed)
+npm run db:migrate            # aplica prisma/migrations
+# terminal 1 — o servidor Rust (lê as variáveis de ambiente do shell, não de um arquivo):
+cd server && DATABASE_URL=postgresql://postgres:postgres@localhost:5433/homeshare_dev JWT_SECRET=dev-secret cargo run   # http://localhost:8080
+# terminal 2 — o app web com hot reload; /api vai para o servidor Rust:
+npm run dev                   # http://localhost:5173
 ```
 
-O `.env.local` aponta apenas para o banco local. As URLs do banco de produção e de staging
-ficam somente na Vercel, nunca em um arquivo local — apague (ou esvazie) qualquer `.env`
-antigo: o Next.js e a CLI do Prisma o leem para tudo que o `.env.local` não define.
+Gates (os mesmos que o CI roda): `npx tsc --noEmit` · `npm run lint` · `npm run test` · `npm run build` · `cargo test --manifest-path server/Cargo.toml`.
 
 Mudanças de schema: edite `prisma/schema.prisma`, rode `npx prisma migrate dev --name <change>`
 no banco local e faça commit da nova pasta em `prisma/migrations` — o CI falha quando o
-schema muda sem uma migration. `npm run db:reset` recria o banco local e reaplica todas
-as migrations.
+schema muda sem uma migration. As migrations devem ser aditivas. `npm run db:reset` recria
+o banco local e reaplica todas as migrations.
 
 ### Variáveis de ambiente
+
+Lidas pelo servidor a partir do ambiente (veja `.env.example`).
 
 | Variável | Obrigatória | Descrição |
 |---|---|---|
 | `DATABASE_URL` | sim | Postgres (Neon) |
-| `JWT_SECRET` | sim em produção | segredo de assinatura da sessão |
+| `JWT_SECRET` | sim | segredo de assinatura da sessão |
+| `APP_ENV` | não | `production` é o único deploy que os buscadores podem indexar |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | não | habilita o login com Google. Redirect: `<origin>/api/auth/google/callback` |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | não | Web Push: defina as três ou nenhuma |
+| `SENTRY_DSN` | não | relatório de erros |
+
+O app web também recebe `NEXT_PUBLIC_VAPID_PUBLIC_KEY` e `VITE_SENTRY_*` em tempo de build (Docker `--build-arg`).
 
 ## Autenticação
 
-Sessão via **cookie httpOnly** (`bolitas_session`, JWT HS256) — o cliente nunca vê
-nem armazena um token. A **casa ativa** fica em um cookie separado (`bolitas_group`);
+Sessão via **cookie httpOnly** (`homeshare_session`, JWT HS256) — o cliente nunca vê
+nem armazena um token. A **casa ativa** fica em um cookie separado (`homeshare_group`);
 para trocar, `POST /api/groups/active`. Por ser de mesma origem, não há CORS. O login
 com Google reutiliza o mesmo cookie de sessão.
 
-O dinheiro é tratado em **centavos inteiros** (`src/lib/currency`) para evitar
-desvios de ponto flutuante; as divisões sempre somam exatamente o total.
+O dinheiro é tratado em **centavos inteiros** para evitar desvios de ponto flutuante;
+as divisões sempre somam exatamente o total.
 
 ## Estrutura
 
 ```
-src/
-├── app/
-│   ├── api/**       # route handlers (auth[+google], groups, expenses, balances, platforms, shopping-items, health)
-│   ├── auth/**      # public pages: login, register, set-password
-│   └── (app)/**     # logged-in area: expenses, balances, shopping, platforms, household
-├── components/      # ui/ (retro-mono design system) · app/ · expenses/ · auth/
-├── lib/             # auth, api (client), session, currency, balance, format, members, ...
-└── services/        # auth, group, expense, platform, shopping-item
-prisma/              # schema + config
+server/              # servidor Rust (Axum)
+├── src/main.rs      # rotas e camadas
+├── src/routes/      # um arquivo por grupo de rotas
+└── src/             # auth.rs, house.rs, money.rs, db.rs, config.rs
+src/                 # app web
+├── vite/            # entrada (main.tsx) e rotas (routes.tsx)
+├── app/auth/**      # páginas públicas: login, register, set-password
+├── app/(app)/**     # área logada: expenses, balances, shopping, catalogs, activity, house, settings, notifications, recurring
+├── components/
+├── lib/
+└── messages/        # i18n (EN/PT/ES/FR)
+prisma/              # schema + migrations
+Dockerfile           # uma imagem: binário Rust + build do Vite
+fly.toml
 ```
 
 ## Deploy
 
-Hospedado na **Vercel** com um banco **Neon**. Dois ambientes, um projeto na Vercel:
+A produção roda na **Fly.io** (app `home-share`, São Paulo), com um banco **Neon** em
+São Paulo e a **Cloudflare** na frente, em https://homeshare.fernandorffdev.com. Não há
+ambiente de staging.
 
-- **Production** — branch `main`, branch principal do Neon.
-- **Staging** — branch `dev`, em https://dev.homeshare.fernandorffdev.com (variáveis de
-  ambiente de Preview da Vercel com escopo na `dev`), com seu próprio branch `dev` no Neon
-  (uma cópia da produção, resetada sob demanda).
+Uma única branch, `main`. Trabalhe em uma branch curta → PR para `main` (o `ci` do GitHub
+Actions roda os gates) → merge = deploy: o job `deploy` aplica as migrations pendentes no
+banco de produção (`prisma migrate deploy`), roda `flyctl deploy --remote-only` e depois
+confere `https://homeshare.fernandorffdev.com/api/health?db=1`.
 
-Apenas `main` e `dev` fazem deploy (`scripts/vercel-ignore-build.mjs`, o `ignoreCommand` em
-`vercel.json`); as demais branches rodam somente o CI do GitHub. Fluxo: branch de feature →
-PR para `dev` (o merge atualiza o staging) → testar no staging → PR `dev` → `main`.
-
-- **Build** — `prisma generate && next build`; nunca toca em um banco de dados.
-- **Schema** — SQL versionado em `prisma/migrations`, aplicado manualmente com
-  `prisma migrate deploy`, **primeiro o staging, depois a produção**. Passe a URL do destino
-  (a string direta do Neon, sem `-pooler`) no shell apenas para aquele comando, nunca em um
-  arquivo: `DATABASE_URL="<url>" npm run db:migrate` (`npm run db:migrate:status` para conferir).
-- **Crons** (`vercel.json`) rodam apenas em Production. No staging, chame-os manualmente com
-  o `CRON_SECRET` do staging:
-  `curl -H "Authorization: Bearer $CRON_SECRET" https://dev.homeshare.fernandorffdev.com/api/cron/recurring-expenses`
-  (o mesmo vale para `/api/cron/notifications`).
-- Todo ambiente que não é de produção responde `X-Robots-Tag: noindex, nofollow`.
-
-## Explorações de design
-
-A pasta [`design-samples/`](design-samples) reúne 7 direções visuais exploradas
-antes de optar pelo retrô editorial mono (cozy/clay, candy, dark fintech, glassmorphism,
-neo-brutalist, bauhaus, retro mono). Abra `index.html` para comparar.
+Um workflow `keep-warm` chama essa URL a cada 5 minutos para manter o compute do Neon aquecido.

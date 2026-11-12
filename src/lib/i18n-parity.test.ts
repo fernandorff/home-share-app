@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createTranslator } from "next-intl";
+import { createTranslator } from "use-intl";
 import { IntlMessageFormat } from "intl-messageformat";
 import { TYPE, type MessageFormatElement } from "@formatjs/icu-messageformat-parser";
 import en from "@/messages/en.json";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "use-intl";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Money } from "@/components/ui/Money";

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createTranslator } from "next-intl";
+import { createTranslator } from "use-intl";
 import en from "@/messages/en.json";
 import pt from "@/messages/pt.json";
 import es from "@/messages/es.json";

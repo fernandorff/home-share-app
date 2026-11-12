@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 import { SessionProvider, useSession } from "@/lib/session";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AppChrome } from "@/components/app/AppChrome";

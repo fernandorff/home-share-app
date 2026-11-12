@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations, useLocale } from "use-intl";
 import { Card, ReceiptDivider, SectionTitle } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
 import { MemberDot, MemberChip } from "@/components/ui/Member";

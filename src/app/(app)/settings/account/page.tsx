@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "use-intl";
 import { api, ApiError } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { useSession } from "@/lib/session";

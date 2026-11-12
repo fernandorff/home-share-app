@@ -149,29 +149,23 @@ describe("app layout (tasks 18–19)", () => {
     expect(layout).toMatch(/<NotificationsProvider>\s*<PushMessageListener \/>\s*<AppChrome>\{children\}<\/AppChrome>\s*<\/NotificationsProvider>/);
   });
 
-  it("starts the install-prompt capture once, from the ROOT layout (the event fires once, possibly on /auth/*)", () => {
+  it("starts the install-prompt capture once, from the app root (the event fires once, possibly on /auth/*)", () => {
     // Chrome fires beforeinstallprompt once after some engagement — a first visit spends it on /auth/login or
-    // /auth/register, outside the (app) group, and login only soft-navigates (router.replace). Mounted once.
+    // /auth/register, outside the (app) group, and login only soft-navigates. Mounted once, above every route.
     const capture = read("src/components/app/InstallPromptCapture.tsx");
-    expect(capture).toContain('"use client"');
-    expect(capture).toContain("useEffect(() => startInstallPromptCapture(), []);");
+    expect(capture).toContain("return startInstallPromptCapture();");
     expect(capture).toContain("return null;");
-    const root = read("src/app/layout.tsx");
+    const root = read("src/vite/main.tsx");
     expect(root).toContain('import { InstallPromptCapture } from "@/components/app/InstallPromptCapture";');
     expect(root.match(/<InstallPromptCapture \/>/g)).toHaveLength(1);
     const callers = [src.layout, src.page, src.context, src.installHook, src.prefs, src.banner, src.sheet, src.chrome];
     for (const source of callers) expect(source).not.toContain("startInstallPromptCapture");
   });
 
-  it("the root layout runs the early-capture script before anything else in <body> (minor 3: event before hydration)", () => {
-    const root = read("src/app/layout.tsx");
-    expect(root).toContain('import { EARLY_INSTALL_CAPTURE_SCRIPT } from "@/lib/install-prompt";');
-    const script = "<script dangerouslySetInnerHTML={{ __html: EARLY_INSTALL_CAPTURE_SCRIPT }} />";
-    expect(root.split(script)).toHaveLength(2);
-    const body = root.indexOf('<body className="antialiased">');
-    expect(body).toBeGreaterThan(-1);
-    expect(root.indexOf(script)).toBeGreaterThan(body);
-    expect(root.indexOf(script)).toBeLessThan(root.indexOf("<NextIntlClientProvider>"));
+  it("the Vite build puts the early-capture script first in <body> (minor 3: event before the app module runs)", () => {
+    const config = read("vite.config.ts");
+    expect(config).toContain('import { EARLY_INSTALL_CAPTURE_SCRIPT } from "./src/lib/install-prompt";');
+    expect(config).toContain('{ tag: "script", children: EARLY_INSTALL_CAPTURE_SCRIPT, injectTo: "body-prepend" }');
   });
 });
 

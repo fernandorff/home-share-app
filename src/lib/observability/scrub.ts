@@ -1,4 +1,4 @@
-import type { Event } from "@sentry/nextjs";
+import type { Event } from "@sentry/react";
 import { isPushServiceHost, PUSH_SERVICE_HOSTS } from "@/lib/push/hosts";
 
 /** Replacement for any value that must never leave the app (spec 007, LGPD). */

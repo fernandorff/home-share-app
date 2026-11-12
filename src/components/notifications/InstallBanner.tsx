@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 import { pushConfigured } from "@/lib/push/client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { Event } from "@sentry/nextjs";
+import type { Event } from "@sentry/react";
 import type * as Hosts from "@/lib/push/hosts";
 import { FILTERED, redactText, scrubEvent, scrubSpan, stripQuery } from "./scrub";
 import { PUSH_SERVICE_HOSTS } from "@/lib/push/hosts";

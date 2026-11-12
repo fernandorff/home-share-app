@@ -13,7 +13,7 @@ spec: [007](specs/007-observability-sentry/requirements.md).
   passo 2 do checklist). Dos endpoints de push (spec 010) sai só a origem do serviço (`https://fcm.googleapis.com/[Filtered]`):
   o caminho é o token do aparelho. O usuário aparece só como `publicId` (UUID) e a casa como a tag `house=<publicId>`.
 - Erros esperados (4xx: não encontrado, validação, sem permissão) **não** viram issue.
-- Sem `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` nada é inicializado e nada é enviado: o comportamento do app não
+- Sem `SENTRY_DSN` / `VITE_SENTRY_DSN` nada é inicializado e nada é enviado: o comportamento do app não
   muda. O código do SDK continua no bundle (inerte), e os logs do servidor passam a sair em linhas JSON com ou sem DSN.
 
 ## Checklist do dono (uma vez)
@@ -25,22 +25,20 @@ spec: [007](specs/007-observability-sentry/requirements.md).
    O app já remove IPs, tokens, cookies e e-mails antes de enviar qualquer coisa; essas opções do projeto são uma
    segunda barreira (defesa em profundidade), que protege caso algum dado escape do filtro do app.
 3. **Token de source maps** (stack traces legíveis): Settings → Developer Settings → **Organization Tokens** →
-   Create New Token. Guarde-o só na Vercel (passo 4) — nunca no repositório.
-4. **Variáveis na Vercel** (Project → Settings → Environment Variables; marque **Production** e **Preview**):
+   Create New Token. Guarde-o só fora do repositório — nunca em arquivo versionado.
+4. **Variáveis**. O servidor Rust lê as suas em tempo de execução (segredos da Fly: `fly secrets set ...`). As do
+   navegador entram na build do Vite (variáveis do repositório no GitHub, que o deploy passa como `--build-arg`):
 
-   | Variável | Valor | Obrigatória? |
-   | --- | --- | --- |
-   | `SENTRY_DSN` | o DSN | sim (servidor) |
-   | `NEXT_PUBLIC_SENTRY_DSN` | o mesmo DSN | sim (navegador) |
-   | `SENTRY_ORG` | slug da organização | para source maps |
-   | `SENTRY_PROJECT` | `home-share` | para source maps |
-   | `SENTRY_AUTH_TOKEN` | token do passo 3 (marque **Sensitive**) | para source maps |
-   | `SENTRY_TRACES_SAMPLE_RATE` | ex. `0.1` | não — padrão 0.1 em produção, 1.0 em preview |
-   | `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` | ex. `0.1` | não — mesmo padrão, no navegador |
-
-   Confira que **Automatically expose System Environment Variables** está ligado (é o padrão): o ambiente
-   (`production`/`preview`) vem de `VERCEL_ENV` / `NEXT_PUBLIC_VERCEL_ENV`.
-5. **Redeploy** (Deployments → ⋯ → Redeploy): variáveis `NEXT_PUBLIC_*` só chegam ao navegador num build novo.
+   | Variável | Onde | Valor | Obrigatória? |
+   | --- | --- | --- | --- |
+   | `SENTRY_DSN` | segredo da Fly | o DSN | sim (servidor) |
+   | `SENTRY_ENVIRONMENT` | segredo da Fly | `production` | não — padrão `development` |
+   | `SENTRY_RELEASE` | segredo da Fly | ex. o commit | não |
+   | `VITE_SENTRY_DSN` | variável do GitHub | o mesmo DSN | sim (navegador) |
+   | `VITE_SENTRY_ENVIRONMENT` | variável do GitHub | `production` | não — padrão o modo da build |
+   | `VITE_SENTRY_TRACES_SAMPLE_RATE` | variável do GitHub | ex. `0.1` | não |
+5. **Redeploy**: variáveis `VITE_*` só chegam ao navegador numa build nova (um push na `main` ou rodar o workflow
+   de deploy de novo).
 6. **Dashboard**: crie um **User Auth Token** (User Settings → Personal Tokens) com os escopos `org:read`,
    `org:write` e `project:read`. No PowerShell, na raiz do repositório:
 
@@ -68,18 +66,18 @@ spec: [007](specs/007-observability-sentry/requirements.md).
 3. Sentry → **Releases**: aparece o commit do deploy, com sessões.
 4. Quando surgir uma issue, abra o evento e confira: sem cookies, sem corpo, sem query string, sem e-mail, sem
    IP; `user.id` é um UUID; tags `route`, `http_status`, `request_id`, `house`.
-5. Para achar o log de um erro: copie a tag `request_id` do evento e busque nos logs da Vercel (linhas JSON com
+5. Para achar o log de um erro: copie a tag `request_id` do evento e busque nos logs da Fly (`fly logs`; linhas JSON com
    `requestId`, `route`, `status`, `durationMs`, `sentryEventId`).
 
 ## Cotas
 
-O plano gratuito tem cota mensal de erros e de spans. Se encher, baixe `SENTRY_TRACES_SAMPLE_RATE` e
-`NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` (ex. `0.05`) e faça redeploy.
+O plano gratuito tem cota mensal de erros e de spans. Se encher, baixe `VITE_SENTRY_TRACES_SAMPLE_RATE`
+(ex. `0.05`) e faça redeploy.
 
 ## Desligar
 
-Remova `SENTRY_DSN` e `NEXT_PUBLIC_SENTRY_DSN` na Vercel e faça redeploy: o SDK não inicializa e o build volta a
-ser o de antes. Revogue os tokens no Sentry se não for religar.
+Remova o segredo `SENTRY_DSN` da Fly e a variável `VITE_SENTRY_DSN` do GitHub e faça redeploy: o SDK não
+inicializa. Revogue os tokens no Sentry se não for religar.
 
 ## Observações
 

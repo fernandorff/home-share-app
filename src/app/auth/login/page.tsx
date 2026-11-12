@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { useRouter, useSearchParams } from "@/vite/shims/navigation";
+import { useTranslations } from "use-intl";
+import Link from "@/vite/shims/link";
 import { api, ApiError } from "@/lib/api";
 import { useApiError } from "@/lib/api-errors";
 import { authErrorField, firstErrorField, validateLogin, type AuthField } from "@/lib/auth-form";

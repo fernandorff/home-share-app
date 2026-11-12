@@ -100,7 +100,7 @@ describe("password change re-registers this device (spec 010 — criterion 9; cy
     expect(section).toContain("function PasswordSection({ hasPassword, owner }");
     expect(section).not.toContain("function DeleteAccountSection");
     expect(account).toContain('import { syncPush } from "@/lib/push/client";');
-    expect(account).toMatch(/import \{ useLocale, useTranslations \} from "next-intl";/);
+    expect(account).toMatch(/import \{ useLocale, useTranslations \} from "use-intl";/);
     expect(account).toContain("<PasswordSection hasPassword={me.user.hasPassword} owner={me.user.publicId} />");
     expect(section).toContain("const locale = useLocale();");
   });

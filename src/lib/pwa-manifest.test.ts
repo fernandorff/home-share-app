@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // Contract of the installable-app shell (spec 009 — criterion 1): the static manifest, the PNG icons it
-// references and the root layout's metadata. The icon sizes come from each file's PNG header (IHDR), so
+// references and index.html's metadata. The icon sizes come from each file's PNG header (IHDR), so
 // no image library is needed at test time.
 
 const root = process.cwd();
@@ -18,7 +18,7 @@ interface ManifestIcon {
 }
 
 const manifest = JSON.parse(read("public/manifest.json")) as Record<string, unknown> & { icons: ManifestIcon[] };
-const layout = read("src/app/layout.tsx");
+const indexHtml = read("index.html");
 const globalsCss = read("src/app/globals.css");
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -110,34 +110,23 @@ describe("apple-touch-icon (spec 009 — criterion 1)", () => {
   });
 });
 
-describe("root layout metadata (spec 009 — criterion 1)", () => {
-  it("links the static manifest (not app/manifest.ts, whose /manifest.webmanifest the middleware gates)", () => {
-    expect(layout).toMatch(/manifest:\s*"\/manifest\.json"/);
-    expect(existsSync(join(root, "src/app/manifest.ts"))).toBe(false);
+describe("index.html metadata (spec 009 — criterion 1)", () => {
+  it("links the static manifest", () => {
+    expect(indexHtml).toContain('<link rel="manifest" href="/manifest.json" />');
   });
 
-  it("declares the Apple web-app metadata: capable, titled Home Share", () => {
-    expect(layout).toMatch(/appleWebApp:\s*\{[^}]*capable:\s*true/);
-    expect(layout).toMatch(/appleWebApp:\s*\{[^}]*title:\s*"Home Share"/);
+  it("is titled Home Share and emits apple-mobile-web-app-capable (iOS < 16.4 reads only this one)", () => {
+    expect(indexHtml).toContain("<title>Home Share</title>");
+    expect(indexHtml).toContain('<meta name="apple-mobile-web-app-capable" content="yes" />');
   });
 
-  it("also emits the legacy apple-mobile-web-app-capable tag (Next 16 writes only mobile-web-app-capable; iOS < 16.4 reads the apple one)", () => {
-    expect(layout).toMatch(/other:\s*\{\s*"apple-mobile-web-app-capable":\s*"yes"\s*\}/);
-  });
-
-  it("declares the 180×180 apple-touch-icon and keeps the favicon (config icons replace the file-based ones)", () => {
-    expect(layout).toMatch(/apple:\s*\{[^}]*url:\s*"\/icons\/apple-touch-icon\.png"[^}]*sizes:\s*"180x180"/);
-    expect(layout).toMatch(/icon:\s*\{[^}]*url:\s*"\/icon\.svg"/);
+  it("declares the 180×180 apple-touch-icon and the favicon the Vite build copies from src/app", () => {
+    expect(indexHtml).toContain('<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180" />');
+    expect(indexHtml).toContain('<link rel="icon" href="/icon.svg"');
     expect(existsSync(join(root, "src/app/icon.svg"))).toBe(true);
   });
 
-  it("keeps the theme color in the viewport export, equal to the manifest's", () => {
-    const viewport = layout.match(/export const viewport: Viewport = \{([^}]*)\}/);
-    expect(viewport).not.toBeNull();
-    expect(viewport![1]).toContain(`themeColor: "${manifest.theme_color}"`);
-    // Next 16 moved themeColor out of `metadata`; keeping it there is deprecated.
-    const metadata = layout.match(/export const metadata: Metadata = \{([\s\S]*?)\n\};/);
-    expect(metadata).not.toBeNull();
-    expect(metadata![1]).not.toContain("themeColor");
+  it("uses the manifest's theme color", () => {
+    expect(indexHtml).toContain(`<meta name="theme-color" content="${manifest.theme_color}" />`);
   });
 });

@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
+import Link from "@/vite/shims/link";
+import { usePathname } from "@/vite/shims/navigation";
+import { useTranslations } from "use-intl";
 import { cn } from "@/components/ui/cn";
 import { useNotifications } from "@/lib/notifications-context";
 import { badgeText } from "@/lib/notification-view";

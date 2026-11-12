@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "use-intl";
 import { Menu, MenuItem } from "@/components/ui/Menu";
 import { THEMES, DEFAULT_THEME, THEME_COOKIE, isTheme, type Theme } from "@/lib/theme";
 import { setClientCookie } from "@/lib/client-cookie";

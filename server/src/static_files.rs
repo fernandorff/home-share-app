@@ -1,5 +1,5 @@
 //! The web app from the same process (spec 013, task 4.2, criteria 18-19): the Vite build in `WEB_DIR` (`npm run
-//! build:web` → `dist/`), the page gate of `src/middleware.ts`, and the redirects, headers and Sentry tunnel of
+//! build` → `dist/`), the page gate of `src/middleware.ts`, and the redirects, headers and Sentry tunnel of
 //! `next.config.ts`. The Next app keeps its own copies on the `-next` host (task 5.3).
 
 use crate::{
@@ -221,6 +221,15 @@ mod tests {
     fn token(iat: i64) -> String {
         let claims = Claims { user_id: 1, public_id: "p".into(), name: "A".into(), session_version: 0, auth_at: None, iat, exp: None };
         keys().sign(&claims, iat, iat)
+    }
+
+    #[test]
+    fn old_account_urls_go_straight_to_settings_account() {
+        // Spec 011 (criteria 1, 8): permanent, no chain through another rename.
+        for from in ["account", "conta"] {
+            assert!(RENAMES.contains(&(from, "settings/account")), "{from}");
+        }
+        assert!(RENAMES.iter().all(|(_, to)| !RENAMES.iter().any(|(from, _)| from == to)));
     }
 
     #[test]

@@ -1,8 +1,8 @@
 "use client";
 
 import { Fragment, useEffect, useState, type ReactNode } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTranslations, useLocale } from "next-intl";
+import { usePathname, useRouter, useSearchParams } from "@/vite/shims/navigation";
+import { useTranslations, useLocale } from "use-intl";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Money } from "@/components/ui/Money";
@@ -47,7 +47,7 @@ function useQueryParamSetter() {
     if (value) params.set(key, value);
     else params.delete(key);
     const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
   };
 }
 

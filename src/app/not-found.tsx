@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useTranslations } from "next-intl";
+import Link from "@/vite/shims/link";
+import { useTranslations } from "use-intl";
 
 export default function NotFound() {
   const t = useTranslations("NotFound");
