@@ -13,6 +13,13 @@
     <script>
       (function(){var m=/(?:^|; )homeshare_theme=([^;]*)/.exec(document.cookie);if(m&&(m[1]==="default"||m[1]==="bolitas"))document.documentElement.dataset.theme=m[1]})();
     </script>
+    <!-- Start the first screen's reads while the bundle downloads: the app waits for /api/auth/me before it mounts,
+         so without this every other call is a second wave. A fetch() with the same URL reuses the preloaded response
+         (crossorigin="anonymous" = the wrapper's default cors/same-origin mode). Skipped on /auth/* (no session) and
+         with ?house= (the app switches house first, so these answers would be for the previous one). -->
+    <script>
+      (function(){var p=location.pathname;if(p.indexOf("/auth/")===0||/[?&]house=/.test(location.search))return;var u=["/api/auth/me","/api/groups/active/members","/api/notifications/unread-count"];if(p==="/expenses")u.push("/api/platforms","/api/categories","/api/payment-methods","/api/expenses?page=1&pageSize=50&sortField=date&sortDirection=desc&includeMonthTotals=true");u.forEach(function(h){var l=document.createElement("link");l.rel="preload";l.as="fetch";l.crossOrigin="anonymous";l.href=h;document.head.appendChild(l)})})();
+    </script>
   </head>
   <body class="antialiased">
     <div id="root"></div>
