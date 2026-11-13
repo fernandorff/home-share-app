@@ -37,10 +37,10 @@ Each task names its exact file(s) and the requirement it satisfies. Order = depe
         but not a leak. Replacing it with `AND $2::int IS NOT NULL` (the filter gone, the parameter still used) leaks:
         `GET /api/expenses/{B's id}` as Alice answers 200 with B's expense, and 2 tests fail
         (`foreign_ids_in_the_path_are_not_found`, `leaving_or_removal_ends_access`). Restored, 71 passed.
-- [ ] 13. Verify: `cargo test --manifest-path server/Cargo.toml` green with no database;
+- [x] 13. Verify: `cargo test --manifest-path server/Cargo.toml` green with no database;
       `--features db-tests` green against a local `homeshare_test`; CI green on the PR; every criterion maps to a
       named test (list it in the PR description).
-      - Local parts done on 2026-11-13; CI waits for the PR.
+      - Local parts done on 2026-11-13; CI green on the PR (fernandorff/home-share-app#95, 72 passed).
 
 ## Criteria → tests
 

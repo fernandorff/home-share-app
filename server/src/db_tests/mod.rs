@@ -473,3 +473,22 @@ fn refuses_a_database_that_is_not_a_local_test_one() {
     assert!(check_env(ok, Some("https://key@sentry.example/1")).unwrap_err().starts_with("SENTRY_DSN"));
     assert!(check_env(None, None).unwrap_err().starts_with("TEST_DATABASE_URL"));
 }
+
+/// A literal `null` JSON body to create a tag is the caller's mistake: 400 like a missing name, never a 500 (which
+/// would report to Sentry). `request` sends no body for `Value::Null`, so this one is built by hand.
+#[tokio::test]
+async fn a_null_body_to_create_a_tag_is_a_400() {
+    let fx = two_houses().await;
+    let cookie = fx.alice.in_house(fx.a.id).cookie();
+    for path in ["/api/categories", "/api/platforms", "/api/payment-methods"] {
+        let req = Request::builder()
+            .method("POST")
+            .uri(path)
+            .header(header::COOKIE, &cookie)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from("null"))
+            .expect("request");
+        let res = fx.app.clone().oneshot(req).await.expect("infallible router");
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST, "POST {path} with a null body");
+    }
+}
