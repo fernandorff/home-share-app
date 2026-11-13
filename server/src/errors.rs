@@ -34,6 +34,11 @@ impl ApiError {
     }
 }
 
+/// Parses a request body as JSON; a malformed body is the caller's mistake (400), not a server failure.
+pub fn json_body(bytes: &[u8]) -> Result<serde_json::Value, ApiError> {
+    serde_json::from_slice(bytes).map_err(|_| ApiError::new(StatusCode::BAD_REQUEST, "Request body is not valid JSON", "INVALID_JSON"))
+}
+
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let body = match self.code {
@@ -45,5 +50,17 @@ impl IntoResponse for ApiError {
             response.headers_mut().insert(header::SET_COOKIE, HeaderValue::from_static(cookie));
         }
         response
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn malformed_json_body_is_a_400_with_a_code() {
+        let err = json_body(b"{bad").unwrap_err();
+        assert_eq!((err.status, err.code), (StatusCode::BAD_REQUEST, Some("INVALID_JSON")));
+        assert_eq!(json_body(b"{\"a\":1}").unwrap()["a"], 1);
     }
 }

@@ -4,7 +4,7 @@
 use crate::{
     audit::{self, Action, Revision},
     auth::{cookie, read_cookie, Claims, Session, GROUP_COOKIE, SESSION_COOKIE},
-    errors::ApiError,
+    errors::{json_body, ApiError},
     expense_input::js_trim,
     AppState,
 };
@@ -145,13 +145,9 @@ async fn full_row(db: &impl GenericClient, id: i32) -> Result<Value, tokio_postg
     }))
 }
 
-fn parse(body: &Bytes, message: &'static str) -> Result<Value, ApiError> {
-    serde_json::from_slice(body).map_err(|e| ApiError::internal(message, e))
-}
-
 pub async fn login(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Result<Response, ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to sign in", e);
-    let body = parse(&body, "Failed to sign in")?;
+    let body = json_body(&body)?;
     let username = body["username"].as_str().map(|u| js_trim(u).to_lowercase()).unwrap_or_default();
     let password = body["password"].as_str().unwrap_or("");
     if username.is_empty() {
@@ -180,7 +176,7 @@ pub async fn login(State(state): State<AppState>, headers: HeaderMap, body: Byte
 
 pub async fn register(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Result<Response, ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to create account", e);
-    let body = parse(&body, "Failed to create account")?;
+    let body = json_body(&body)?;
     let name = body["name"].as_str().map(js_trim).unwrap_or("").to_string();
     let username = body["username"].as_str().map(|u| js_trim(u).to_lowercase()).unwrap_or_default();
     let password = body["password"].as_str().unwrap_or("");
@@ -262,7 +258,7 @@ pub async fn password(State(state): State<AppState>, Session(session): Session, 
     if !limited(format!("account:pw:{me}")) {
         return Err(too_many());
     }
-    let body = parse(&body, "Failed to update password")?;
+    let body = json_body(&body)?;
     let current = body["currentPassword"].as_str();
     let new_password = body["newPassword"].as_str().unwrap_or("");
     if let Some((message, code)) = password_problem(new_password) {
@@ -341,7 +337,7 @@ pub async fn me(State(state): State<AppState>, Session(session): Session, header
 
 pub async fn update_me(State(state): State<AppState>, Session(session): Session, body: Bytes) -> Result<Json<Value>, ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to update account", e);
-    let body = parse(&body, "Failed to update account")?;
+    let body = json_body(&body)?;
     let name = body["name"].as_str().map(|n| js_trim(n).to_string());
     let email = body["email"].as_str().map(|e| js_trim(e).to_lowercase());
     let username = body["username"].as_str().map(|u| js_trim(u).to_lowercase());

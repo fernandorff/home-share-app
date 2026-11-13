@@ -89,5 +89,5 @@ inicializa. Revogue os tokens no Sentry se não for religar.
 - Se um widget ficar sem dados por mais de um dia com tráfego normal, o nome do campo pode ter mudado no Sentry
   (ou nunca ter batido — veja o aviso do passo 6): ajuste-o no JSON e rode o script de novo (o erro da API, se
   houver, sai no terminal).
-- Corpos JSON malformados ainda respondem 500 e vão aparecer como issue (`SyntaxError` em `/api/...`); trocar
-  isso por 400 é uma mudança separada.
+- Corpos JSON malformados respondem 400 com `code: "INVALID_JSON"` (`json_body` em `server/src/errors.rs`) e não
+  viram issue; só falha inesperada do servidor (500) chega ao Sentry.

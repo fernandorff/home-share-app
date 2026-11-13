@@ -3,7 +3,7 @@
 
 use crate::{
     audit::{self, Action, Activity, Revision},
-    errors::ApiError,
+    errors::{json_body, ApiError},
     house::ActiveHouse,
     input, money, AppState,
 };
@@ -18,8 +18,6 @@ use deadpool_postgres::GenericClient;
 use serde_json::{json, Value};
 
 const ISO: &str = r#"'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'"#;
-
-type Fail<'a> = &'a dyn Fn(&dyn std::fmt::Display) -> ApiError;
 
 /// The ShoppingItem columns, as `RETURNING *` and Prisma's scalar result give them.
 fn columns(r: &tokio_postgres::Row) -> Value {
@@ -121,10 +119,6 @@ fn activity(house: &ActiveHouse, entity_id: Option<String>, action: &'static str
     Activity { group_id: house.group_id, actor_id: Some(house.session.user_id as i32), entity_type: "SHOPPING_ITEM", entity_id, action, summary, changes }
 }
 
-fn parse(body: &Bytes, fail: Fail) -> Result<Value, ApiError> {
-    serde_json::from_slice(body).map_err(|e| fail(&e))
-}
-
 pub async fn list(State(state): State<AppState>, house: ActiveHouse) -> Result<Json<Value>, ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to list items", e);
     let db = state.pool.get().await.map_err(|e| fail(&e))?;
@@ -134,7 +128,7 @@ pub async fn list(State(state): State<AppState>, house: ActiveHouse) -> Result<J
 
 pub async fn create(State(state): State<AppState>, house: ActiveHouse, body: Bytes) -> Result<Response, ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to create item", e);
-    let body = parse(&body, &fail)?;
+    let body = json_body(&body)?;
     let Some(name) = body["name"].as_str().map(crate::expense_input::js_trim).filter(|n| !n.is_empty()) else {
         return Err(ApiError::new(StatusCode::BAD_REQUEST, "Name is required", "NAME_REQUIRED"));
     };
@@ -166,7 +160,7 @@ pub async fn update(State(state): State<AppState>, house: ActiveHouse, Path(publ
     if !input::is_uuid(&public_id) {
         return Err(invalid_item());
     }
-    let body = parse(&body, &fail)?;
+    let body = json_body(&body)?;
     // `!name || !name.trim()`: a truthy non-string has no trim() and fails as a 500.
     let name = match &body["name"] {
         Value::String(s) if !crate::expense_input::js_trim(s).is_empty() => crate::expense_input::js_trim(s).to_string(),
@@ -268,7 +262,7 @@ pub async fn replace_links(State(state): State<AppState>, house: ActiveHouse, Pa
     if !input::is_uuid(&public_id) {
         return Err(invalid("Invalid item ID"));
     }
-    let body = parse(&body, &fail)?;
+    let body = json_body(&body)?;
     if let Some(expected) = body["expectedGroupId"].as_f64() {
         if expected != house.group_id as f64 {
             return Err(ApiError::new(StatusCode::CONFLICT, "Your active house changed in another tab. Reload to continue.", "STALE_GROUP"));

@@ -4,7 +4,7 @@
 use crate::{
     audit::{self, Action, Revision},
     csv::{self, js_number},
-    errors::ApiError,
+    errors::{json_body, ApiError},
     expense_input::{js_trim, DEFAULT_PLATFORMS},
     house::ActiveHouse,
     money, AppState,
@@ -62,7 +62,7 @@ async fn read(request: Request, state: &AppState) -> Result<Upload, ApiError> {
         up.text = Some(file.ok_or_else(|| fail(&"CSV file not provided"))?);
     } else if kind.contains("application/json") {
         let bytes = Bytes::from_request(request, state).await.map_err(|e| fail(&e))?;
-        let body: Value = serde_json::from_slice(&bytes).map_err(|e| fail(&e))?;
+        let body: Value = json_body(&bytes)?;
         up.text = body["csv"].as_str().map(str::to_string);
         if let Some(v) = body.get("splitEqually") { up.split_equally = v.clone() }
         if crate::input::truthy(&body["payerId"]) {

@@ -4,7 +4,7 @@
 use super::expenses::find;
 use crate::{
     audit::{self, Action, Revision},
-    errors::ApiError,
+    errors::{json_body, ApiError},
     house::ActiveHouse,
     input, money, AppState,
 };
@@ -20,7 +20,7 @@ use serde_json::{json, Value};
 
 pub async fn bulk_delete(State(state): State<AppState>, house: ActiveHouse, body: Bytes) -> Result<Json<Value>, ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to delete expenses", e);
-    let body: Value = serde_json::from_slice(&body).map_err(|e| fail(&e))?;
+    let body: Value = json_body(&body)?;
     let ids = match &body["publicIds"] {
         Value::Array(items) if !items.is_empty() => items,
         _ => return Err(ApiError::plain(StatusCode::BAD_REQUEST, "ID list is required")),

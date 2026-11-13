@@ -4,7 +4,7 @@
 use super::expenses::find;
 use crate::{
     audit::{self, Action, Activity, Revision},
-    errors::ApiError,
+    errors::{json_body, ApiError},
     expense_input::{self, js_trim, ExpenseInput, DEFAULT_CATEGORIES, DEFAULT_PAYMENT_METHODS, DEFAULT_PLATFORMS},
     house::ActiveHouse,
     input, money, notifications, AppState,
@@ -20,10 +20,6 @@ use deadpool_postgres::GenericClient;
 use serde_json::{json, Value};
 
 type Fail<'a> = &'a dyn Fn(&dyn std::fmt::Display) -> ApiError;
-
-fn parse_body(body: &Bytes, fail: Fail) -> Result<Value, ApiError> {
-    serde_json::from_slice(body).map_err(|e| fail(&e))
-}
 
 /// assertExpectedGroup: a form opened before a house switch in another tab must not write to the new house.
 fn stale_group(group_id: i32, body: &Value) -> Result<(), ApiError> {
@@ -114,7 +110,7 @@ fn notes(v: &ExpenseInput) -> Option<String> {
 
 pub async fn create(State(state): State<AppState>, house: ActiveHouse, body: Bytes) -> Result<Response, ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to create expense", e);
-    let body = parse_body(&body, &fail)?;
+    let body = json_body(&body)?;
     stale_group(house.group_id, &body)?;
     let v = expense_input::validate(&body)?;
     let mut db = state.pool.get().await.map_err(|e| fail(&e))?;
@@ -186,7 +182,7 @@ pub async fn update(State(state): State<AppState>, house: ActiveHouse, Path(publ
     }
     let mut db = state.pool.get().await.map_err(|e| fail(&e))?;
     let existing = find(&db, house.group_id, &public_id).await.map_err(|e| fail(&e))?.ok_or_else(not_found)?;
-    let body = parse_body(&body, &fail)?;
+    let body = json_body(&body)?;
     stale_group(house.group_id, &body)?;
     let v = expense_input::validate(&body)?;
     let expected_updated_at = body["expectedUpdatedAt"].as_str().map(str::to_string);
