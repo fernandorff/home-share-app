@@ -4,7 +4,7 @@
 use crate::{
     audit::{self, Action, Activity, Revision},
     db::Cached,
-    errors::ApiError,
+    errors::{json_body, ApiError},
     house::ActiveHouse,
     input, money, notifications, AppState,
 };
@@ -98,7 +98,7 @@ fn bad(message: &'static str, code: &'static str) -> ApiError {
 pub async fn post(State(state): State<AppState>, house: ActiveHouse, body: Bytes) -> Result<Response, ApiError> {
     const FAILED: &str = "Failed to record settlement";
     let fail = |e: &dyn std::fmt::Display| ApiError::internal(FAILED, e);
-    let body: Value = serde_json::from_slice(&body).map_err(|e| fail(&e))?;
+    let body: Value = json_body(&body)?;
 
     // validateSettlementInput, in its order.
     let (Some(from), Some(to)) = (input::integer(&body["fromUserId"]), input::integer(&body["toUserId"])) else {

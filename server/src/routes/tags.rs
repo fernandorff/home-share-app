@@ -3,7 +3,7 @@
 
 use crate::{
     audit::{self, Action, Activity, Revision},
-    errors::ApiError,
+    errors::{json_body, ApiError},
     house::ActiveHouse,
     input, system_defaults, AppState,
 };
@@ -99,7 +99,7 @@ pub async fn create(kind: &'static Kind, state: AppState, house: ActiveHouse, bo
         _ => "Failed to create payment method",
     };
     let fail = |e: &dyn std::fmt::Display| ApiError::internal(message, e);
-    let body: Value = serde_json::from_slice(&body).map_err(|e| fail(&e))?;
+    let body: Value = json_body(&body)?;
     if kind.strict_type && body.is_null() {
         return Err(fail(&"body is null")); // `const { name } = body` throws on null
     }

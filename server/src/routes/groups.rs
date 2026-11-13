@@ -4,7 +4,7 @@
 use crate::{
     audit::{self, Action, Activity, Revision},
     auth::{cookie, Session, GROUP_COOKIE},
-    errors::ApiError,
+    errors::{json_body, ApiError},
     expense_input::js_trim,
     house::ActiveHouse,
     input, AppState,
@@ -25,12 +25,6 @@ const CURRENCIES: [&str; 4] = ["BRL", "USD", "EUR", "GBP"];
 const MEMBER_COLORS_COUNT: i64 = 12;
 // Join codes avoid ambiguous characters (0/O, 1/I/L) so they survive being read aloud.
 const JOIN_CODE_ALPHABET: &str = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-
-type Fail<'a> = &'a dyn Fn(&dyn std::fmt::Display) -> ApiError;
-
-fn parse(body: &Bytes, fail: Fail) -> Result<Value, ApiError> {
-    serde_json::from_slice(body).map_err(|e| fail(&e))
-}
 
 fn with_house_cookie(status: StatusCode, group_id: i32, body: Value) -> Response {
     (status, [(header::SET_COOKIE, cookie(GROUP_COOKIE, &group_id.to_string()))], Json(body)).into_response()
@@ -118,7 +112,7 @@ pub async fn list(State(state): State<AppState>, Session(session): Session) -> R
 
 pub async fn create(State(state): State<AppState>, Session(session): Session, body: Bytes) -> Result<Response, ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to create house", e);
-    let body = parse(&body, &fail)?;
+    let body = json_body(&body)?;
     let name = body["name"].as_str().map(js_trim).unwrap_or("");
     if name.is_empty() {
         return Err(ApiError::new(StatusCode::BAD_REQUEST, "House name is required", "NAME_REQUIRED"));
@@ -174,7 +168,7 @@ fn js_number(v: &Value) -> f64 {
 
 pub async fn switch(State(state): State<AppState>, Session(session): Session, body: Bytes) -> Result<Response, ApiError> {
     let fail = |e: &dyn std::fmt::Display| ApiError::internal("Failed to switch house", e);
-    let body = parse(&body, &fail)?;
+    let body = json_body(&body)?;
     let group_id = js_number(&body["groupId"]);
     if group_id.fract() != 0.0 || !group_id.is_finite() || group_id <= 0.0 {
         return Err(ApiError::plain(StatusCode::BAD_REQUEST, "Invalid house"));
@@ -204,7 +198,7 @@ pub async fn join(State(state): State<AppState>, Session(session): Session, body
     if !crate::rate_limit::allow(format!("join:user:{actor}"), 20, Duration::from_secs(60)) {
         return Err(ApiError::new(StatusCode::TOO_MANY_REQUESTS, "Too many attempts. Try again shortly.", "RATE_LIMITED"));
     }
-    let body = parse(&body, &fail)?;
+    let body = json_body(&body)?;
     let code = body["code"].as_str().map(|c| js_trim(c).to_uppercase()).unwrap_or_default();
     if !valid_join_code(&code) {
         return Err(ApiError::new(StatusCode::BAD_REQUEST, "Invalid code — must be 6 characters", "INVALID_CODE_FORMAT"));
@@ -269,7 +263,7 @@ pub async fn currency(State(state): State<AppState>, house: ActiveHouse, body: B
     if !house.is_admin {
         return Err(not_admin("Only the house admin can change the currency"));
     }
-    let body = parse(&body, &fail)?;
+    let body = json_body(&body)?;
     let Some(currency) = body["currency"].as_str().filter(|c| CURRENCIES.contains(c)) else {
         return Err(ApiError::new(StatusCode::BAD_REQUEST, "Invalid currency", "INVALID_CURRENCY"));
     };
