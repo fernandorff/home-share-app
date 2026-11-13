@@ -107,4 +107,4 @@ Actions roda os gates) → merge = deploy: o job `deploy` aplica as migrations p
 banco de produção (`prisma migrate deploy`), roda `flyctl deploy --remote-only` e depois
 confere `https://homeshare.fernandorffdev.com/api/health?db=1`.
 
-Um workflow `keep-warm` chama essa URL a cada 5 minutos para manter o compute do Neon aquecido.
+Não há ping de keep-warm: no plano Free do Neon o compute dorme após 5 minutos parado, e mantê-lo acordado o mês todo passaria das 100 CU-horas do plano. A primeira requisição depois de uma pausa leva cerca de um segundo a mais.
