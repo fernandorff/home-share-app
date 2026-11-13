@@ -15,8 +15,6 @@ pub struct ExpenseInput {
     pub platforms: Vec<String>,
     pub payment_methods: Vec<String>,
     pub cents: i64,
-    /// The amount as the client sent it, for the activity diff (JS `String(amount)`).
-    pub amount: f64,
     pub date: Option<NaiveDateTime>,
     pub payer_id: Value,
     pub split_equally: bool,
@@ -109,7 +107,7 @@ pub fn validate(body: &Value) -> Result<ExpenseInput, ApiError> {
         Some(Value::Array(items)) => items.clone(),
         Some(_) => return Err(fail("Invalid participants list", "PARTICIPANTS_INVALID")),
     };
-    let mut participants = Vec::with_capacity(raw_participants.len());
+    let participants;
     if !split_equally {
         if raw_participants.is_empty() {
             return Err(fail("A custom split needs at least one participant", "SPLIT_EMPTY"));
@@ -146,7 +144,7 @@ pub fn validate(body: &Value) -> Result<ExpenseInput, ApiError> {
         input::Date::At(at) => Some(at),
     };
     let notes_present = body.get("notes").is_some();
-    Ok(ExpenseInput { description, notes, notes_present, categories, platforms, payment_methods, cents, amount, date, payer_id, split_equally, participants })
+    Ok(ExpenseInput { description, notes, notes_present, categories, platforms, payment_methods, cents, date, payer_id, split_equally, participants })
 }
 
 /// JS Number.prototype.toFixed(2) for a value that already has at most 2 decimals.

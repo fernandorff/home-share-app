@@ -38,11 +38,6 @@ pub fn fixed2(cents: i64) -> String {
     format!("{sign}{}.{:02}", abs / 100, abs % 100)
 }
 
-/// A Decimal column as Prisma serializes it: the same digits as `number`, quoted.
-pub fn amount(cents: i64) -> String {
-    format!("\"{}\"", number(cents))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -62,7 +57,6 @@ mod tests {
         assert_eq!(number(1250), "12.5");
         assert_eq!(number(-7), "-0.07");
         assert_eq!(number(0), "0");
-        assert_eq!(amount(1250), "\"12.5\"");
     }
 
     #[test]

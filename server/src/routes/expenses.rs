@@ -1,7 +1,7 @@
 //! /api/expenses (list) and /api/expenses/{id} (detail): same answers as src/app/api/expenses/** over
 //! expenseService.list / findByPublicId.
 
-use crate::{db::Cached, errors::ApiError, house::ActiveHouse, input, money, AppState};
+use crate::{errors::ApiError, house::ActiveHouse, input, money, AppState};
 use axum::{
     extract::{Path, RawQuery, State},
     http::StatusCode,
