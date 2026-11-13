@@ -395,3 +395,14 @@ async fn push_unregister_removes_only_the_callers_row() {
     alice.send("DELETE", "/api/push-subscriptions", json!({ "endpoint": endpoint })).await.is(200);
     assert_eq!(owners().await, Vec::<i32>::new());
 }
+
+/// Removing a member: an unknown person and another house's member get the very same answer, so an admin can't
+/// probe which ids exist.
+#[tokio::test]
+async fn removing_an_unknown_or_foreign_person_answers_the_same() {
+    let fx = two_houses().await;
+    let alice = fx.alice.in_house(fx.a.id);
+    let unknown = alice.send("DELETE", &format!("/api/groups/active/members/{ANY_ID}"), Value::Null).await.is(404);
+    let foreign = alice.send("DELETE", &format!("/api/groups/active/members/{}", fx.bob.public_id), Value::Null).await.is(404);
+    assert_eq!(unknown.text, foreign.text);
+}

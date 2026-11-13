@@ -365,7 +365,7 @@ pub async fn kick(State(state): State<AppState>, house: ActiveHouse, Path(target
     let db = state.pool.get().await.map_err(|e| fail(&e))?;
     let found = db.query(r#"SELECT "id" FROM "User" WHERE "publicId" = $1::text::uuid"#, &[&target]).await.map_err(|e| fail(&e))?;
     let Some(user_id) = found.first().map(|r| r.get::<_, i32>(0)) else {
-        return Err(ApiError::new(StatusCode::NOT_FOUND, "Person not found", "MEMBER_NOT_FOUND"));
+        return Err(member_gone()); // same answer as another house's member: an admin can't probe which ids exist
     };
     let me = house.session.user_id as i32;
     if user_id == me {
