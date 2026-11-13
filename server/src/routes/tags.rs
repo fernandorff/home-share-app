@@ -28,23 +28,21 @@ pub struct Kind {
     /// Lower-case words for the error messages ("payment method").
     label: &'static str,
     max: usize,
-    /// Platforms validate the untrimmed name's type first (`typeof name !== 'string'`); the others coerce.
-    strict_type: bool,
     system: &'static [&'static str],
     deleted: &'static str,
 }
 
 pub const CATEGORY: Kind = Kind {
     table: "Category", column: "categories", one: "category", many: "categories", activity: "CATEGORY", label: "category",
-    max: 30, strict_type: false, system: system_defaults::CATEGORY, deleted: "Category deleted successfully",
+    max: 30, system: system_defaults::CATEGORY, deleted: "Category deleted successfully",
 };
 pub const PLATFORM: Kind = Kind {
     table: "Platform", column: "platforms", one: "platform", many: "platforms", activity: "PLATFORM", label: "platform",
-    max: 80, strict_type: true, system: system_defaults::PLATFORM, deleted: "Platform deleted successfully",
+    max: 80, system: system_defaults::PLATFORM, deleted: "Platform deleted successfully",
 };
 pub const PAYMENT: Kind = Kind {
     table: "PaymentMethod", column: "paymentMethods", one: "paymentMethod", many: "paymentMethods", activity: "PAYMENT_METHOD",
-    label: "payment method", max: 30, strict_type: false, system: system_defaults::PAYMENT, deleted: "Payment method deleted successfully",
+    label: "payment method", max: 30, system: system_defaults::PAYMENT, deleted: "Payment method deleted successfully",
 };
 
 /// Intl.Collator('pt-BR'): base sensitivity first (case and accents ignored), then the full comparison.
@@ -100,9 +98,6 @@ pub async fn create(kind: &'static Kind, state: AppState, house: ActiveHouse, bo
     };
     let fail = |e: &dyn std::fmt::Display| ApiError::internal(message, e);
     let body: Value = json_body(&body)?;
-    if kind.strict_type && body.is_null() {
-        return Err(fail(&"body is null")); // `const { name } = body` throws on null
-    }
     let name = body.get("name").and_then(Value::as_str).map(|n| crate::expense_input::js_trim(n).to_string()).unwrap_or_default();
     if name.is_empty() {
         return Err(ApiError::new(StatusCode::BAD_REQUEST, "Name is required", "NAME_REQUIRED"));
