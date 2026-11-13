@@ -15,7 +15,6 @@ kill_timeout = 10  # SIGINT (Fly's default kill_signal) → the server stops tak
   force_https = true
   auto_stop_machines = "off"
   auto_start_machines = false
-  min_machines_running = 1
 
 [[http_service.checks]]
   grace_period = "5s"
