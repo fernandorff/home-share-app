@@ -119,3 +119,5 @@ did, so that the app stays quick with years of expenses and many people at once.
 - **Host.** One always-on container close to the Neon database (São Paulo). Candidates: Cloud Run
   `southamerica-east1` (billing currently closed), Fly.io `gru`, others. Decide with prices read from
   the official pricing pages and one measured run of criterion 8 on each finalist.
+  **Decided** (2026-11-10/11): Fly.io `gru` + Neon São Paulo + Cloudflare proxy, see
+  [ADR 0015](../../decisions/0015-hosting-fly-gru-neon-sao-paulo-cloudflare.md).
