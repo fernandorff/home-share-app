@@ -59,7 +59,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: server
-      - run: cargo test --manifest-path server/Cargo.toml
+      # Unit tests plus the tenant-isolation suite (spec 014) in one run, on a throwaway `homeshare_test` database of
+      # this job's Postgres service (`migrate deploy` creates it). Never the shadow database, never the production URL.
+      - run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeshare_test
+      - run: cargo test --manifest-path server/Cargo.toml --features db-tests
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/homeshare_test
 
   deploy:
     needs: check

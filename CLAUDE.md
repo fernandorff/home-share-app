@@ -50,7 +50,17 @@ prisma/                   # schema.prisma + migrations (Prisma só como ferramen
   Mobile-first; animações de entrada (`reveal`/`revealDelay`) + skeletons, atrás de `prefers-reduced-motion`.
 - Validações de input nas rotas (limites: descrição 200, notas 1000, CSV 1000 linhas/1MB).
 - Gates (os mesmos da CI): `npx tsc --noEmit`, `npm run lint`, `npm run test` (vitest), `npm run build` (Vite) e
-  `cargo test --manifest-path server/Cargo.toml`. Nenhum toca banco.
+  `cargo test --manifest-path server/Cargo.toml`. Esses não tocam banco. A CI roda o `cargo test` com
+  `--features db-tests` (suíte de isolamento entre casas, spec 014) num banco descartável `homeshare_test` do Postgres
+  do próprio job. A suíte recusa banco que não seja local com nome terminado em `_test`, e recusa `SENTRY_DSN` setado.
+  Rodar local num Postgres descartável (nunca o `homeshare_dev` nem o de produção):
+  ```sh
+  docker run -d --rm --name homeshare-test-pg -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:5442:5432 postgres:16-alpine
+  DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5442/homeshare_test npx prisma migrate deploy
+  TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5442/homeshare_test \
+    cargo test --manifest-path server/Cargo.toml --features db-tests
+  docker stop homeshare-test-pg
+  ```
 - **Uma branch só: `main`.** Trabalho em branch curta → PR para a `main` (a CI roda os gates) → merge = deploy:
   a CI aplica as migrações pendentes no banco de produção, faz `flyctl deploy` e confere `/api/health?db=1`.
 - Schema só via **migrations** (`prisma/migrations`; CI falha sem migration). Migrations **aditivas**: o servidor
