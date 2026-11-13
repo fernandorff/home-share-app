@@ -5,9 +5,10 @@ spec: [007](specs/007-observability-sentry/requirements.md).
 
 ## O que é coletado (e o que não é)
 
-- **Erros do servidor** (5xx e exceções inesperadas nas rotas `/api/*`), **erros do navegador** (inclusive a tela
-  de erro global) e erros não tratados de páginas e do middleware.
-- **Desempenho**: tempo de cada rota (p95), consultas ao banco (Prisma), Web Vitals (LCP, INP, CLS) e sessões sem crash.
+- **Erros do servidor** (5xx e exceções inesperadas nas rotas `/api/*`; o servidor Rust envia só erros, sem traces) e
+  **erros do navegador** (inclusive a tela de erro global).
+- **Desempenho** (só do navegador): carga e navegação das páginas, chamadas `/api/*` vistas pelo navegador, Web Vitals
+  (LCP, INP, CLS) e sessões sem crash.
 - **Nunca**: cookies (`homeshare_session`, `homeshare_group`), cabeçalhos `Authorization`/`Cookie`, corpo das
   requisições, query strings, e-mails, nomes, valores, e IP (este último depende de ligar a opção do projeto no
   passo 2 do checklist). Dos endpoints de push (spec 010) sai só a origem do serviço (`https://fcm.googleapis.com/[Filtered]`):
@@ -18,8 +19,9 @@ spec: [007](specs/007-observability-sentry/requirements.md).
 
 ## Checklist do dono (uma vez)
 
-1. **Criar o projeto**: sentry.io → Projects → Create Project → plataforma **Next.js** → nome `home-share`.
-   Copie o **DSN** (Settings → Projects → home-share → Client Keys (DSN)).
+1. **Criar o projeto**: sentry.io → Projects → Create Project → plataforma **React** → nome `home-share`.
+   Copie o **DSN** (Settings → Projects → home-share → Client Keys (DSN)). Feito em 2026-11-12: organização
+   `home-share-3x` (dados nos EUA), projeto `home-share`.
 2. **Privacidade do projeto** (não pule): Settings → Projects → home-share → **Security & Privacy** → ligue
    **Prevent Storing of IP Addresses** e mantenha **Data Scrubber** e **Use Default Scrubbers** ligados.
    O app já remove IPs, tokens, cookies e e-mails antes de enviar qualquer coisa; essas opções do projeto são uma
@@ -61,9 +63,10 @@ spec: [007](specs/007-observability-sentry/requirements.md).
 
 1. Abra o app com o DevTools → Network: aparecem `POST /monitoring?o=…&p=…` com status 200 (túnel same-origin;
    não deve haver requisição direta para `*.sentry.io`).
-2. Sentry → **Explore → Traces**: em alguns minutos surgem spans `GET /api/...` com filhos de banco e spans de
-   página com LCP/CLS/INP.
-3. Sentry → **Releases**: aparece o commit do deploy, com sessões.
+2. Sentry → **Explore → Traces**: em alguns minutos surgem traces de página (pageload/navigation) com LCP/CLS/INP e
+   as chamadas `GET /api/...` feitas pelo navegador. Com `VITE_SENTRY_TRACES_SAMPLE_RATE=0.1`, só ~1 visita em 10 gera
+   trace.
+3. Sentry → **Releases**: só aparece algo se `SENTRY_RELEASE` estiver definido na Fly (o deploy não define hoje).
 4. Quando surgir uma issue, abra o evento e confira: sem cookies, sem corpo, sem query string, sem e-mail, sem
    IP; `user.id` é um UUID; tags `route`, `http_status`, `request_id`, `house`.
 5. Para achar o log de um erro: copie a tag `request_id` do evento e busque nos logs da Fly (`fly logs`; linhas JSON com
