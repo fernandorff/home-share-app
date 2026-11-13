@@ -31,3 +31,4 @@ Rules that make specs work with AI agents:
 - [009 — Installable app + notification center](009-pwa-notification-center/requirements.md)
 - [010 — Web Push notifications](010-web-push/requirements.md)
 - [013 — Rust server with precomputed balances](013-rust-server/requirements.md)
+- [014 — Database integration tests (tenant isolation)](014-db-integration-tests/requirements.md)

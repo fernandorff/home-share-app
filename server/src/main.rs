@@ -18,6 +18,8 @@ mod rate_limit;
 mod recurrence;
 mod static_files;
 mod system_defaults;
+#[cfg(all(test, feature = "db-tests"))]
+mod db_tests;
 mod routes {
     pub mod account;
     pub mod activity;
